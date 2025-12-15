@@ -113,14 +113,14 @@ for test_file in "$TEST_DIR"/*.nh; do
     if ! "$COMPILER" --ast "$test_file" > /dev/null 2>&1; then
         echo -e "${RED}FAIL (parse error)${NC}"
         "$COMPILER" --ast "$test_file" 2>&1 | head -5
-        ((FAILED++))
+        FAILED=$((FAILED + 1))
         continue
     fi
     
     # Try to generate C code
     if ! "$COMPILER" "$test_file" > "$TMP_DIR/test_$test_name.c" 2>&1; then
         echo -e "${YELLOW}FAIL (codegen error)${NC}"
-        ((FAILED++))
+        FAILED=$((FAILED + 1))
         continue
     fi
     
@@ -128,7 +128,7 @@ for test_file in "$TEST_DIR"/*.nh; do
     if ! gcc -w "$TMP_DIR/test_$test_name.c" -I"$TMP_DIR" -o "$TMP_DIR/test_$test_name" 2>/dev/null; then
         echo -e "${YELLOW}FAIL (C compile error)${NC}"
         gcc "$TMP_DIR/test_$test_name.c" -I"$TMP_DIR" -o "$TMP_DIR/test_$test_name" 2>&1 | head -5
-        ((FAILED++))
+        FAILED=$((FAILED + 1))
         continue
     fi
     
@@ -140,21 +140,21 @@ for test_file in "$TEST_DIR"/*.nh; do
     if [ -n "$expected" ]; then
         if [ "$actual" = "$expected" ]; then
             echo -e "${GREEN}PASS${NC} (output validated)"
-            ((PASSED++))
+            PASSED=$((PASSED + 1))
         else
             echo -e "${RED}FAIL (output mismatch)${NC}"
             echo "  Expected: $expected"
             echo "  Actual:   $actual"
-            ((FAILED++))
+            FAILED=$((FAILED + 1))
         fi
     else
         # No expected output, just check it runs
         if [ $exit_code -eq 0 ]; then
             echo -e "${GREEN}PASS${NC}"
-            ((PASSED++))
+            PASSED=$((PASSED + 1))
         else
             echo -e "${YELLOW}PASS (exit code $exit_code)${NC}"
-            ((PASSED++))
+            PASSED=$((PASSED + 1))
         fi
     fi
 done
