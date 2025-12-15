@@ -1,0 +1,19 @@
+// Test: Pattern Matching
+// EXPECT: 100
+
+#classify(n) >
+    result := n | >
+        0 => 0
+        1 => 10
+        2 => 100
+        _ => 999
+    <.
+    << result.
+<
+
+#main() >
+    x := /classify/2.
+    /console_log_int/x.
+    << 0.
+<
+

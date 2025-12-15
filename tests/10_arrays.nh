@@ -1,0 +1,15 @@
+// Test: Arrays
+// EXPECT: 30
+
+arr := [].
+
+#main() >
+    // Fill array
+    for i in 0..5 >
+        arr[i] = i * 10.
+    <
+    
+    // arr[3] = 30
+    /console_log_int/arr[3].
+    << 0.
+<

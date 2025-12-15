@@ -1,0 +1,19 @@
+// Test: Integration - Simple Distance Calculation
+// EXPECT: 13
+
+#abs_val(x) >
+    << x if x ge 0 else (0 - x).
+<
+
+#manhattan_distance(x1, y1, x2, y2) >
+    dx := /abs_val/(x2 - x1).
+    dy := /abs_val/(y2 - y1).
+    << dx + dy.
+<
+
+#main() >
+    // Distance from (0,0) to (5,8) = 5 + 8 = 13
+    dist := /manhattan_distance/0/0/5/8.
+    /console_log_int/dist.
+    << 0.
+<

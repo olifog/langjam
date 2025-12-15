@@ -1,0 +1,25 @@
+// Test: Ternary (if-else expression)
+// EXPECT: 20
+
+#main() >
+    // Simple true
+    a := 1 if true else 0.
+    
+    // Simple false
+    b := 1 if false else 0.
+    
+    // With expression
+    x := 5.
+    c := 10 if x gt 3 else 20.
+    
+    // Nested: x=5, so x>10 is false, check x>3 which is true, so 2
+    d := 1 if x gt 10 else 2 if x gt 3 else 3.
+    
+    // max(10, 20) using ternary
+    val1 := 10.
+    val2 := 20.
+    max := val1 if val1 gt val2 else val2.
+    
+    /console_log_int/max.
+    << 0.
+<

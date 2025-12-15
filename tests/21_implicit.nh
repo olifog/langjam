@@ -1,0 +1,18 @@
+// Test: Implicit _ in Pattern Matching
+// EXPECT: 15
+
+#process(n) >
+    // _ refers to matched value, can use in result
+    result := n | >
+        0 => 0
+        _ => _ + 10
+    <.
+    << result.
+<
+
+#main() >
+    x := /process/5.
+    /console_log_int/x.
+    << 0.
+<
+

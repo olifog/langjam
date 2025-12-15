@@ -1,0 +1,13 @@
+// Test: Float Literals
+// EXPECT: 1
+
+#main() >
+    // Float literals
+    x := 1.5f.
+    y := 0.0f.
+    z := 99.99f.
+    
+    // Just verify they parse and compile
+    /console_log_int/1.
+    << 0.
+<

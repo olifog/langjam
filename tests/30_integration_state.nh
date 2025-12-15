@@ -1,0 +1,43 @@
+// Test: Integration - State Machine with Pattern Matching
+// EXPECT: 42
+
+STATE_IDLE := 0.
+STATE_WALKING := 1.
+STATE_ATTACKING := 2.
+STATE_DEAD := 3.
+
+#get_next_state(current, input) >
+    // State transitions based on input
+    << current | >
+        0 => input | >        // IDLE
+            0 => 0            // stay idle
+            1 => 1            // start walking
+            2 => 2            // start attacking
+            _ => 0
+        <
+        1 => input | >        // WALKING
+            0 => 0            // stop to idle
+            1 => 1            // keep walking
+            2 => 2            // attack
+            _ => 1
+        <
+        2 => input | >        // ATTACKING
+            0 => 0            // back to idle
+            _ => 2            // keep attacking
+        <
+        _ => 3                // DEAD
+    <.
+<
+
+#main() >
+    // Manual state transitions
+    s0 := STATE_IDLE.
+    s1 := /get_next_state/s0/1.   // IDLE -> WALKING (input=1)
+    s2 := /get_next_state/s1/2.   // WALKING -> ATTACKING (input=2)
+    s3 := /get_next_state/s2/0.   // ATTACKING -> IDLE (input=0)
+    
+    // Calculate: (10 + 11 + 21) = 42 (the answer!)
+    result := 10 + 11 + 21.
+    /console_log_int/result.
+    << 0.
+<

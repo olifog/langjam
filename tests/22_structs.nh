@@ -1,0 +1,12 @@
+// Test: Struct/Object Support
+// EXPECT: 15
+
+#main() >
+    // Create object with fields using { }
+    point := { x: 5, y: 10 }.
+    
+    // Access fields using ->
+    sum := point->x + point->y.
+    /console_log_int/sum.
+    << 0.
+<

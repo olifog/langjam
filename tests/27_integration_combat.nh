@@ -1,0 +1,45 @@
+// Test: Integration - Combat System with Pattern Matching
+// EXPECT: 3
+
+#get_damage_multiplier(attack_type) >
+    << attack_type | >
+        0 => 1      // Normal
+        1 => 2      // Critical
+        2 => 0      // Miss
+        _ => 1      // Default
+    <.
+<
+
+#calculate_damage(base, attack_type) >
+    mult := /get_damage_multiplier/attack_type.
+    << base * mult.
+<
+
+#get_status(hp) >
+    << hp | >
+        0 => 0      // Dead
+        _ => 1 if _ lt 30 else 2  // Low or OK
+    <.
+<
+
+#main() >
+    // Normal attack: 10 * 1 = 10
+    dmg1 := /calculate_damage/10/0.
+    
+    // Critical: 10 * 2 = 20
+    dmg2 := /calculate_damage/10/1.
+    
+    // Miss: 10 * 0 = 0
+    dmg3 := /calculate_damage/10/2.
+    
+    // Check status
+    dead := /get_status/0.         // 0
+    low := /get_status/20.         // 1
+    ok := /get_status/50.          // 2
+    
+    // Sum of statuses: 0 + 1 + 2 = 3
+    result := dead + low + ok.
+    /console_log_int/result.
+    << 0.
+<
+

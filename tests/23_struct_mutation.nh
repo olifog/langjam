@@ -1,0 +1,14 @@
+// Test: Struct Mutation
+// EXPECT: 25
+
+#main() >
+    // Create mutable object
+    counter := { value: 10 }.
+    
+    // Mutate field
+    counter->value = counter->value + 5.
+    counter->value = counter->value * 2 - 5.
+    
+    /console_log_int/counter->value.
+    << 0.
+<

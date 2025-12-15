@@ -1,0 +1,23 @@
+// Test: Expression Body Functions
+// EXPECT: 20
+
+#twice(x) => x * 2.
+
+#add(a, b) => a + b.
+
+#square(x) => x * x.
+
+#is_positive(x) => x gt 0.
+
+#max(a, b) => a if a gt b else b.
+
+#min(a, b) => a if a lt b else b.
+
+#abs_val(x) => x if x ge 0 else (0 - x).
+
+#main() >
+    // max(10, 20) = 20
+    result := /max/10/20.
+    /console_log_int/result.
+    << 0.
+<

@@ -1,0 +1,24 @@
+// Test: Advanced Pipe Operations
+// EXPECT: 26
+
+#twice(x) => x * 2.
+#inc(x) => x + 1.
+#square(x) => x * x.
+
+#main() >
+    // Test multiple pipe chains
+    
+    // Chain 1: 5 | twice | inc = 5*2+1 = 11
+    r1 := 5 | /twice/ | /inc/.
+    
+    // Chain 2: 3 | inc | twice = (3+1)*2 = 8
+    r2 := 3 | /inc/ | /twice/.
+    
+    // Chain 3: 2 | inc | inc | inc = 2+1+1+1 = 5
+    r3 := 2 | /inc/ | /inc/ | /inc/.
+    
+    // Sum: 11 + 8 + 5 + 2 = 26
+    result := r1 + r2 + r3 + 2.
+    /console_log_int/result.
+    << 0.
+<

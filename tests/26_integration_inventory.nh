@@ -1,0 +1,29 @@
+// Test: Integration - Inventory System with Arrays
+// EXPECT: 150
+
+items := [].
+
+#add_item(slot, value) >
+    items[slot] = value.
+<
+
+#get_total_value(count) >
+    total := 0.
+    for i in 0..count >
+        total = total + items[i].
+    <
+    << total.
+<
+
+#main() >
+    // Add items with their values
+    /add_item/0/50.   // sword
+    /add_item/1/30.   // shield
+    /add_item/2/20.   // potion
+    /add_item/3/50.   // armor
+    
+    // Total: 50 + 30 + 20 + 50 = 150
+    total := /get_total_value/4.
+    /console_log_int/total.
+    << 0.
+<

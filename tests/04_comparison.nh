@@ -1,0 +1,23 @@
+// Test: Comparison Operators
+// EXPECT: 6
+
+#main() >
+    count := 0.
+    
+    // Each true comparison adds 1
+    count = count + (5 == 5).
+    count = count + (5 != 3).
+    count = count + (3 lt 5).
+    count = count + (5 gt 3).
+    count = count + (5 le 5).
+    count = count + (5 ge 5).
+    
+    // These should be false (0)
+    count = count + (5 == 3).
+    count = count + (5 != 5).
+    count = count + (5 lt 3).
+    count = count + (3 gt 5).
+    
+    /console_log_int/count.
+    << 0.
+<

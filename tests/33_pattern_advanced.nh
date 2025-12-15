@@ -1,0 +1,57 @@
+// Test: Advanced Pattern Matching
+// EXPECT: 110
+
+#classify(n) >
+    << n | >
+        0 => 0
+        1 => 10
+        2 => 20
+        3 => 30
+        _ => 100
+    <.
+<
+
+#classify_range(n) >
+    // Using _ to refer to matched value in default case
+    << n | >
+        0 => 0
+        _ => _ * 10
+    <.
+<
+
+#nested_match(a, b) >
+    // Match on a, then use b
+    << a | >
+        0 => b | >
+            0 => 0
+            _ => 1
+        <
+        1 => b | >
+            0 => 10
+            _ => 11
+        <
+        _ => 99
+    <.
+<
+
+#main() >
+    // classify tests
+    c0 := /classify/0.     // 0
+    c1 := /classify/1.     // 10
+    c2 := /classify/2.     // 20
+    c3 := /classify/3.     // 30
+    c4 := /classify/99.    // 100 (default)
+    
+    // Sum: 0 + 10 + 20 + 30 + 100 = 160
+    // But let's verify key ones work
+    
+    // nested_match
+    n1 := /nested_match/1/0.   // 10
+    n2 := /nested_match/1/1.   // 11
+    
+    // Output: 10 + 100 = 110
+    result := c1 + c4.
+    /console_log_int/result.
+    << 0.
+<
+

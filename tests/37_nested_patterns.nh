@@ -1,0 +1,49 @@
+// Test: Nested Pattern Matching
+// EXPECT: 111
+
+#outer_match(a) >
+    << a | >
+        0 => 0
+        1 => 100
+        2 => 200
+        _ => 999
+    <.
+<
+
+#double_match(a, b) >
+    first := a | >
+        0 => 0
+        1 => 10
+        _ => 50
+    <.
+    second := b | >
+        0 => 0
+        1 => 1
+        _ => 5
+    <.
+    << first + second.
+<
+
+#chained_match(x) >
+    << x | >
+        _ => _ | >
+            0 => 0
+            1 => 1
+            _ => _ * 10
+        <
+    <.
+<
+
+#main() >
+    // double_match(1, 1) = 10 + 1 = 11
+    r1 := /double_match/1/1.
+    
+    // outer_match(1) = 100
+    r2 := /outer_match/1.
+    
+    // Total: 11 + 100 = 111
+    result := r1 + r2.
+    /console_log_int/result.
+    << 0.
+<
+

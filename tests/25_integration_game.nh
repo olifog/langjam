@@ -1,0 +1,40 @@
+// Test: Integration - Simple Game Logic
+// EXPECT: 70
+
+MAX_HP := 100.
+
+#clamp(val, min_val, max_val) >
+    << min_val when val lt min_val.
+    << max_val when val gt max_val.
+    << val.
+<
+
+#damage(current_hp, amount) >
+    << /clamp/(current_hp - amount)/0/MAX_HP.
+<
+
+#heal(current_hp, amount) >
+    << /clamp/(current_hp + amount)/0/MAX_HP.
+<
+
+#main() >
+    // Create player state
+    player := { hp: 100, x: 5, y: 5 }.
+    
+    // Take 50 damage -> 50 HP
+    player->hp = /damage/player->hp/50.
+    
+    // Heal 30 -> 80 HP
+    player->hp = /heal/player->hp/30.
+    
+    // Take 10 damage -> 70 HP
+    player->hp = /damage/player->hp/10.
+    
+    // Move player
+    player->x = player->x + 1.
+    player->y = player->y + 2.
+    
+    // Final HP should be 70
+    /console_log_int/player->hp.
+    << 0.
+<

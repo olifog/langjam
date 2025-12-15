@@ -1,0 +1,33 @@
+// Test: Expression-Heavy Code
+// EXPECT: 64
+
+#double(x) => x * 2.
+#square(x) => x * x.
+#add_one(x) => x + 1.
+
+#chain_math(x) {
+    // Multiple operations
+    a := x * 2.
+    b := a + 5.
+    c := b * 3.
+    d := c - 10.
+    << d.
+}
+
+#ternary_chain(x) {
+    << 0 if x < 0 else
+       1 if x < 10 else
+       2 if x < 100 else
+       3.
+}
+
+#pipe_chain(x) {
+    << x | /double/ | /add_one/ | /double/ | /add_one/.
+}
+
+#main() {
+    // square(8) = 64
+    result := /square/8.
+    /console_log_int/result.
+    << 0.
+}

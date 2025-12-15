@@ -1,0 +1,21 @@
+// Test: Wand Call Syntax
+// EXPECT: 10
+
+#identity(x) >
+    << x.
+<
+
+#add(a, b) >
+    << a + b.
+<
+
+#mul(a, b, c) >
+    << a * b + c.
+<
+
+#main() >
+    // mul(2, 3, 4) = 2*3+4 = 10
+    result := /mul/2/3/4.
+    /console_log_int/result.
+    << 0.
+<

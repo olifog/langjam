@@ -1,0 +1,18 @@
+// Test: Pipes
+// EXPECT: 10
+
+#double_val(x) >
+    << x * 2.
+<
+
+#add_ten(x) >
+    << x + 10.
+<
+
+#main() >
+    // Pipe to function
+    result := 5 | /double_val/.
+    /console_log_int/result.
+    << 0.
+<
+

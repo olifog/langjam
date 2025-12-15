@@ -1,0 +1,30 @@
+// Test: When/Unless Trailing Conditions
+// EXPECT: 3
+
+counter := 0.
+
+#inc() >
+    counter = counter + 1.
+<
+
+#main() >
+    // When true - should execute
+    /inc/ when true.
+    
+    // When false - should not execute
+    /inc/ when false.
+    
+    // Unless true - should not execute
+    /inc/ unless true.
+    
+    // Unless false - should execute
+    /inc/ unless false.
+    
+    // Conditional when
+    x := 5.
+    /inc/ when x gt 3.      // executes
+    /inc/ when x lt 3.      // doesn't execute
+    
+    /console_log_int/counter.
+    << 0.
+<

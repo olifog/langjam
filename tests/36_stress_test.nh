@@ -1,0 +1,35 @@
+// Test: Stress Test - Loops, Recursion, Arrays
+// EXPECT: 500500
+
+data := [].
+
+#sum_to_n(n) >
+    // Sum 1+2+...+n using loop
+    total := 0.
+    for i in 1..(n + 1) >
+        total = total + i.
+    <
+    << total.
+<
+
+#fill_array(count) >
+    for i in 0..count >
+        data[i] = i.
+    <
+<
+
+#sum_array(count) >
+    total := 0.
+    for i in 0..count >
+        total = total + data[i].
+    <
+    << total.
+<
+
+#main() >
+    // Sum 1 to 1000 = 1000*1001/2 = 500500
+    result := /sum_to_n/1000.
+    /console_log_int/result.
+    << 0.
+<
+

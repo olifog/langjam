@@ -1,0 +1,23 @@
+// Test: Complex/Integration Tests
+// EXPECT: 55
+
+#fib_iter(n) >
+    << 0 when n == 0.
+    << 1 when n == 1.
+    
+    a := 0.
+    b := 1.
+    for i in 2..(n + 1) >
+        temp := a + b.
+        a = b.
+        b = temp.
+    <
+    << b.
+<
+
+#main() >
+    // fib(10) = 55
+    result := /fib_iter/10.
+    /console_log_int/result.
+    << 0.
+<

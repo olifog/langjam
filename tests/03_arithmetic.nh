@@ -1,0 +1,50 @@
+// Test: Arithmetic Operators
+// EXPECT: 8
+
+#test_add() >
+    << 5 + 3.
+<
+
+#test_sub() >
+    << 10 - 4.
+<
+
+#test_mul() >
+    << 6 * 7.
+<
+
+#test_div() >
+    << 20 / 4.
+<
+
+#test_mod() >
+    << 17 % 5.
+<
+
+#test_precedence() >
+    << 2 + 3 * 4.
+<
+
+#test_parens() >
+    << (2 + 3) * 4.
+<
+
+#test_negative() >
+    x := -5.
+    y := 3.
+    << x + y.
+<
+
+#main() >
+    a := /test_add/.
+    b := /test_sub/.
+    c := /test_mul/.
+    d := /test_div/.
+    e := /test_mod/.
+    f := /test_precedence/.
+    g := /test_parens/.
+    h := /test_negative/.
+    /console_log_int/a.
+    << 0.
+<
+

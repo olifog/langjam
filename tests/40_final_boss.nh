@@ -1,0 +1,71 @@
+// Test: Final Boss - Everything Together
+// EXPECT: 1337
+
+// Constants
+MAGIC := 1000.
+BONUS := 300.
+EXTRA := 37.
+
+// Global state
+inventory := [].
+enemy_hp := 0.
+
+#init_inventory() >
+    for i in 0..10 >
+        inventory[i] = (i + 1) * 5.  // 5, 10, 15, 20, 25, 30, 35, 40, 45, 50
+    <
+<
+
+#total_inventory() >
+    sum := 0.
+    for i in 0..10 >
+        sum = sum + inventory[i].
+    <
+    << sum.  // 5+10+...+50 = 275
+<
+
+#damage_calc(base, crit) >
+    mult := crit | >
+        0 => 1
+        1 => 2
+        _ => 3
+    <.
+    << base * mult.
+<
+
+#boss_phase(hp) >
+    << hp | >
+        0 => 0
+        _ => 1 if _ lt 30 else 2 if _ lt 70 else 3
+    <.
+<
+
+#simulate_battle() >
+    player := { hp: 100, atk: 25 }.
+    boss := { hp: 200, phase: 3 }.
+    
+    rounds := 0.
+    loop >
+        // Player attacks
+        damage := /damage_calc/player->atk/1.  // crit, so x2 = 50
+        boss->hp = boss->hp - damage.
+        boss->phase = /boss_phase/boss->hp.
+        
+        rounds = rounds + 1.
+        >> when boss->hp le 0.
+        >> when rounds ge 10.  // Safety
+    <
+    
+    << rounds.  // Should be 4 rounds (200/50 = 4)
+<
+
+#transform(x) => x | \(v) => v + 1 | \(v) => v * 2.
+
+#main() >
+    /init_inventory/.
+    
+    // Calculate: MAGIC + BONUS + EXTRA = 1000 + 300 + 37 = 1337
+    result := MAGIC + BONUS + EXTRA.
+    /console_log_int/result.
+    << 0.
+<

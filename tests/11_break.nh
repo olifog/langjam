@@ -1,0 +1,13 @@
+// Test: Break Statement
+// EXPECT: 5
+
+#main() >
+    i := 0.
+    loop >
+        i = i + 1.
+        >> when i ge 5.
+    <
+    
+    /console_log_int/i.
+    << 0.
+<

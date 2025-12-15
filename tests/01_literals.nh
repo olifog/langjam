@@ -1,0 +1,21 @@
+// Test: Literals
+// EXPECT: 42
+
+#main() >
+    // Integer literals
+    x := 42.
+    y := 0.
+    neg := -5.
+    
+    // String literals
+    s := "hello world".
+    empty := "".
+    
+    // Boolean literals
+    t := true.
+    f := false.
+    
+    // Output the integer
+    /console_log_int/x.
+    << 0.
+<

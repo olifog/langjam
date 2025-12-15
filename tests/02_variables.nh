@@ -1,0 +1,20 @@
+// Test: Variables and Constants
+// EXPECT: 111
+
+MAX_VALUE := 100.
+MIN_VALUE := 0.
+
+#main() >
+    // Declaration
+    x := 5.
+    y := 10.
+    
+    // Assignment
+    x = 11.
+    
+    // Constants
+    result := MAX_VALUE + x.
+    
+    /console_log_int/result.
+    << 0.
+<

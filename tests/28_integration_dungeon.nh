@@ -1,0 +1,43 @@
+// Test: Integration - Dungeon Grid with Loops and Conditionals
+// EXPECT: 36
+
+dungeon := [].
+
+#init_dungeon(width, height) >
+    for y in 0..height >
+        for x in 0..width >
+            idx := y * width + x.
+            // Walls on edges (1), floor inside (0)
+            is_wall := x == 0 or x == (width - 1) or y == 0 or y == (height - 1).
+            dungeon[idx] = 1 if is_wall else 0.
+        <
+    <
+<
+
+#count_walls(width, height) >
+    count := 0.
+    for y in 0..height >
+        for x in 0..width >
+            idx := y * width + x.
+            count = count + dungeon[idx].
+        <
+    <
+    << count.
+<
+
+#count_floors(width, height) >
+    total := width * height.
+    walls := /count_walls/width/height.
+    << total - walls.
+<
+
+#main() >
+    // 10x10 dungeon
+    /init_dungeon/10/10.
+    
+    // Walls: 10+10+8+8 = 36 (perimeter minus corners counted once)
+    walls := /count_walls/10/10.
+    /console_log_int/walls.
+    << 0.
+<
+

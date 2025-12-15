@@ -1,0 +1,10 @@
+// Test: Lambdas with Pipes
+// EXPECT: 25
+
+#main() >
+    // Lambda applied via pipe
+    result := 5 | \(x) => x * x.
+    /console_log_int/result.
+    << 0.
+<
+

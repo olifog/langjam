@@ -1,0 +1,24 @@
+// Test: Integration - Scoring System
+// EXPECT: 275
+
+BONUS_MULTIPLIER := 2.
+
+#calculate_score(points, bonus) >
+    << points + (bonus * BONUS_MULTIPLIER).
+<
+
+#apply_combo(value, combo) >
+    << value * combo.
+<
+
+#main() >
+    // Calculate scores
+    s1 := /calculate_score/100/25.   // 100 + 50 = 150
+    s2 := /calculate_score/50/25.    // 50 + 50 = 100
+    s3 := /calculate_score/25/0.     // 25 + 0 = 25
+    
+    // Total: 150 + 100 + 25 = 275
+    total := s1 + s2 + s3.
+    /console_log_int/total.
+    << 0.
+<

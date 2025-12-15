@@ -1,0 +1,37 @@
+// Test: Complex Control Flow
+// EXPECT: 15
+
+#find_first_positive(start, limit) >
+    i := start.
+    loop >
+        << i when i gt 0.
+        i = i + 1.
+        >> when i ge limit.
+    <
+    << 0.  // Not found
+<
+
+#count_matching(start, end, target_mod) >
+    count := 0.
+    for i in start..end >
+        // Count numbers divisible by target_mod
+        remainder := i - ((i / target_mod) * target_mod).
+        // Use conditional assignment
+        count = count + 1 when remainder == 0.
+    <
+    << count.
+<
+
+#early_exit_test(n) >
+    << 0 when n le 0.
+    << 1 when n == 1.
+    << n * 2 when n lt 5.
+    << 100.
+<
+
+#main() >
+    // count_matching(0, 30, 2) = count of evens = 15 (0,2,4,...28)
+    evens := /count_matching/0/30/2.
+    /console_log_int/evens.
+    << 0.
+<

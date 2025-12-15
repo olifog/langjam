@@ -1,0 +1,76 @@
+// Test: Full Integration - All Features Combined
+// EXPECT: 42
+
+// Constants
+ANSWER := 42.
+MULTIPLIER := 2.
+
+// Global array
+scores := [].
+
+#abs(x) => x if x ge 0 else (0 - x).
+
+#sign(x) => x | >
+    0 => 0
+    _ => 1 if _ gt 0 else (0 - 1)
+<.
+
+#clamp(val, lo, hi) >
+    << lo when val lt lo.
+    << hi when val gt hi.
+    << val.
+<
+
+#transform_value(x) >
+    // Complex transformation using pipes and pattern matching
+    << x | \(v) => v * 2 | >
+        0 => 0
+        _ => _ + 10
+    <.
+<
+
+#process_scores(count) >
+    total := 0.
+    for i in 0..count >
+        total = total + scores[i].
+    <
+    << total.
+<
+
+#main() >
+    // Initialize scores
+    for i in 0..5 >
+        scores[i] = (i + 1) * 10.
+    <
+    // scores = [10, 20, 30, 40, 50]
+    
+    // Test clamp
+    clamped := /clamp/100/0/50.   // 50
+    
+    // Test sign with negative using subtraction expression
+    s1 := /sign/5.     // 1
+    neg := 0 - 5.
+    s2 := /sign/neg.   // -1
+    s3 := /sign/0.     // 0
+    
+    // Test transform
+    t1 := /transform_value/5.   // 5*2=10, 10+10=20
+    
+    // Nested ternary with condition
+    x := 5.
+    result := (x * 10) if x gt 0 else 0.  // 50
+    
+    // Struct with member access and conditional assignment
+    player := { hp: 100, score: 0 }.
+    player->score = player->hp / 2 when player->hp gt 0.  // 50
+    
+    // Pattern match with piped result
+    category := player->score | >
+        0 => 0
+        _ => 1 if _ lt 30 else 2
+    <.  // 2
+    
+    // Final calculation: ANSWER = 42
+    /console_log_int/ANSWER.
+    << 0.
+<

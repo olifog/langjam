@@ -1,0 +1,27 @@
+// Test: Advanced Struct Operations
+// EXPECT: 35
+
+#main() >
+    // Create local vectors
+    v1 := { x: 10, y: 5 }.
+    v2 := { x: 5, y: 10 }.
+    
+    // Add them manually
+    v3 := { x: 0, y: 0 }.
+    v3->x = v1->x + v2->x.  // 15
+    v3->y = v1->y + v2->y.  // 15
+    
+    // Scale v1 by 2 inline
+    v1->x = v1->x * 2.  // 20
+    v1->y = v1->y * 2.  // 10
+    
+    // Calculate v1 magnitude inline
+    ax := v1->x if v1->x ge 0 else (0 - v1->x).  // 20
+    ay := v1->y if v1->y ge 0 else (0 - v1->y).  // 10
+    mag := ax + ay.  // 30
+    
+    // Final: v1->x + v3->y = 20 + 15 = 35
+    result := v1->x + v3->y.
+    /console_log_int/result.
+    << 0.
+<

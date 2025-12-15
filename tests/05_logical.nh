@@ -1,0 +1,24 @@
+// Test: Logical Operators
+// EXPECT: 5
+
+#main() >
+    count := 0.
+    
+    // AND tests (true and true = 1)
+    count = count + (true and true).    // +1 = 1
+    
+    // OR tests (true or false = 1, true or true = 1)
+    count = count + (true or false).    // +1 = 2
+    count = count + (true or true).     // +1 = 3
+    
+    // NOT tests (not false = 1)
+    count = count + (not false).        // +1 = 4
+    
+    // Complex: x gt 0 and y gt 0 = 1
+    x := 5.
+    y := 10.
+    count = count + (x gt 0 and y gt 0).  // +1 = 5
+    
+    /console_log_int/count.
+    << 0.
+<

@@ -1,0 +1,13 @@
+// Test: Loops
+// EXPECT: 10
+
+#main() >
+    // For range: sum of 0..5 = 0+1+2+3+4 = 10
+    sum := 0.
+    for i in 0..5 >
+        sum = sum + i.
+    <
+    
+    /console_log_int/sum.
+    << 0.
+<

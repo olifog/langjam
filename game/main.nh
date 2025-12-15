@@ -1,0 +1,18 @@
+// nh - Simple Test
+
+TILE := 32.
+hero_x := 5.
+hero_y := 5.
+
+#game_init() >
+    /console_log/"nh initialized!".
+<
+
+#game_update(dt) >
+    x := 1.
+<
+
+#game_render() >
+    /gfx_clear/10/10/20/255.
+    /gfx_present/.
+<

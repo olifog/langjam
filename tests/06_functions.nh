@@ -1,0 +1,23 @@
+// Test: Functions
+// EXPECT: 25
+
+#square(x) >
+    << x * x.
+<
+
+#add(a, b) >
+    << a + b.
+<
+
+#early_return(x) >
+    << 0 when x lt 0.
+    << x * x.
+<
+
+#main() >
+    // Normal function call
+    result := /square/5.
+    
+    /console_log_int/result.
+    << 0.
+<

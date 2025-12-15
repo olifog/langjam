@@ -1,0 +1,18 @@
+// Test: Pipe Chaining
+// EXPECT: 30
+
+#double_val(x) >
+    << x * 2.
+<
+
+#add_ten(x) >
+    << x + 10.
+<
+
+#main() >
+    // Chain pipes: 5 * 2 = 10, then 10 + 10 = 20, then 20 + 10 = 30
+    result := 5 | /double_val/ | /add_ten/ | /add_ten/.
+    /console_log_int/result.
+    << 0.
+<
+
