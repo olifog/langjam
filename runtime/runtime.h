@@ -106,7 +106,7 @@ typedef char GLchar;
 Value gl_create_shader(Value type);
 
 // Set shader source and compile (returns shader ID, 0 on failure)
-Value gl_shader_source_compile(Value shader, const char *source);
+Value gl_shader_source_compile(Value shader, Value source);
 
 // Create a program
 Value gl_create_program(void);
@@ -128,7 +128,7 @@ void gl_delete_shader(Value shader);
 // ============================================================================
 
 // Get uniform location
-Value gl_get_uniform_location(Value program, const char *name);
+Value gl_get_uniform_location(Value program, Value name);
 
 // Set uniforms
 void gl_uniform1i(Value location, Value v0);
@@ -168,7 +168,7 @@ void gl_delete_vertex_array(Value vao);
 // ============================================================================
 
 // Get attribute location
-Value gl_get_attrib_location(Value program, const char *name);
+Value gl_get_attrib_location(Value program, Value name);
 
 // Enable vertex attribute array
 void gl_enable_vertex_attrib_array(Value index);
@@ -282,7 +282,7 @@ void text_clear(void);
 
 // Draw text at position with size and color (RGB 0-255)
 void text_draw(Value x, Value y, Value size, Value r, Value g, Value b,
-               const char *text);
+               Value text);
 
 // Draw a single character (for dungeon rendering)
 void text_char(Value x, Value y, Value size, Value r, Value g, Value b, char c);

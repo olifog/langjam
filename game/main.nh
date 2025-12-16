@@ -2,6 +2,84 @@
 // Rendered entirely in nh using text_* functions with Berkeley Mono font
 
 // ============================================================================
+// GL Constants for Shaders (prefixed to avoid conflicts with C macros)
+// ============================================================================
+
+MY_GL_VERTEX_SHADER := 35633.
+MY_GL_FRAGMENT_SHADER := 35632.
+MY_GL_ARRAY_BUFFER := 34962.
+MY_GL_STATIC_DRAW := 35044.
+MY_GL_TRIANGLES := 4.
+MY_GL_FLOAT := 5126.
+MY_GL_FALSE := 0.
+
+// ============================================================================
+// Background Shader State
+// ============================================================================
+
+bg_shader_prog := 0.
+bg_vao := 0.
+bg_vbo := 0.
+bg_time_loc := 0.
+bg_res_loc := 0.
+bg_shader_ready := 0.
+bg_start_time := 0.
+
+// ============================================================================
+// Shader Sources - Dark swirling dungeon atmosphere
+// ============================================================================
+
+bg_vert_src := "#version 300 es
+layout(location = 0) in vec2 aPos;
+void main() {
+    gl_Position = vec4(aPos, 0.0, 1.0);
+}".
+
+bg_frag_src := "#version 300 es
+precision highp float;
+out vec4 FragColor;
+uniform float uTime;
+uniform vec2 uResolution;
+
+void main() {
+    vec2 uv = gl_FragCoord.xy / uResolution;
+    vec2 p = (uv - 0.5) * 2.0;
+    p.x *= uResolution.x / uResolution.y;
+    
+    float t = uTime / 1000.0 * 0.4;
+    float r = length(p);
+    float a = atan(p.y, p.x);
+    
+    // Multiple swirl layers for depth
+    float v1 = sin(r * 8.0 - a * 3.0 - t * 2.0) * 0.5 + 0.5;
+    float v2 = sin(r * 6.0 + a * 5.0 + t * 1.5) * 0.5 + 0.5;
+    float v3 = sin(r * 12.0 - a * 2.0 + t * 3.5) * 0.5 + 0.5;
+    float v4 = sin(p.x * 4.0 + p.y * 3.0 - t * 1.2) * 0.5 + 0.5;
+    
+    // Dark dungeon palette - purples, teals, deep blues
+    vec3 c1 = vec3(0.01, 0.005, 0.03);   // Near black base
+    vec3 c2 = vec3(0.05, 0.02, 0.09);    // Dark purple
+    vec3 c3 = vec3(0.02, 0.04, 0.07);    // Dark teal
+    vec3 c4 = vec3(0.04, 0.01, 0.06);    // Deep magenta
+    
+    // Blend colors based on swirl patterns
+    vec3 col = c1;
+    col = mix(col, c2, v1 * 0.35);
+    col = mix(col, c3, v2 * 0.25);
+    col = mix(col, c4, v3 * 0.2);
+    
+    // Add subtle pulsing glow
+    float pulse = sin(t * 2.0) * 0.5 + 0.5;
+    col += vec3(0.01, 0.005, 0.02) * pulse * v4;
+    
+    // Vignette - darker at edges
+    float vig = 1.0 - smoothstep(0.3, 1.5, r);
+    col *= 0.7 + 0.3 * vig;
+    
+    FragColor = vec4(col, 1.0);
+}".
+
+// ============================================================================
 // Display Constants - Classic NetHack look
 // ============================================================================
 
@@ -233,6 +311,103 @@ game_initialized := 0.
 
 
 // ============================================================================
+// Background Shader Setup
+// ============================================================================
+
+#init_background_shader() >
+    /console_log/"Initializing background shader...".
+    
+    // Create and compile vertex shader
+    vs := /gl_create_shader/MY_GL_VERTEX_SHADER.
+    vs_ok := /gl_shader_source_compile/vs/bg_vert_src.
+    /console_log/"Vertex shader failed!" when vs_ok == 0.
+    
+    // Create and compile fragment shader
+    fs := /gl_create_shader/MY_GL_FRAGMENT_SHADER.
+    fs_ok := /gl_shader_source_compile/fs/bg_frag_src.
+    /console_log/"Fragment shader failed!" when fs_ok == 0.
+    
+    // Create and link program
+    bg_shader_prog = /gl_create_program/.
+    /gl_attach_shader/bg_shader_prog/vs.
+    /gl_attach_shader/bg_shader_prog/fs.
+    link_ok := /gl_link_program/bg_shader_prog.
+    /console_log/"Shader link failed!" when link_ok == 0.
+    
+    // Clean up shaders (they're in the program now)
+    /gl_delete_shader/vs.
+    /gl_delete_shader/fs.
+    
+    // Get uniform locations
+    bg_time_loc = /gl_get_uniform_location/bg_shader_prog/"uTime".
+    bg_res_loc = /gl_get_uniform_location/bg_shader_prog/"uResolution".
+    
+    // Create VAO and VBO for fullscreen quad
+    bg_vao = /gl_create_vertex_array/.
+    bg_vbo = /gl_create_buffer/.
+    
+    /gl_bind_vertex_array/bg_vao.
+    /gl_bind_buffer/MY_GL_ARRAY_BUFFER/bg_vbo.
+    
+    // Create vertex data for fullscreen quad (two triangles)
+    // Vertices: [-1,-1], [1,-1], [-1,1], [1,-1], [1,1], [-1,1]
+    quad_buf := /buf_create_floats/12.
+    neg1 := 0.0f - 1.0f.
+    /buf_set_float/quad_buf/0/neg1.   // v0.x
+    /buf_set_float/quad_buf/1/neg1.   // v0.y
+    /buf_set_float/quad_buf/2/1.0f.   // v1.x
+    /buf_set_float/quad_buf/3/neg1.   // v1.y
+    /buf_set_float/quad_buf/4/neg1.   // v2.x
+    /buf_set_float/quad_buf/5/1.0f.   // v2.y
+    /buf_set_float/quad_buf/6/1.0f.   // v3.x
+    /buf_set_float/quad_buf/7/neg1.   // v3.y
+    /buf_set_float/quad_buf/8/1.0f.   // v4.x
+    /buf_set_float/quad_buf/9/1.0f.   // v4.y
+    /buf_set_float/quad_buf/10/neg1.  // v5.x
+    /buf_set_float/quad_buf/11/1.0f.  // v5.y
+    
+    // Upload to GPU
+    /buf_upload/MY_GL_ARRAY_BUFFER/quad_buf/MY_GL_STATIC_DRAW.
+    /buf_free/quad_buf.
+    
+    // Set up vertex attribute
+    /gl_enable_vertex_attrib_array/0.
+    /gl_vertex_attrib_pointer/0/2/MY_GL_FLOAT/MY_GL_FALSE/0/0.
+    
+    // Unbind
+    /gl_bind_buffer/MY_GL_ARRAY_BUFFER/0.
+    /gl_bind_vertex_array/0.
+    
+    bg_start_time = /time_ms/.
+    bg_shader_ready = 1.
+    /console_log/"Background shader ready!".
+<
+
+#render_background() >
+    << 0 when bg_shader_ready == 0.
+    
+    // Calculate elapsed time in milliseconds
+    now := /time_ms/.
+    elapsed := now - bg_start_time.
+    
+    // Use our shader program
+    /gl_use_program/bg_shader_prog.
+    
+    // Set uniforms - elapsed is in ms, shader divides by 1000 for seconds
+    // C will convert the long to float automatically
+    /gl_uniform1f/bg_time_loc/elapsed.
+    /gl_uniform2f/bg_res_loc/800.0f/600.0f.
+    
+    // Draw fullscreen quad
+    /gl_bind_vertex_array/bg_vao.
+    /gl_draw_arrays/MY_GL_TRIANGLES/0/6.
+    
+    // Reset state for text rendering (fixed-function)
+    /gl_bind_vertex_array/0.
+    /gl_use_program/0.
+<
+
+// ============================================================================
 // Movement
 // ============================================================================
 
@@ -276,6 +451,7 @@ game_initialized := 0.
 #game_init() >
     /console_log/"nh dungeon initializing...".
     /rng_seed/12345.
+    /init_background_shader/.
     /generate_dungeon/.
     game_initialized = 1.
     /console_log/"Dungeon ready!".
@@ -315,6 +491,9 @@ game_initialized := 0.
 <
 
 #do_render() >
+    // Render swirly background shader first
+    /render_background/.
+    
     /text_clear/.
     
     // Draw dungeon

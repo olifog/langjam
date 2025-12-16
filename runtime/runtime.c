@@ -264,7 +264,36 @@ Value ds_list_len(Value list) {
 
 static int gl_initialized = 0;
 
+#ifdef __EMSCRIPTEN__
+#include <emscripten/html5.h>
+#endif
+
 static void ensure_gl_context(void) {
+#ifdef __EMSCRIPTEN__
+  if (!gl_initialized) {
+    EmscriptenWebGLContextAttributes attrs;
+    emscripten_webgl_init_context_attributes(&attrs);
+    attrs.majorVersion = 2;
+    attrs.minorVersion = 0;
+    attrs.alpha = 0;
+    attrs.depth = 1;
+    attrs.stencil = 0;
+    attrs.antialias = 1;
+    attrs.premultipliedAlpha = 1;
+    attrs.preserveDrawingBuffer = 0;
+    attrs.powerPreference = EM_WEBGL_POWER_PREFERENCE_DEFAULT;
+    attrs.failIfMajorPerformanceCaveat = 0;
+    attrs.enableExtensionsByDefault = 1;
+    
+    EMSCRIPTEN_WEBGL_CONTEXT_HANDLE ctx = emscripten_webgl_create_context("#canvas", &attrs);
+    if (ctx <= 0) {
+      printf("Failed to create WebGL2 context: %d\n", ctx);
+      return;
+    }
+    emscripten_webgl_make_context_current(ctx);
+    gl_initialized = 1;
+  }
+#else
   if (!gl_initialized) {
     int argc = 1;
     char *argv[] = {"dungeon", NULL};
@@ -279,6 +308,7 @@ static void ensure_gl_context(void) {
     glOrtho(0, 800, 600, 0, -1, 1);
     glMatrixMode(GL_MODELVIEW);
   }
+#endif
 }
 
 // ============================================================================
@@ -316,9 +346,10 @@ Value gl_create_shader(Value type) {
   return (Value)glCreateShader((GLenum)type);
 }
 
-Value gl_shader_source_compile(Value shader, const char *source) {
+Value gl_shader_source_compile(Value shader, Value source) {
   ensure_gl_context();
-  glShaderSource((GLuint)shader, 1, &source, NULL);
+  const char *src = (const char *)source;
+  glShaderSource((GLuint)shader, 1, &src, NULL);
   glCompileShader((GLuint)shader);
 
   GLint success;
@@ -367,9 +398,9 @@ void gl_delete_shader(Value shader) {
   glDeleteShader((GLuint)shader);
 }
 
-Value gl_get_uniform_location(Value program, const char *name) {
+Value gl_get_uniform_location(Value program, Value name) {
   ensure_gl_context();
-  return (Value)glGetUniformLocation((GLuint)program, name);
+  return (Value)glGetUniformLocation((GLuint)program, (const char *)name);
 }
 
 void gl_uniform1i(Value location, Value v0) {
@@ -433,9 +464,9 @@ void gl_delete_vertex_array(Value vao) {
   glDeleteVertexArrays(1, &v);
 }
 
-Value gl_get_attrib_location(Value program, const char *name) {
+Value gl_get_attrib_location(Value program, Value name) {
   ensure_gl_context();
-  return (Value)glGetAttribLocation((GLuint)program, name);
+  return (Value)glGetAttribLocation((GLuint)program, (const char *)name);
 }
 
 void gl_enable_vertex_attrib_array(Value index) {
@@ -637,7 +668,8 @@ void text_clear(void) {
 }
 
 void text_draw(Value x, Value y, Value size, Value r, Value g, Value b,
-               const char *text) {
+               Value text_val) {
+  const char *text = (const char *)text_val;
   (void)size;
 #ifdef __EMSCRIPTEN__
   EM_ASM_(
@@ -656,7 +688,7 @@ void text_draw(Value x, Value y, Value size, Value r, Value g, Value b,
   glColor3f(r / 255.0f, g / 255.0f, b / 255.0f);
   glRasterPos2i(x, SCREEN_HEIGHT - y);
 
-  while (*text) {
+  while (text && *text) {
     glutBitmapCharacter(GLUT_BITMAP_9_BY_15, *text);
     text++;
   }
@@ -693,7 +725,7 @@ void text_draw_int(Value x, Value y, Value size, Value r, Value g, Value b,
                    Value value) {
   char buf[32];
   sprintf(buf, "%ld", value);
-  text_draw(x, y, size, r, g, b, buf);
+  text_draw(x, y, size, r, g, b, (Value)buf);
 }
 
 // ============================================================================
