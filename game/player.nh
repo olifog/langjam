@@ -50,6 +50,7 @@ last_message := "Write code to control @. Press F5 to run.".
     // Collect gold
     last_message = "You pick up gold!" when tile == TILE_GOLD.
     player_gold = player_gold + /rng_int/20 + 5 when tile == TILE_GOLD.
+    /spawn_particles/new_x/new_y when tile == TILE_GOLD.
     /set_tile/new_x/new_y/TILE_FLOOR when tile == TILE_GOLD.
     
     // Stairs
