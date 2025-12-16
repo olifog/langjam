@@ -154,8 +154,9 @@ static void codegen_expr(ASTNode *node) {
 
   case NODE_STRING_LITERAL: {
     // Escape special characters for C string literal
+    // Cast to Value so it can be passed to runtime functions
     const char *s = node->data.string_literal.value;
-    emit_raw("\"");
+    emit_raw("(Value)\"");
     for (; *s; s++) {
       switch (*s) {
       case '\n':
@@ -237,7 +238,7 @@ static void codegen_expr(ASTNode *node) {
     if (node->data.assign.target->type == NODE_MEMBER) {
       emit_raw("ds_object_set(&");
       codegen_expr(node->data.assign.target->data.member.object);
-      emit_raw(", \"%s\", ", node->data.assign.target->data.member.member);
+      emit_raw(", (Value)\"%s\", ", node->data.assign.target->data.member.member);
       codegen_expr(node->data.assign.value);
       emit_raw(")");
     } else {
@@ -438,10 +439,10 @@ static void codegen_expr(ASTNode *node) {
     break;
 
   case NODE_MEMBER:
-    // Member access: obj.field becomes ds_object_get(obj, "field")
+    // Member access: obj.field becomes ds_object_get(obj, (Value)"field")
     emit_raw("ds_object_get(");
     codegen_expr(node->data.member.object);
-    emit_raw(", \"%s\")", node->data.member.member);
+    emit_raw(", (Value)\"%s\")", node->data.member.member);
     break;
 
   default:
@@ -481,7 +482,8 @@ static void codegen_stmt(ASTNode *node) {
       emit_raw(";\n");
     } else if (node->data.var_decl.init &&
                node->data.var_decl.init->type == NODE_STRING_LITERAL) {
-      emit("const char *%s = ", node->data.var_decl.name);
+      // Strings are stored as Value (pointer cast to long) for consistency
+      emit("Value %s = ", node->data.var_decl.name);
       codegen_expr(node->data.var_decl.init);
       emit_raw(";\n");
     } else if (node->data.var_decl.init &&
@@ -502,7 +504,7 @@ static void codegen_stmt(ASTNode *node) {
     if (node->data.assign.target->type == NODE_MEMBER) {
       emit_raw("ds_object_set(&");
       codegen_expr(node->data.assign.target->data.member.object);
-      emit_raw(", \"%s\", ", node->data.assign.target->data.member.member);
+      emit_raw(", (Value)\"%s\", ", node->data.assign.target->data.member.member);
       codegen_expr(node->data.assign.value);
       emit_raw(");\n");
     } else {
@@ -666,7 +668,8 @@ static void codegen_global_var(ASTNode *node) {
     emit_raw(";\n");
   } else if (node->data.var_decl.init &&
              node->data.var_decl.init->type == NODE_STRING_LITERAL) {
-    emit("const char *%s = ", node->data.var_decl.name);
+    // Strings are stored as Value (pointer cast to long) for consistency
+    emit("Value %s = ", node->data.var_decl.name);
     codegen_expr(node->data.var_decl.init);
     emit_raw(";\n");
   } else if (node->data.var_decl.init &&

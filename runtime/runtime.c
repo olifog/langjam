@@ -1,6 +1,13 @@
 #define GL_GLEXT_PROTOTYPES
+#define GL_SILENCE_DEPRECATION
 #include "runtime.h"
+
+#ifdef __APPLE__
+#include <OpenGL/gl3.h>
+#include <GLUT/glut.h>
+#else
 #include <GL/glut.h>
+#endif
 #include <math.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -73,14 +80,15 @@ Value ds_object_create(int count, ...) {
   for (int i = 0; i < count; i++) {
     const char *key = va_arg(args, const char *);
     Value val = va_arg(args, Value);
-    ds_object_set(&handle, key, val);
+    ds_object_set(&handle, (Value)key, val);
   }
 
   va_end(args);
   return handle;
 }
 
-Value ds_object_get(Value obj, const char *key) {
+Value ds_object_get(Value obj, Value key_val) {
+  const char *key = (const char *)key_val;
   if (obj <= 0 || obj >= MAX_OBJECTS)
     return 0;
   if (!objects[obj].in_use)
@@ -94,7 +102,8 @@ Value ds_object_get(Value obj, const char *key) {
   return 0;
 }
 
-void ds_object_set(Value *obj, const char *key, Value value) {
+void ds_object_set(Value *obj, Value key_val, Value value) {
+  const char *key = (const char *)key_val;
   Value handle = *obj;
   if (handle <= 0 || handle >= MAX_OBJECTS) {
     // Auto-allocate if null
@@ -122,7 +131,6 @@ void ds_object_set(Value *obj, const char *key, Value value) {
 }
 
 void ds_set_prop(Value obj, Value key_val, Value value) {
-  const char *key = (const char *)key_val;
   if (obj <= 0 || obj >= MAX_OBJECTS)
     return;
 
@@ -132,7 +140,7 @@ void ds_set_prop(Value obj, Value key_val, Value value) {
   // Actually ds_object_set updates the HANDLE if it was 0.
   // Here obj is already a handle.
   // So we can just cast address.
-  ds_object_set(&obj, key, value);
+  ds_object_set(&obj, key_val, value);
 }
 
 Value ds_strlen(Value str_val) {
@@ -596,8 +604,9 @@ Value input_key_just_pressed(Value key) {
 // Console / Debug
 // ============================================================================
 
-void console_log(const char *msg) {
-  printf("%s\n", msg);
+void console_log(Value msg) {
+  const char *str = (const char *)msg;
+  printf("%s\n", str ? str : "(null)");
   fflush(stdout);
 }
 

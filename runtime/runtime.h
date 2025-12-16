@@ -269,7 +269,7 @@ Value time_now(void);
 // Console / Debug
 // ============================================================================
 
-void console_log(const char *msg);
+void console_log(Value msg);
 void console_log_int(Value value);
 void console_log_float(float value);
 
@@ -355,8 +355,8 @@ Value math_random(Value min, Value max);
 
 // Object System
 Value ds_object_create(int count, ...);
-Value ds_object_get(Value obj, const char *key);
-void ds_object_set(Value *obj, const char *key, Value value);
+Value ds_object_get(Value obj, Value key);
+void ds_object_set(Value *obj, Value key, Value value);
 void ds_set_prop(Value obj, Value key, Value value);
 
 // String helpers

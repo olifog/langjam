@@ -21,13 +21,16 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y bison flex gcc
+          sudo apt-get install -y bison flex gcc freeglut3-dev libgl1-mesa-dev
 
       - name: Build compiler
         run: make compiler
 
       - name: Run tests
         run: make test
+
+      - name: Run interpreter tests
+        run: make test-interpreter
 
   build-wasm:
     runs-on: ubuntu-latest

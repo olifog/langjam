@@ -49,7 +49,7 @@ cat > "$TMP_DIR/runtime.h" << 'EOF'
 
 typedef long Value;
 
-static inline void console_log(const char *msg) { printf("%s\n", msg); }
+static inline void console_log(Value msg) { printf("%s\n", (const char *)msg); }
 static inline void console_log_int(Value value) { printf("%ld\n", value); }
 static inline void console_log_float(float value) { printf("%f\n", value); }
 
@@ -111,7 +111,8 @@ static inline Value ds_object_create(int count, ...) {
   return handle;
 }
 
-static inline Value ds_object_get(Value obj, const char *key) {
+static inline Value ds_object_get(Value obj, Value key_val) {
+  const char *key = (const char *)key_val;
   if (obj <= 0 || obj >= MAX_OBJECTS) return 0;
   if (!objects[obj].in_use) return 0;
 
@@ -147,7 +148,8 @@ static void ds_object_set_impl(Value *obj, const char *key, Value value) {
 }
 
 // Wrapper to match runtime.h
-static inline void ds_object_set(Value *obj, const char *key, Value value) {
+static inline void ds_object_set(Value *obj, Value key_val, Value value) {
+    const char *key = (const char *)key_val;
     ds_object_set_impl(obj, key, value);
 }
 

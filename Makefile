@@ -79,11 +79,19 @@ test-compiler: compiler
 .PHONY: run-interpreter
 test-interpreter: compiler
 	$(BUILD_DIR)/dsc interpreter/main.nh > $(BUILD_DIR)/interpreter.c
+ifeq ($(shell uname),Darwin)
+	$(CC) $(CFLAGS) -I$(RUNTIME_DIR) \
+		$(BUILD_DIR)/interpreter.c \
+		$(RUNTIME_DIR)/runtime.c \
+		-o $(BUILD_DIR)/interpreter \
+		-lm -framework OpenGL -framework GLUT
+else
 	$(CC) $(CFLAGS) -I$(RUNTIME_DIR) \
 		$(BUILD_DIR)/interpreter.c \
 		$(RUNTIME_DIR)/runtime.c \
 		-o $(BUILD_DIR)/interpreter \
 		-lm -lGL -lglut -lGLU
+endif
 	$(BUILD_DIR)/interpreter
 
 # ============================================================================
