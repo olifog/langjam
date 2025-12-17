@@ -63,6 +63,7 @@ bot_loop_body_idx := 0.    // Current statement index within body
 
 // Print output for debugging
 bot_print_buffer := 0.     // Last printed value
+bot_print_is_string := 0.  // 1 if the value is a string pointer
 bot_has_print := 0.        // 1 if there's a value to display
 
 // ============================================================================

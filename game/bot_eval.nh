@@ -475,11 +475,30 @@
 
 // /print/value - Print a value to the message area for debugging
 #bot_builtin_print(args, env) >
-    val := /bot_eval/(/ds_list_get/args/0)/env.
+    // /print/val - Print generic value
+    // /print/val/1 - Print value as string (force)
+    
+    // Check if argument was a string literal in the AST
+    // We need to look at the AST node for the argument, not just the evaluated value
+    arg_node := /ds_list_get/args/0.
+    is_str_lit := 0.
+    is_str_lit = 1 when arg_node->tag == TAG_STRING.
+    
+    val := /bot_eval/arg_node/env.
+    
+    // Check for optional second argument (force string mode)
+    force_string := 0.
+    num_args := /ds_list_len/args.
+    force_string = /bot_eval/(/ds_list_get/args/1)/env when num_args gt 1.
+    
+    // Check heuristic for string-like value
+    heuristic := 0.
+    heuristic = /ds_is_string_like/val.
     
     // Store in bot_print_buffer for display
     bot_print_buffer = val.
     bot_has_print = 1.
+    bot_print_is_string = is_str_lit or force_string or heuristic.
     
     << val.
 <

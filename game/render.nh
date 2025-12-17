@@ -76,7 +76,9 @@ COL_GREEN_B := 100.
     // Show print value below bot message (yellow color: 255, 220, 80)
     print_y := bot_msg_y + 20.
     /text_draw/(map_offset_x)/print_y/12/255/220/80/"Print:" when bot_has_print == 1.
-    /text_draw_int/(map_offset_x + 55)/print_y/12/255/220/80/bot_print_buffer when bot_has_print == 1.
+    is_str := bot_print_is_string.
+    /text_draw/(map_offset_x + 55)/print_y/12/255/220/80/bot_print_buffer when bot_has_print == 1 and is_str == 1.
+    /text_draw_int/(map_offset_x + 55)/print_y/12/255/220/80/bot_print_buffer when bot_has_print == 1 and is_str == 0.
     
     // Header
     /text_draw/map_offset_x/dungeon_y/12/COL_CYAN_R/COL_CYAN_G/COL_CYAN_B/"[DUNGEON]".

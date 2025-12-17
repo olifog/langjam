@@ -314,7 +314,8 @@ void text_draw_int(Value x, Value y, Value size, Value r, Value g, Value b,
                    Value value);
 
 // Draw a filled rectangle
-void draw_rect(Value x, Value y, Value w, Value h, Value r, Value g, Value b, Value a);
+void draw_rect(Value x, Value y, Value w, Value h, Value r, Value g, Value b,
+               Value a);
 
 // ============================================================================
 // Math Helpers (since .nh has limited math)
@@ -391,6 +392,7 @@ Value ds_substring(Value str, Value start, Value len);
 Value ds_streq(Value s1, Value s2);
 Value ds_div(Value a, Value b);
 Value ds_mod(Value a, Value b);
+Value ds_is_string_like(Value val);
 
 // String manipulation for text editing
 Value ds_string_insert_char(Value str, Value pos, Value char_code);
