@@ -176,6 +176,9 @@ last_message_buffer := "".
     last_message = "You died! Press SPACE to restart.".
     bot_message = "Script Terminated (Death).".
     
+    // Fix visual glitch: Snap to final position
+    anim_timer = 0.
+    
     << 1.
 <
 
