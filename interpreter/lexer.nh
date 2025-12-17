@@ -60,7 +60,7 @@ lex_line := 0.
 
 // Lexer Helpers
 #is_digit(c) => c ge 48 and c le 57.
-#is_alpha(c) => (c ge 65 and c le 90) or (c ge 97 and c le 122).
+#is_alpha(c) => (c ge 65 and c le 90) or (c ge 97 and c le 122) or c == 95.
 #is_space(c) => c == 32 or c == 10 or c == 9 or c == 13.
 
 #parse_int(str, start) >
@@ -146,11 +146,26 @@ lex_line := 0.
     << res->end.
 <
 
+#skip_comment(str, i) >
+    len := /ds_strlen/str.
+    loop >
+        >> when i ge len.
+        c := /ds_string_at/str/i.
+        >> when c == 10.
+        i = i + 1.
+    <
+    << i.
+<
+
 #do(a, b) => b.
 
 #tokenize_symbol_str(str, i, tokens) >
     c := /ds_string_at/str/i.
     next := /ds_string_at/str/(i + 1).
+
+    // Check for // comment
+    is_comment := (c == 47 and next == 47).
+    << /skip_comment/str/i when is_comment.
     
     // Check for ==
     is_eq := (c == 61 and next == 61).

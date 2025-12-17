@@ -358,6 +358,7 @@
 
 #parse_stmt_assign(tokens, pos, tok) >
     name := tok->value.
+    line := tok->line.
     res := /parse_expr/tokens/(pos + 2).
     // Expect DOT
     dot := /peek/tokens/res->end.
@@ -366,7 +367,7 @@
         0 => res->end
     <.
     
-    << { node: /decl/name/res->node, end: end }.
+    << { node: /decl/name/res->node/line, end: end }.
 <
 
 #parse_stmt_expr_stmt(tokens, pos) >
@@ -390,19 +391,30 @@
 
 #parse_block(tokens, pos) >
     prog := 0.
+    max_iter := 500.
+    iter := 0.
+    
     loop >
         tok := /peek/tokens/pos.
         // Check for < (TOK_SCOPE_OUT)
         >> when tok->type == TOK_SCOPE_OUT.
         >> when tok->type == TOK_EOF.
+        >> when iter ge max_iter.
         
+        old_pos := pos.
         res := /parse_stmt/tokens/pos.
         pos = res->end.
+        
+        // Safety: prevent infinite loop
+        pos = pos + 1 when pos == old_pos.
+        >> when pos == old_pos.
         
         prog = (prog == 0) | >
             1 => res->node
             0 => /seq/prog/res->node
         <.
+        
+        iter = iter + 1.
     <
     
     // Skip <
@@ -430,7 +442,11 @@
         0 => cond
     <.
     
-    << { node: /when_stmt/res->node/cond, end: cond_res->end }.
+    // Get line from inner statement
+    line := res->node->line.
+    line = 0 when line == 0.
+    
+    << { node: /when_stmt/res->node/cond/line, end: cond_res->end }.
 <
 
 #parse_for(tokens, pos) >
@@ -479,9 +495,12 @@
     
     // Parse parameters
     params := /ds_list_create/.
+    max_iter := 50.
+    iter := 0.
     loop >
         tok = /peek/tokens/pos.
         >> when tok->type == TOK_RPAREN.
+        >> when iter ge max_iter.
         
         // Get param name
         /ds_list_push/params/tok->value.
@@ -490,6 +509,7 @@
         // Check for comma
         tok = /peek/tokens/pos.
         pos = pos + 1 when tok->type == TOK_COMMA.
+        iter = iter + 1.
     <
     
     // Skip )
@@ -511,6 +531,7 @@
     // Get function name
     tok := /peek/tokens/pos.
     name := tok->value.
+    line := tok->line.
     pos = pos + 1.
     
     // Parse arguments (each preceded by /)
@@ -531,7 +552,7 @@
     dot := /peek/tokens/pos.
     pos = pos + 1 when dot->type == TOK_DOT.
     
-    << { node: /func_call/name/args, end: pos }.
+    << { node: /func_call/name/args/line, end: pos }.
 <
 
 // Parse function call in expression context (no trailing dot)
@@ -541,6 +562,7 @@
     // Get function name
     tok := /peek/tokens/pos.
     name := tok->value.
+    line := tok->line.
     pos = pos + 1.
 
     // Parse arguments (each preceded by /)
@@ -558,7 +580,7 @@
     <
 
     // Don't consume trailing . in expression context
-    << { node: /func_call/name/args, end: pos }.
+    << { node: /func_call/name/args/line, end: pos }.
 <
 
 // Parse return: << expr
