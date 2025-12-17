@@ -3,9 +3,12 @@
 // Runs user code from the editor to control the bot
 // ============================================================================
 
-// Import sub-modules
-@use "bot_lexer.nh".
-@use "bot_parser.nh".
+// Import interpreter modules (shared with standalone interpreter)
+@use "../interpreter/ast.nh".
+@use "../interpreter/lexer.nh".
+@use "../interpreter/parser.nh".
+
+// Import bot-specific modules
 @use "bot_eval.nh".
 @use "bot_ui.nh".
 
@@ -83,7 +86,7 @@ bot_has_print := 0.        // 1 if there's a value to display
     bot_code_hash = new_hash.
     
     // Tokenize
-    tokens := /bot_tokenize/source.
+    tokens := /tokenize/source.
     
     // Check for empty program
     token_count := /ds_list_len/tokens.
@@ -112,8 +115,8 @@ bot_has_print := 0.        // 1 if there's a value to display
     iter := 0.
     
     loop >
-        tok := /bot_peek/tokens/pos.
-        >> when tok->type == BOT_TOK_EOF.
+        tok := /peek/tokens/pos.
+        >> when tok->type == TOK_EOF.
         >> when tok == 0.
         >> when iter ge max_iter.
         
@@ -121,7 +124,7 @@ bot_has_print := 0.        // 1 if there's a value to display
         stmt_line := tok->line.
         
         old_pos := pos.
-        res := /bot_parse_stmt/tokens/pos.
+        res := /parse_stmt/tokens/pos.
         pos = res->end.
         
         // Safety: prevent infinite loop
@@ -413,9 +416,9 @@ bot_has_print := 0.        // 1 if there's a value to display
     << 0 when node == 0.
     
     // If it's a seq, flatten both sides
-    /bot_flatten_stmt/node->a when node->tag == BOT_TAG_SEQ.
-    /bot_flatten_stmt/node->b when node->tag == BOT_TAG_SEQ.
-    << 0 when node->tag == BOT_TAG_SEQ.
+    /bot_flatten_stmt/node->a when node->tag == TAG_SEQ.
+    /bot_flatten_stmt/node->b when node->tag == TAG_SEQ.
+    << 0 when node->tag == TAG_SEQ.
     
     // Otherwise, add this statement to the list
     idx := bot_loop_body_count.

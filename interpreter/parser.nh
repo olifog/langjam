@@ -207,7 +207,7 @@
         
         left = type | >
             5 => /mul/left/right
-            6 => /div/left/right
+            6 => /ast_div/left/right
             7 => /mod/left/right
             _ => left
         <.
@@ -426,8 +426,8 @@
     
     cond := cond_res->node.
     cond = (type == TOK_UNLESS) | >
-        true => /not_op/cond
-        false => cond
+        1 => /not_op/cond
+        0 => cond
     <.
     
     << { node: /when_stmt/res->node/cond, end: cond_res->end }.

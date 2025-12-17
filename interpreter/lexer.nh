@@ -46,14 +46,17 @@ TOK_COLON := 44.    // :
 TOK_PROPACCESS := 45. // ->
 TOK_BACKSLASH := 46.  // \ for lambda
 
-// Token constructor
-// Token constructor
+// Token constructor (with optional line tracking)
 #token(type, value) >
     t := /ds_object_create/0.
     /ds_set_prop/t/"type"/type.
     /ds_set_prop/t/"value"/value.
+    /ds_set_prop/t/"line"/lex_line.
     << t.
 <
+
+// Current line during tokenization
+lex_line := 0.
 
 // Lexer Helpers
 #is_digit(c) => c ge 48 and c le 57.
@@ -209,24 +212,28 @@ TOK_BACKSLASH := 46.  // \ for lambda
     tokens := /ds_list_create/.
     len := /ds_strlen/str.
     i := 0.
+    lex_line = 0.
     
     loop >
         >> when i ge len.
         c := /ds_string_at/str/i.
         
+        // Track newlines
+        lex_line = lex_line + 1 when c == 10.
+        
         i = (
             /is_space/c | >
-                true => i + 1
-                false => (
+                1 => i + 1
+                0 => (
                     /is_digit/c | >
-                        true => /tokenize_digit/str/i/tokens
-                        false => (
+                        1 => /tokenize_digit/str/i/tokens
+                        0 => (
                             /is_alpha/c | >
-                                true => /tokenize_alpha/str/i/tokens
-                                false => (
+                                1 => /tokenize_alpha/str/i/tokens
+                                0 => (
                                     c == 34 | > // " for string
-                                        true => /tokenize_string/str/i/tokens
-                                        false => /tokenize_symbol_str/str/i/tokens
+                                        1 => /tokenize_string/str/i/tokens
+                                        0 => /tokenize_symbol_str/str/i/tokens
                                     <
                                 )
                             <

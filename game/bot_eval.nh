@@ -1,6 +1,8 @@
 // ============================================================================
 // Bot Evaluator Module
 // Evaluates the AST to execute bot code
+// Has stepping/yield logic for the game's step-through debugger
+// Uses TAG_* constants from interpreter/ast.nh
 // ============================================================================
 
 // ============================================================================
@@ -295,8 +297,8 @@
         pattern := arm->pattern.
         
         match := pattern->tag | >
-            31 => 1
-            1 => (val == pattern->value)
+            TAG_WILDCARD => 1
+            TAG_LIT => (val == pattern->value)
             _ => 0
         <.
         
@@ -366,40 +368,40 @@
     << 0 when node == 0.
     
     << node->tag | >
-        1 => (node->value)
-        2 => /bot_eval_var/node/env
-        3 => /bot_eval/node->a/env + /bot_eval/node->b/env
-        4 => /bot_eval_decl/node/env
-        5 => /bot_eval_seq/node/env
-        7 => /bot_eval_assign/node/env
-        8 => /bot_eval/node->a/env - /bot_eval/node->b/env
-        9 => /bot_eval/node->a/env * /bot_eval/node->b/env
-        10 => /ds_div/(/bot_eval/node->a/env)/(/bot_eval/node->b/env)
-        11 => /ds_mod/(/bot_eval/node->a/env)/(/bot_eval/node->b/env)
-        12 => (/bot_eval/node->a/env lt /bot_eval/node->b/env)
-        13 => (/bot_eval/node->a/env gt /bot_eval/node->b/env)
-        14 => (/bot_eval/node->a/env le /bot_eval/node->b/env)
-        15 => (/bot_eval/node->a/env ge /bot_eval/node->b/env)
-        16 => (/bot_eval/node->a/env == /bot_eval/node->b/env)
-        17 => (/bot_eval/node->a/env != /bot_eval/node->b/env)
-        18 => (/bot_eval/node->a/env and /bot_eval/node->b/env)
-        19 => (/bot_eval/node->a/env or /bot_eval/node->b/env)
-        20 => (not /bot_eval/node->a/env)
-        21 => /bot_eval_loop/node/env
-        22 => /bot_eval_break/node/env
-        23 => /bot_eval_if/node/env
-        24 => /bot_eval_when/node/env
-        25 => /bot_eval_for/node/env
-        26 => /bot_eval_func/node/env
-        27 => /bot_eval_call/node/env
-        28 => /bot_eval_return/node/env
-        29 => /bot_eval_match/node/env
-        32 => (node->value)
-        33 => /bot_eval_array/node/env
-        34 => /bot_eval_index/node/env
-        35 => /bot_eval_object/node/env
-        37 => /bot_eval_prop/node/env
-        38 => /bot_eval_lambda/node/env
+        TAG_LIT => (node->value)
+        TAG_VAR => /bot_eval_var/node/env
+        TAG_ADD => /bot_eval/node->a/env + /bot_eval/node->b/env
+        TAG_DECL => /bot_eval_decl/node/env
+        TAG_SEQ => /bot_eval_seq/node/env
+        TAG_ASSIGN => /bot_eval_assign/node/env
+        TAG_SUB => /bot_eval/node->a/env - /bot_eval/node->b/env
+        TAG_MUL => /bot_eval/node->a/env * /bot_eval/node->b/env
+        TAG_DIV => /ds_div/(/bot_eval/node->a/env)/(/bot_eval/node->b/env)
+        TAG_MOD => /ds_mod/(/bot_eval/node->a/env)/(/bot_eval/node->b/env)
+        TAG_LT => (/bot_eval/node->a/env lt /bot_eval/node->b/env)
+        TAG_GT => (/bot_eval/node->a/env gt /bot_eval/node->b/env)
+        TAG_LE => (/bot_eval/node->a/env le /bot_eval/node->b/env)
+        TAG_GE => (/bot_eval/node->a/env ge /bot_eval/node->b/env)
+        TAG_EQ => (/bot_eval/node->a/env == /bot_eval/node->b/env)
+        TAG_NE => (/bot_eval/node->a/env != /bot_eval/node->b/env)
+        TAG_AND => (/bot_eval/node->a/env and /bot_eval/node->b/env)
+        TAG_OR => (/bot_eval/node->a/env or /bot_eval/node->b/env)
+        TAG_NOT => (not /bot_eval/node->a/env)
+        TAG_LOOP => /bot_eval_loop/node/env
+        TAG_BREAK => /bot_eval_break/node/env
+        TAG_IF => /bot_eval_if/node/env
+        TAG_WHEN => /bot_eval_when/node/env
+        TAG_FOR => /bot_eval_for/node/env
+        TAG_FUNC => /bot_eval_func/node/env
+        TAG_CALL => /bot_eval_call/node/env
+        TAG_RETURN => /bot_eval_return/node/env
+        TAG_MATCH => /bot_eval_match/node/env
+        TAG_STRING => (node->value)
+        TAG_ARRAY => /bot_eval_array/node/env
+        TAG_INDEX => /bot_eval_index/node/env
+        TAG_OBJECT => /bot_eval_object/node/env
+        TAG_PROP => /bot_eval_prop/node/env
+        TAG_LAMBDA => /bot_eval_lambda/node/env
         _ => 0
     <.
 <
