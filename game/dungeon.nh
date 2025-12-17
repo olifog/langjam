@@ -706,5 +706,7 @@ room_params := [].
         tile := /get_tile/gx/gy.
         /set_tile/gx/gy/TILE_GOLD when tile == TILE_FLOOR.
     <
+    // Spawn monsters
+    /spawn_random_monsters/.
 <
 

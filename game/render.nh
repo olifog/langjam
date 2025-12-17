@@ -60,6 +60,43 @@ COL_GREEN_B := 100.
         <
     <
     
+    // Status
+    /draw_status/map_offset_x/map_offset_y.
+    
+    // Message
+    msg_y := map_offset_y + MAP_HEIGHT * TILE_H + 60.
+    /text_draw/map_offset_x/msg_y/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/last_message.
+    
+    // Bot Message (below game message)
+    bot_msg_y := msg_y + 20.
+    bot_msg_len := /ds_strlen/bot_message.
+    // Cyan color for bot status
+    /text_draw/map_offset_x/bot_msg_y/14/COL_CYAN_R/COL_CYAN_G/COL_CYAN_B/bot_message when bot_msg_len gt 0.
+    
+    // Show print value below bot message (yellow color: 255, 220, 80)
+    print_y := bot_msg_y + 20.
+    /text_draw/(map_offset_x)/print_y/12/255/220/80/"Print:" when bot_has_print == 1.
+    /text_draw_int/(map_offset_x + 55)/print_y/12/255/220/80/bot_print_buffer when bot_has_print == 1.
+    
+    // Header
+    /text_draw/map_offset_x/dungeon_y/12/COL_CYAN_R/COL_CYAN_G/COL_CYAN_B/"[DUNGEON]".
+    
+    // Bot status
+    bot_x := map_offset_x + 100.
+    /text_draw/bot_x/dungeon_y/12/COL_GREEN_R/COL_GREEN_G/COL_GREEN_B/"BOT: RUNNING" when bot_is_running == 1 and bot_has_error == 0.
+    /text_draw/bot_x/dungeon_y/12/COL_GRAY_R/COL_GRAY_G/COL_GRAY_B/"BOT: STOPPED" when bot_is_running == 0 and bot_has_error == 0.
+    /text_draw/bot_x/dungeon_y/12/255/80/80/"BOT: ERROR" when bot_has_error == 1.
+    
+    // Step counter
+    step_x := map_offset_x + 220.
+    /text_draw/step_x/dungeon_y/12/COL_CYAN_R/COL_CYAN_G/COL_CYAN_B/"Step:".
+    /text_draw_int/(step_x + 45)/dungeon_y/12/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/bot_step_count.
+<
+
+#draw_player() >
+    map_offset_x := dungeon_x.
+    map_offset_y := dungeon_y + 12.
+
     // Draw player with interpolated position for smooth movement
     t_ms := anim_duration_scaled - anim_timer.
     t_ms = 0 when t_ms lt 0.
@@ -75,34 +112,75 @@ COL_GREEN_B := 100.
     draw_x = prev_px + (curr_px - prev_px) * t_ms / anim_duration_scaled when anim_duration_scaled gt 0.
     draw_y = prev_py + (curr_py - prev_py) * t_ms / anim_duration_scaled when anim_duration_scaled gt 0.
     
+    // Attack Animation
+    // Move towards target then back
+    // Use half of timer for out, half for back
+    att_time := player_attack_timer.
+    att_dx := player_attack_dx * 5. // 5 pixels magnitude
+    att_dy := player_attack_dy * 5.
+    
+    // Only animate if timer > 0
+    // Simple linear out/in
+    // If timer 10..5: Out (0 to 1)
+    // If timer 5..0: In (1 to 0)
+    // Actually simpler: just apply offset scaled by sin? Or 10-timer?
+    // Let's do linear ramp up/down
+    
+    att_offset_x := 0.
+    att_offset_y := 0.
+    
+    is_attacking := 0.
+    is_attacking = 1 when att_time gt 0.
+    
+    // Ramp up (10 to 5)
+    // val goes 0 to 5
+    ramp_up := 10 - att_time.
+    
+    // Ramp down (5 to 0)
+    // val goes 5 to 0
+    ramp_down := att_time.
+    
+    // Pick the smaller of the two to create a triangle wave 0..5..0
+    // If time=10 (start), up=0, down=10 -> 0
+    // If time=5 (mid), up=5, down=5 -> 5
+    // If time=0 (end), up=10, down=0 -> 0
+    
+    anim_val := ramp_up.
+    anim_val = ramp_down when ramp_down lt ramp_up.
+    
+    // Scale offset (0..1.0 * magnitude)
+    // Divide by 5 to normalize to 0..1 then multiply by mag 5... so just anim_val
+    att_offset_x = att_dx * anim_val / 5 when is_attacking == 1.
+    att_offset_y = att_dy * anim_val / 5 when is_attacking == 1.
+    
+    // Apply offset
+    draw_x = draw_x + att_offset_x.
+    draw_y = draw_y + att_offset_y.
+    
     px := map_offset_x + draw_x.
     py := map_offset_y + draw_y.
-    /text_char/px/py/TILE_H/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/CHAR_PLAYER.
     
-    // Status
-    /draw_status/map_offset_x/map_offset_y.
+    // Color
+    col_r := COL_WHITE_R.
+    col_g := COL_WHITE_G.
+    col_b := COL_WHITE_B.
     
-    // Message
-    msg_y := map_offset_y + MAP_HEIGHT * TILE_H + 60.
-    /text_draw/map_offset_x/msg_y/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/last_message.
+    // Hit Flash
+    flash := player_hit_flash.
     
-    // Show print value below message (yellow color: 255, 220, 80)
-    /text_draw/(map_offset_x)/(msg_y + 20)/12/255/220/80/"Print:" when bot_has_print == 1.
-    /text_draw_int/(map_offset_x + 55)/(msg_y + 20)/12/255/220/80/bot_print_buffer when bot_has_print == 1.
+    // Decrement flash
+    player_hit_flash = flash - 1 when flash gt 0.
+    player_attack_timer = att_time - 1 when att_time gt 0.
     
-    // Header
-    /text_draw/map_offset_x/dungeon_y/12/COL_CYAN_R/COL_CYAN_G/COL_CYAN_B/"[DUNGEON]".
+    is_flashing := 0.
+    is_flashing = 1 when flash gt 0.
     
-    // Bot status
-    bot_x := map_offset_x + 100.
-    /text_draw/bot_x/dungeon_y/12/COL_GREEN_R/COL_GREEN_G/COL_GREEN_B/"BOT: RUNNING" when bot_is_running == 1 and bot_has_error == 0.
-    /text_draw/bot_x/dungeon_y/12/COL_GRAY_R/COL_GRAY_G/COL_GRAY_B/"BOT: STOPPED" when bot_is_running == 0 and bot_has_error == 0.
-    /text_draw/bot_x/dungeon_y/12/255/80/80/"BOT: ERROR" when bot_has_error == 1.
+    // Flash Red
+    col_r = 255 when is_flashing == 1.
+    col_g = 50 when is_flashing == 1.
+    col_b = 50 when is_flashing == 1.
     
-    // Step counter
-    step_x := map_offset_x + 220.
-    /text_draw/step_x/dungeon_y/12/COL_CYAN_R/COL_CYAN_G/COL_CYAN_B/"Step:".
-    /text_draw_int/(step_x + 45)/dungeon_y/12/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/bot_step_count.
+    /text_char/px/py/TILE_H/col_r/col_g/col_b/CHAR_PLAYER.
 <
 
 #draw_tile(x, y, offset_x, offset_y) >
@@ -124,19 +202,279 @@ COL_GREEN_B := 100.
 #draw_status(offset_x, offset_y) >
     y := offset_y + MAP_HEIGHT * TILE_H + 10.
     
-    /text_draw/offset_x/y/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/"Player the Adventurer".
+    // LINE 1
+    // Wizard the Candidate             St:18/03 Dx:13 Co:8 In:9 Wi:15 Ch:9  Chaotic
     
+    // Name + Rank
+    x := offset_x.
+    /text_draw/x/y/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/player_name.
+    
+    x = x + /ds_strlen/player_name * 9 + 10.
+    /text_draw/x/y/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/"the".
+    
+    x = x + 35.
+    /text_draw/x/y/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/player_rank.
+    
+    // Attributes starting around x=300?
+    attr_x := offset_x + 350.
+    
+    // St:18/03
+    /text_draw/attr_x/y/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/"St:".
+    /text_draw_int/(attr_x + 25)/y/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/player_str.
+    /text_draw/(attr_x + 45)/y/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/"/".
+    // 03 padding
+    val := player_str_exc.
+    /text_draw/(attr_x + 55)/y/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/"0" when val lt 10.
+    draw_val_x := attr_x + 55.
+    draw_val_x = attr_x + 65 when val lt 10.
+    /text_draw_int/draw_val_x/y/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/val.
+    
+    // Dx:13
+    attr_x = attr_x + 90.
+    /text_draw/attr_x/y/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/"Dx:".
+    /text_draw_int/(attr_x + 25)/y/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/player_dex.
+    
+    // Co:8
+    attr_x = attr_x + 60.
+    /text_draw/attr_x/y/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/"Co:".
+    /text_draw_int/(attr_x + 25)/y/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/player_con.
+    
+    // In:9
+    attr_x = attr_x + 50.
+    /text_draw/attr_x/y/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/"In:".
+    /text_draw_int/(attr_x + 25)/y/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/player_int.
+    
+    // Wi:15
+    attr_x = attr_x + 50.
+    /text_draw/attr_x/y/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/"Wi:".
+    /text_draw_int/(attr_x + 25)/y/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/player_wis.
+    
+    // Ch:9
+    attr_x = attr_x + 60.
+    /text_draw/attr_x/y/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/"Ch:".
+    /text_draw_int/(attr_x + 25)/y/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/player_cha.
+    
+    // Align
+    attr_x = attr_x + 60.
+    /text_draw/attr_x/y/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/player_align.
+    
+    
+    // LINE 2
+    // Dlvl:1  $:43  HP:11(14) Pw:4(5) AC:4  Xp:1/5 T:7 Conf
     y2 := y + 20.
-    /text_draw/offset_x/y2/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/"Dlvl:".
-    /text_draw_int/(offset_x + 50)/y2/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/dungeon_level.
+    x2 := offset_x.
     
-    /text_draw/(offset_x + 80)/y2/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/"$:".
-    /text_draw_int/(offset_x + 100)/y2/14/COL_GOLD_R/COL_GOLD_G/COL_GOLD_B/player_gold.
+    // Dlvl:1
+    /text_draw/x2/y2/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/"Dlvl:".
+    /text_draw_int/(x2 + 40)/y2/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/dungeon_level.
     
-    /text_draw/(offset_x + 150)/y2/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/"HP:".
-    /text_draw_int/(offset_x + 180)/y2/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/player_hp.
+    // $:43
+    x2 = x2 + 80.
+    /text_draw/x2/y2/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/"$:".
+    /text_draw_int/(x2 + 20)/y2/14/COL_GOLD_R/COL_GOLD_G/COL_GOLD_B/player_gold.
     
-    /text_draw/(offset_x + 220)/y2/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/"T:".
-    /text_draw_int/(offset_x + 240)/y2/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/turns.
+    // HP:11(14)
+    x2 = x2 + 80.
+    /text_draw/x2/y2/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/"HP:".
+    /text_draw_int/(x2 + 30)/y2/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/player_hp.
+    
+    hp_width := 15. // Approx
+    hp_width = 25 when player_hp gt 9.
+    
+    x_brack := x2 + 30 + hp_width.
+    /text_draw/x_brack/y2/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/"(".
+    /text_draw_int/(x_brack + 10)/y2/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/player_max_hp.
+    
+    hp_max_width := 15.
+    hp_max_width = 25 when player_max_hp gt 9.
+    
+    /text_draw/(x_brack + 10 + hp_max_width)/y2/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/")".
+    
+    // Pw:4(5)
+    x2 = x2 + 130.
+    /text_draw/x2/y2/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/"Pw:".
+    /text_draw_int/(x2 + 30)/y2/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/player_pw.
+    
+    pw_width := 10.
+    pw_width = 20 when player_pw gt 9.
+    
+    x_brack_pw := x2 + 30 + pw_width.
+    /text_draw/x_brack_pw/y2/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/"(".
+    /text_draw_int/(x_brack_pw + 10)/y2/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/player_max_pw.
+    
+    pw_max_width := 10.
+    pw_max_width = 20 when player_max_pw gt 9.
+    
+    /text_draw/(x_brack_pw + 10 + pw_max_width)/y2/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/")".
+    
+    // AC:4
+    x2 = x2 + 110.
+    /text_draw/x2/y2/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/"AC:".
+    /text_draw_int/(x2 + 30)/y2/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/player_ac.
+    
+    // Xp:1/5
+    x2 = x2 + 70.
+    /text_draw/x2/y2/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/"Xp:".
+    /text_draw_int/(x2 + 30)/y2/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/player_xp_level.
+    
+    xp_width := 10.
+    xp_width = 20 when player_xp_level gt 9.
+    
+    /text_draw/(x2 + 30 + xp_width)/y2/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/"/".
+    /text_draw_int/(x2 + 40 + xp_width)/y2/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/player_xp_points.
+    
+    // T:7
+    x2 = x2 + 100.
+    /text_draw/x2/y2/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/"T:".
+    /text_draw_int/(x2 + 20)/y2/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/turns.
+    
+    // Conf / Status
+    x2 = x2 + 80.
+    /text_draw/x2/y2/14/255/100/100/player_status_str.
 <
 
+
+COL_RED_R := 255.
+COL_RED_G := 80.
+COL_RED_B := 80.
+
+#draw_entities() >
+    map_offset_x := dungeon_x.
+    map_offset_y := dungeon_y + 12.
+    
+    for i in 0..MAX_ENTITIES >
+        active := entity_active[i].
+        dying := entity_is_dying[i].
+        
+        // Skip inactive
+        continue_loop := 0.
+        continue_loop = 1 when active == 0.
+        
+        // Handle Dying Cleanup
+        flash := entity_hit_flash[i].
+        
+        // If dying and flash done, remove
+        // cleanup := dying * (1 - (flash > 0)). // dying AND flash <= 0
+        is_flash_active := 0.
+        is_flash_active = 1 when flash gt 0.
+        cleanup := dying * (1 - is_flash_active).
+        
+        entity_active[i] = 0 when cleanup == 1.
+        entity_is_dying[i] = 0 when cleanup == 1.
+        
+        // Don't draw if we just cleaned it up
+        should_draw := active * (1 - cleanup).
+        
+        ex := entity_x[i].
+        ey := entity_y[i].
+        etype := entity_type[i].
+        
+        sx := map_offset_x + ex * TILE_W.
+        sy := map_offset_y + ey * TILE_H.
+        
+        // Attack Animation Jitter
+        att_time := entity_attack_timer[i].
+        att_dx := entity_attack_dx[i] * 5.
+        att_dy := entity_attack_dy[i] * 5.
+        
+        att_offset_x := 0.
+        att_offset_y := 0.
+        
+        is_attacking := 0.
+        is_attacking = 1 when att_time gt 0.
+        
+        // Use same triangle wave logic 0..5..0
+        ramp_up := 10 - att_time.
+        ramp_down := att_time.
+        anim_val := ramp_up.
+        anim_val = ramp_down when ramp_down lt ramp_up.
+        
+        att_offset_x = att_dx * anim_val / 5 when is_attacking == 1.
+        att_offset_y = att_dy * anim_val / 5 when is_attacking == 1.
+        
+        sx = sx + att_offset_x.
+        sy = sy + att_offset_y.
+        
+        // Decrement attack timer
+        entity_attack_timer[i] = att_time - 1 when att_time gt 0 and should_draw == 1.
+        
+        // Color selection
+        r := COL_RED_R.
+        g := COL_RED_G.
+        b := COL_RED_B.
+        
+        // Green for goblins?
+        is_goblin := 0.
+        is_goblin = 1 when etype == 103. // 'g'
+        
+        r = COL_GREEN_R when is_goblin == 1.
+        g = COL_GREEN_G when is_goblin == 1.
+        b = COL_GREEN_B when is_goblin == 1.
+        
+        // Hit Flash / Death Flash Override
+        // Decrement flash if > 0
+        entity_hit_flash[i] = flash - 1 when flash gt 0 and should_draw == 1.
+        
+        is_flashing := 0.
+        is_flashing = 1 when flash gt 0.
+        
+        // Flash Color: White for hit, Red for Dying?
+        // Let's just use White for Hit.
+        // For Dying, maybe Flicker Red/White?
+        // Let's stick to White Flash for impact.
+        
+        r = 255 when is_flashing == 1.
+        g = 255 when is_flashing == 1.
+        b = 255 when is_flashing == 1.
+        
+        // If dying, maybe Force Red?
+        r = 255 when dying == 1 and is_flashing == 1.
+        g = 50 when dying == 1 and is_flashing == 1.
+        b = 50 when dying == 1 and is_flashing == 1.
+        
+        /text_char/sx/sy/TILE_H/r/g/b/etype when should_draw == 1.
+    <
+<
+
+#draw_tombstone() >
+   // Center on screen
+   cx := dungeon_x + dungeon_w / 2.
+   cy := dungeon_y + dungeon_h / 2.
+   
+   // Box dimensions
+   w := 300.
+   h := 200.
+   x := cx - w / 2.
+   y := cy - h / 2.
+   
+   // Draw background (Black box)
+   /draw_rect/x/y/w/h/0/0/0/230.
+   
+   // Draw Border
+   /draw_rect/x/y/w/2/255/255/255/255.      // Top
+   /draw_rect/x/(y + h - 2)/w/2/255/255/255/255. // Bottom
+   /draw_rect/x/y/2/h/255/255/255/255.      // Left
+   /draw_rect/(x + w - 2)/y/2/h/255/255/255/255. // Right
+   
+   // Text
+   ty := y + 20.
+   /text_draw/(cx - 40)/ty/24/200/200/200/"R.I.P.".
+   
+   ty = ty + 40.
+   /text_draw/(x + 40)/ty/16/255/255/255/"Here lies the Wizard".
+   
+   ty = ty + 30.
+   lvl_msg := "Level: ".
+   /text_draw/(x + 40)/ty/14/200/200/200/lvl_msg.
+   /text_draw_int/(x + 100)/ty/14/255/255/0/dungeon_level.
+   
+   ty = ty + 20.
+   gold_msg := "Gold: ".
+   /text_draw/(x + 40)/ty/14/200/200/200/gold_msg.
+   /text_draw_int/(x + 100)/ty/14/255/255/0/player_gold.
+   
+   ty = ty + 40.
+   rgb := 255.
+   // Pulsate or something? No, simple.
+   /text_draw/(cx - 80)/ty/14/100/255/100/"Press SPACE to Restart".
+<
