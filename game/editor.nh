@@ -1,0 +1,1846 @@
+// ============================================================================
+// Code Editor Module
+// A text editor for programming the dungeon bot
+// ============================================================================
+
+// ============================================================================
+// Key Constants
+// ============================================================================
+
+KEY_LEFT := 0.
+KEY_RIGHT := 1.
+KEY_UP := 2.
+KEY_DOWN := 3.
+KEY_SPACE := 4.
+KEY_ENTER := 5.
+KEY_TAB := 10.
+KEY_BACKSPACE := 11.
+KEY_DELETE := 12.
+KEY_HOME := 13.
+KEY_END := 14.
+KEY_ESCAPE := 15.
+
+KEY_LETTER_BASE := 100.
+KEY_DIGIT_BASE := 200.
+KEY_MINUS := 210.
+KEY_EQUAL := 211.
+KEY_BRACKET_L := 212.
+KEY_BRACKET_R := 213.
+KEY_SEMICOLON := 214.
+KEY_QUOTE := 215.
+KEY_BACKQUOTE := 216.
+KEY_BACKSLASH := 217.
+KEY_COMMA := 218.
+KEY_PERIOD := 219.
+KEY_SLASH := 220.
+
+// ============================================================================
+// Editor State
+// ============================================================================
+
+EDITOR_MAX_LINES := 100.
+EDITOR_FONT_SIZE := 14.
+EDITOR_LINE_HEIGHT := 18.
+// Berkeley Mono at 14px is approximately 9.0px wide in browser rendering
+// Using 90 and dividing by 10 for pseudo-float math
+EDITOR_CHAR_WIDTH_X10 := 84.
+// Cursor offset to position it between characters (negative shifts left, positive right)
+// Set to 0 for cursor at start of character cell, negative to shift left
+EDITOR_CURSOR_OFFSET := 0 - 1.
+
+// Editor bounds
+editor_x := 0.
+editor_y := 0.
+editor_width := 0.
+editor_height := 0.
+
+// Cursor state
+editor_cursor_line := 0.
+editor_cursor_col := 0.
+editor_scroll_y := 0.
+editor_num_lines := 1.
+
+// Line storage
+editor_lines := [].
+
+// Cursor blink
+editor_blink_timer := 0.
+editor_cursor_visible := 1.
+
+// Selection state
+has_selection := 0.
+sel_start_line := 0.
+sel_start_col := 0.
+sel_end_line := 0.
+sel_end_col := 0.
+sel_anchor_line := 0.
+sel_anchor_col := 0.
+is_dragging := 0.
+
+// Key repeat state
+key_repeat_key := 0 - 1.
+key_repeat_timer := 0.
+KEY_REPEAT_DELAY := 400.
+KEY_REPEAT_RATE := 50.
+
+// ============================================================================
+// Vim Mode State
+// ============================================================================
+
+VIM_MODE_NORMAL := 0.
+VIM_MODE_INSERT := 1.
+
+vim_mode := 1.  // Start in insert mode for familiarity
+
+// Pending command for two-key combos (d, y, g, etc.)
+// 0 = none, 'd' = 100, 'y' = 121, 'g' = 103
+vim_pending := 0.
+
+// Yank buffer (stores yanked line)
+vim_yank_buffer := "".
+vim_yank_is_line := 0.  // 1 if yanked whole line, 0 if yanked text
+
+// Mode switch flag - prevents same-frame key processing after mode switch
+vim_mode_switched := 0.
+
+// ============================================================================
+// Undo State
+// ============================================================================
+
+// Undo stack - stores snapshots of editor state
+// Each snapshot stores: line count, cursor line, cursor col, then all lines
+UNDO_MAX_SNAPSHOTS := 50.
+undo_stack := [].
+undo_count := 0.
+undo_position := 0.  // Current position in undo stack
+
+// Flag to prevent saving undo state during undo/redo operations
+undo_in_progress := 0.
+
+// ============================================================================
+// Colors
+// ============================================================================
+
+ED_TEXT_R := 200.
+ED_TEXT_G := 200.
+ED_TEXT_B := 200.
+
+ED_CURSOR_R := 255.
+ED_CURSOR_G := 200.
+ED_CURSOR_B := 50.
+
+ED_LINENUM_R := 80.
+ED_LINENUM_G := 90.
+ED_LINENUM_B := 100.
+
+ED_COMMENT_R := 100.
+ED_COMMENT_G := 100.
+ED_COMMENT_B := 120.
+
+ED_SELECT_R := 60.
+ED_SELECT_G := 80.
+ED_SELECT_B := 120.
+
+// Vim mode colors
+ED_NORMAL_R := 130.
+ED_NORMAL_G := 180.
+ED_NORMAL_B := 255.
+
+ED_INSERT_R := 130.
+ED_INSERT_G := 255.
+ED_INSERT_B := 130.
+
+// ============================================================================
+// Initialization
+// ============================================================================
+
+#init_editor() >
+    /console_log/"Initializing editor...".
+    
+    editor_lines[0] = "// Bot Control Program".
+    editor_lines[1] = "// Write code to control the @".
+    editor_lines[2] = "".
+    editor_lines[3] = "#bot_move() >".
+    editor_lines[4] = "    // Return direction:".
+    editor_lines[5] = "    // 0=left 1=right 2=up 3=down".
+    editor_lines[6] = "    << 1.".
+    editor_lines[7] = "<".
+    editor_num_lines = 8.
+    
+    editor_cursor_line = 6.
+    editor_cursor_col = 7.
+    has_selection = 0.
+    
+    /console_log/"Editor ready!".
+<
+
+#set_editor_bounds(x, y, w, h) >
+    editor_x = x.
+    editor_y = y.
+    editor_width = w.
+    editor_height = h.
+<
+
+// ============================================================================
+// Undo/Redo System
+// ============================================================================
+
+#undo_save_state() >
+    // Don't save if we're in the middle of undo/redo
+    << 0 when undo_in_progress == 1.
+    
+    // When saving new state, truncate any redo history
+    undo_count = undo_position.
+    
+    // Check if we have room (simple ring buffer would be better but complex)
+    << 0 when undo_count ge UNDO_MAX_SNAPSHOTS.
+    
+    // Store current state as a compound value
+    // Format: pack line count, cursor pos, and lines into undo_stack
+    // For simplicity, we'll store editor state index and copy lines
+    idx := undo_count * 110.  // 110 slots per snapshot (3 metadata + 100 lines max + padding)
+    
+    undo_stack[idx] = editor_num_lines.
+    undo_stack[idx + 1] = editor_cursor_line.
+    undo_stack[idx + 2] = editor_cursor_col.
+    
+    // Copy all lines
+    for i in 0..editor_num_lines >
+        undo_stack[idx + 3 + i] = editor_lines[i].
+    <
+    
+    undo_count = undo_count + 1.
+    undo_position = undo_count.
+<
+
+#vim_undo() >
+    << 0 when undo_position le 0.
+    
+    undo_in_progress = 1.
+    
+    // First, save current state for redo (if not already at the end)
+    /undo_save_current_for_redo/ when undo_position == undo_count.
+    
+    // Move back in undo stack
+    undo_position = undo_position - 1.
+    
+    // Restore state from that position
+    /undo_restore_state/undo_position.
+    
+    undo_in_progress = 0.
+    /reset_blink/.
+<
+
+#undo_save_current_for_redo() >
+    // Save current state at current position before undoing
+    << 0 when undo_count ge UNDO_MAX_SNAPSHOTS.
+    
+    idx := undo_count * 110.
+    
+    undo_stack[idx] = editor_num_lines.
+    undo_stack[idx + 1] = editor_cursor_line.
+    undo_stack[idx + 2] = editor_cursor_col.
+    
+    for i in 0..editor_num_lines >
+        undo_stack[idx + 3 + i] = editor_lines[i].
+    <
+    
+    undo_count = undo_count + 1.
+<
+
+#vim_redo() >
+    << 0 when undo_position ge undo_count - 1.
+    
+    undo_in_progress = 1.
+    
+    // Move forward in undo stack
+    undo_position = undo_position + 1.
+    
+    // Restore state from that position
+    /undo_restore_state/undo_position.
+    
+    undo_in_progress = 0.
+    /reset_blink/.
+<
+
+#undo_restore_state(pos) >
+    idx := pos * 110.
+    
+    // Restore metadata
+    num_lines := undo_stack[idx].
+    editor_cursor_line = undo_stack[idx + 1].
+    editor_cursor_col = undo_stack[idx + 2].
+    
+    // Restore lines
+    for i in 0..num_lines >
+        editor_lines[i] = undo_stack[idx + 3 + i].
+    <
+    
+    editor_num_lines = num_lines.
+    /vim_clamp_cursor_normal/.
+    /editor_adjust_scroll/.
+<
+
+// ============================================================================
+// Helper: Calculate pixel X from column
+// ============================================================================
+
+#col_to_px(col) >
+    // col * 8.4 using integer math: col * 84 / 10
+    << col * EDITOR_CHAR_WIDTH_X10 / 10.
+<
+
+#px_to_col(px) >
+    // px / 8.4 = px * 10 / 84
+    << px * 10 / EDITOR_CHAR_WIDTH_X10.
+<
+
+// ============================================================================
+// Character Conversion
+// ============================================================================
+
+#key_to_char(key, shift) >
+    << key - KEY_LETTER_BASE + 65 when key ge KEY_LETTER_BASE and key lt KEY_LETTER_BASE + 26 and shift == 1.
+    << key - KEY_LETTER_BASE + 97 when key ge KEY_LETTER_BASE and key lt KEY_LETTER_BASE + 26.
+    
+    << 41 when key == 200 and shift == 1.
+    << 33 when key == 201 and shift == 1.
+    << 64 when key == 202 and shift == 1.
+    << 35 when key == 203 and shift == 1.
+    << 36 when key == 204 and shift == 1.
+    << 37 when key == 205 and shift == 1.
+    << 94 when key == 206 and shift == 1.
+    << 38 when key == 207 and shift == 1.
+    << 42 when key == 208 and shift == 1.
+    << 40 when key == 209 and shift == 1.
+    
+    << key - KEY_DIGIT_BASE + 48 when key ge KEY_DIGIT_BASE and key lt KEY_DIGIT_BASE + 10.
+    
+    << 95 when key == KEY_MINUS and shift == 1.
+    << 45 when key == KEY_MINUS.
+    << 43 when key == KEY_EQUAL and shift == 1.
+    << 61 when key == KEY_EQUAL.
+    << 123 when key == KEY_BRACKET_L and shift == 1.
+    << 91 when key == KEY_BRACKET_L.
+    << 125 when key == KEY_BRACKET_R and shift == 1.
+    << 93 when key == KEY_BRACKET_R.
+    << 58 when key == KEY_SEMICOLON and shift == 1.
+    << 59 when key == KEY_SEMICOLON.
+    << 34 when key == KEY_QUOTE and shift == 1.
+    << 39 when key == KEY_QUOTE.
+    << 126 when key == KEY_BACKQUOTE and shift == 1.
+    << 96 when key == KEY_BACKQUOTE.
+    << 124 when key == KEY_BACKSLASH and shift == 1.
+    << 92 when key == KEY_BACKSLASH.
+    << 60 when key == KEY_COMMA and shift == 1.
+    << 44 when key == KEY_COMMA.
+    << 62 when key == KEY_PERIOD and shift == 1.
+    << 46 when key == KEY_PERIOD.
+    << 63 when key == KEY_SLASH and shift == 1.
+    << 47 when key == KEY_SLASH.
+    << 32 when key == KEY_SPACE.
+    
+    << 0.
+<
+
+// ============================================================================
+// Selection Helpers
+// ============================================================================
+
+#clear_selection() >
+    has_selection = 0.
+<
+
+#normalize_selection() >
+    // Ensure sel_start is before sel_end
+    << 0 when has_selection == 0.
+    
+    // If start line is after end line, swap
+    swap := 0.
+    swap = 1 when sel_start_line gt sel_end_line.
+    swap = 1 when sel_start_line == sel_end_line and sel_start_col gt sel_end_col.
+    
+    /do_swap_selection/ when swap == 1.
+<
+
+#do_swap_selection() >
+    tmp_line := sel_start_line.
+    tmp_col := sel_start_col.
+    sel_start_line = sel_end_line.
+    sel_start_col = sel_end_col.
+    sel_end_line = tmp_line.
+    sel_end_col = tmp_col.
+<
+
+#delete_selection() >
+    << 0 when has_selection == 0.
+    
+    /normalize_selection/.
+    
+    // Single line selection
+    << /delete_single_line_selection/ when sel_start_line == sel_end_line.
+    
+    // Multi-line selection
+    /delete_multi_line_selection/.
+<
+
+#delete_single_line_selection() >
+    line := editor_lines[sel_start_line].
+    len := /ds_strlen/line.
+    
+    left := /ds_substring/line/0/sel_start_col.
+    right := /ds_substring/line/sel_end_col/(len - sel_end_col).
+    
+    new_line := /ds_string_concat/left/right.
+    editor_lines[sel_start_line] = new_line.
+    
+    editor_cursor_line = sel_start_line.
+    editor_cursor_col = sel_start_col.
+    has_selection = 0.
+    << 1.
+<
+
+#delete_multi_line_selection() >
+    // Get first line up to selection start
+    first_line := editor_lines[sel_start_line].
+    first_len := /ds_strlen/first_line.
+    left := /ds_substring/first_line/0/sel_start_col.
+    
+    // Get last line from selection end
+    last_line := editor_lines[sel_end_line].
+    last_len := /ds_strlen/last_line.
+    right := /ds_substring/last_line/sel_end_col/(last_len - sel_end_col).
+    
+    // Combine into one line
+    new_line := /ds_string_concat/left/right.
+    editor_lines[sel_start_line] = new_line.
+    
+    // Shift remaining lines up
+    lines_to_remove := sel_end_line - sel_start_line.
+    for i in (sel_start_line + 1)..(editor_num_lines - lines_to_remove) >
+        editor_lines[i] = editor_lines[i + lines_to_remove].
+    <
+    
+    editor_num_lines = editor_num_lines - lines_to_remove.
+    editor_cursor_line = sel_start_line.
+    editor_cursor_col = sel_start_col.
+    has_selection = 0.
+    /editor_adjust_scroll/.
+<
+
+// ============================================================================
+// Text Editing
+// ============================================================================
+
+#editor_insert_char(char_code) >
+    << 0 when char_code == 0.
+    
+    // Delete selection first if exists
+    /delete_selection/ when has_selection == 1.
+    
+    line := editor_lines[editor_cursor_line].
+    new_line := /ds_string_insert_char/line/editor_cursor_col/char_code.
+    editor_lines[editor_cursor_line] = new_line.
+    editor_cursor_col = editor_cursor_col + 1.
+    /reset_blink/.
+<
+
+#editor_delete_char_at_cursor() >
+    // Delete selection if exists
+    << /delete_selection/ when has_selection == 1.
+    
+    line := editor_lines[editor_cursor_line].
+    len := /ds_strlen/line.
+    
+    << /editor_merge_lines/ when editor_cursor_col ge len and editor_cursor_line lt editor_num_lines - 1.
+    << 0 when editor_cursor_col ge len.
+    
+    new_line := /ds_string_delete_char/line/editor_cursor_col.
+    editor_lines[editor_cursor_line] = new_line.
+    /reset_blink/.
+<
+
+#editor_backspace() >
+    // Delete selection if exists
+    << /delete_selection/ when has_selection == 1.
+    
+    << /editor_merge_line_up/ when editor_cursor_col == 0 and editor_cursor_line gt 0.
+    << 0 when editor_cursor_col == 0.
+    
+    editor_cursor_col = editor_cursor_col - 1.
+    /editor_delete_char_at_cursor/.
+<
+
+#editor_merge_line_up() >
+    << 0 when editor_cursor_line == 0.
+    
+    prev_line := editor_lines[editor_cursor_line - 1].
+    curr_line := editor_lines[editor_cursor_line].
+    prev_len := /ds_strlen/prev_line.
+    
+    merged := /ds_string_concat/prev_line/curr_line.
+    editor_lines[editor_cursor_line - 1] = merged.
+    
+    for i in editor_cursor_line..(editor_num_lines - 1) >
+        editor_lines[i] = editor_lines[i + 1].
+    <
+    
+    editor_num_lines = editor_num_lines - 1.
+    editor_cursor_line = editor_cursor_line - 1.
+    editor_cursor_col = prev_len.
+    /reset_blink/.
+    /editor_adjust_scroll/.
+    << 1.
+<
+
+#editor_merge_lines() >
+    << 0 when editor_cursor_line ge editor_num_lines - 1.
+    
+    curr_line := editor_lines[editor_cursor_line].
+    next_line := editor_lines[editor_cursor_line + 1].
+    
+    merged := /ds_string_concat/curr_line/next_line.
+    editor_lines[editor_cursor_line] = merged.
+    
+    for i in (editor_cursor_line + 1)..(editor_num_lines - 1) >
+        editor_lines[i] = editor_lines[i + 1].
+    <
+    
+    editor_num_lines = editor_num_lines - 1.
+    /reset_blink/.
+    << 1.
+<
+
+#editor_newline() >
+    /delete_selection/ when has_selection == 1.
+    
+    line := editor_lines[editor_cursor_line].
+    len := /ds_strlen/line.
+    
+    left := /ds_substring/line/0/editor_cursor_col.
+    right := /ds_substring/line/editor_cursor_col/(len - editor_cursor_col).
+    
+    i := editor_num_lines.
+    loop when i gt editor_cursor_line + 1 >
+        editor_lines[i] = editor_lines[i - 1].
+        i = i - 1.
+    <
+    
+    editor_lines[editor_cursor_line] = left.
+    editor_lines[editor_cursor_line + 1] = right.
+    
+    editor_num_lines = editor_num_lines + 1.
+    editor_cursor_line = editor_cursor_line + 1.
+    editor_cursor_col = 0.
+    /reset_blink/.
+    /editor_adjust_scroll/.
+<
+
+#editor_insert_tab() >
+    /editor_insert_char/32.
+    /editor_insert_char/32.
+    /editor_insert_char/32.
+    /editor_insert_char/32.
+<
+
+// ============================================================================
+// Cursor Movement
+// ============================================================================
+
+#editor_move_up() >
+    /clear_selection/.
+    << 0 when editor_cursor_line == 0.
+    editor_cursor_line = editor_cursor_line - 1.
+    /clamp_cursor_col/.
+    /reset_blink/.
+    /editor_adjust_scroll/.
+<
+
+#editor_move_down() >
+    /clear_selection/.
+    << 0 when editor_cursor_line ge editor_num_lines - 1.
+    editor_cursor_line = editor_cursor_line + 1.
+    /clamp_cursor_col/.
+    /reset_blink/.
+    /editor_adjust_scroll/.
+<
+
+#editor_move_left() >
+    /clear_selection/.
+    << /do_move_prev_line_end/ when editor_cursor_col == 0 and editor_cursor_line gt 0.
+    editor_cursor_col = editor_cursor_col - 1 when editor_cursor_col gt 0.
+    /reset_blink/.
+<
+
+#editor_move_right() >
+    /clear_selection/.
+    len := /ds_strlen/(editor_lines[editor_cursor_line]).
+    << /do_move_next_line_start/ when editor_cursor_col ge len and editor_cursor_line lt editor_num_lines - 1.
+    editor_cursor_col = editor_cursor_col + 1 when editor_cursor_col lt len.
+    /reset_blink/.
+<
+
+#do_move_prev_line_end() >
+    editor_cursor_line = editor_cursor_line - 1.
+    editor_cursor_col = /ds_strlen/(editor_lines[editor_cursor_line]).
+    /reset_blink/.
+    /editor_adjust_scroll/.
+    << 0.
+<
+
+#do_move_next_line_start() >
+    editor_cursor_line = editor_cursor_line + 1.
+    editor_cursor_col = 0.
+    /reset_blink/.
+    /editor_adjust_scroll/.
+    << 0.
+<
+
+#editor_home() >
+    /clear_selection/.
+    editor_cursor_col = 0.
+    /reset_blink/.
+<
+
+#editor_end() >
+    /clear_selection/.
+    editor_cursor_col = /ds_strlen/(editor_lines[editor_cursor_line]).
+    /reset_blink/.
+<
+
+#clamp_cursor_col() >
+    len := /ds_strlen/(editor_lines[editor_cursor_line]).
+    editor_cursor_col = len when editor_cursor_col gt len.
+<
+
+#reset_blink() >
+    editor_blink_timer = 0.
+    editor_cursor_visible = 1.
+<
+
+#editor_adjust_scroll() >
+    visible_lines := (editor_height - 40) / EDITOR_LINE_HEIGHT.
+    visible_lines = 1 when visible_lines lt 1.
+    
+    editor_scroll_y = editor_cursor_line when editor_cursor_line lt editor_scroll_y.
+    editor_scroll_y = editor_cursor_line - visible_lines + 1 when editor_cursor_line ge editor_scroll_y + visible_lines.
+    editor_scroll_y = 0 when editor_scroll_y lt 0.
+<
+
+// ============================================================================
+// Clipboard Handling
+// ============================================================================
+
+#editor_handle_copy() >
+    << 0 when has_selection == 0.
+    
+    // Get selected text and copy to clipboard
+    selected_text := /get_selected_text/.
+    /clipboard_set_text/selected_text.
+<
+
+#editor_handle_paste() >
+    paste_text := /clipboard_get_text/.
+    paste_len := /ds_strlen/paste_text.
+    << 0 when paste_len == 0.
+    
+    // Delete selection first if any
+    /delete_selection/ when has_selection == 1.
+    
+    // Insert pasted text character by character
+    for i in 0..paste_len >
+        char_code := /ds_string_at/paste_text/i.
+        /editor_insert_char/char_code when char_code != 10.
+        /editor_newline/ when char_code == 10.
+    <
+<
+
+#editor_select_all() >
+    sel_start_line = 0.
+    sel_start_col = 0.
+    sel_end_line = editor_num_lines - 1.
+    sel_end_col = /ds_strlen/(editor_lines[editor_num_lines - 1]).
+    has_selection = 1.
+    
+    editor_cursor_line = sel_end_line.
+    editor_cursor_col = sel_end_col.
+<
+
+#get_selected_text() >
+    << "" when has_selection == 0.
+    
+    /normalize_selection/.
+    
+    // Single line selection
+    << /get_single_line_selection/ when sel_start_line == sel_end_line.
+    
+    // Multi-line selection
+    << /get_multi_line_selection/.
+<
+
+#get_single_line_selection() >
+    line := editor_lines[sel_start_line].
+    len := sel_end_col - sel_start_col.
+    << /ds_substring/line/sel_start_col/len.
+<
+
+#get_multi_line_selection() >
+    result := "".
+    
+    for line_idx in sel_start_line..(sel_end_line + 1) >
+        line := editor_lines[line_idx].
+        line_len := /ds_strlen/line.
+        
+        // First line: from sel_start_col to end
+        start := 0.
+        start = sel_start_col when line_idx == sel_start_line.
+        
+        // Last line: from start to sel_end_col  
+        end := line_len.
+        end = sel_end_col when line_idx == sel_end_line.
+        
+        // Get substring
+        sub_len := end - start.
+        sub := /ds_substring/line/start/sub_len.
+        result = /ds_string_concat/result/sub.
+        
+        // Add newline between lines (but not after last line)
+        result = /ds_string_concat/result/"\n" when line_idx lt sel_end_line.
+    <
+    
+    << result.
+<
+
+// ============================================================================
+// Mouse Handling
+// ============================================================================
+
+#editor_handle_mouse() >
+    mx := /input_mouse_x/.
+    my := /input_mouse_y/.
+    
+    // Check if in editor bounds
+    << 0 when mx lt editor_x.
+    << 0 when mx gt editor_x + editor_width.
+    << 0 when my lt editor_y.
+    << 0 when my gt editor_y + editor_height.
+    
+    mouse_down := /input_mouse_down/.
+    mouse_just_pressed := /input_mouse_just_pressed/.
+    mouse_just_released := /input_mouse_just_released/.
+    
+    // State machine for mouse handling
+    // State 0: idle, State 1: dragging
+    
+    // On release, end drag
+    /end_drag/ when mouse_just_released == 1.
+    
+    // On press, start drag
+    /start_drag/mx/my when mouse_just_pressed == 1.
+    
+    // While dragging, update selection
+    /continue_drag/mx/my when is_dragging == 1.
+<
+
+#start_drag(mx, my) >
+    << 0 when is_dragging == 1.
+    
+    content_y := editor_y + 25.
+    line_num_width := 35.
+    text_x := editor_x + line_num_width + 10.
+    
+    // Calculate clicked position
+    rel_y := my - content_y.
+    clicked_line := editor_scroll_y + rel_y / EDITOR_LINE_HEIGHT.
+    clicked_line = 0 when clicked_line lt 0.
+    clicked_line = editor_num_lines - 1 when clicked_line ge editor_num_lines.
+    
+    rel_x := mx - text_x.
+    rel_x = 0 when rel_x lt 0.
+    clicked_col := /px_to_col/rel_x.
+    line_len := /ds_strlen/(editor_lines[clicked_line]).
+    clicked_col = line_len when clicked_col gt line_len.
+    
+    // Set cursor position
+    editor_cursor_line = clicked_line.
+    editor_cursor_col = clicked_col.
+    
+    // Set anchor for selection
+    sel_anchor_line = clicked_line.
+    sel_anchor_col = clicked_col.
+    
+    // Enter dragging state
+    is_dragging = 1.
+    has_selection = 0.
+    
+    /reset_blink/.
+<
+
+#continue_drag(mx, my) >
+    content_y := editor_y + 25.
+    line_num_width := 35.
+    text_x := editor_x + line_num_width + 10.
+    
+    rel_y := my - content_y.
+    drag_line := editor_scroll_y + rel_y / EDITOR_LINE_HEIGHT.
+    drag_line = 0 when drag_line lt 0.
+    drag_line = editor_num_lines - 1 when drag_line ge editor_num_lines.
+    
+    rel_x := mx - text_x.
+    rel_x = 0 when rel_x lt 0.
+    drag_col := /px_to_col/rel_x.
+    line_len := /ds_strlen/(editor_lines[drag_line]).
+    drag_col = line_len when drag_col gt line_len.
+    
+    // Update cursor to drag position
+    editor_cursor_line = drag_line.
+    editor_cursor_col = drag_col.
+    
+    // Calculate selection from anchor to current
+    sel_start_line = sel_anchor_line.
+    sel_start_col = sel_anchor_col.
+    sel_end_line = drag_line.
+    sel_end_col = drag_col.
+    
+    // Check if positions differ (we have a selection)
+    has_selection = 0.
+    /set_has_selection/ when sel_anchor_line != drag_line.
+    /set_has_selection/ when sel_anchor_col != drag_col.
+    
+    // Normalize so start < end
+    /normalize_selection/ when has_selection == 1.
+<
+
+#set_has_selection() >
+    has_selection = 1.
+<
+
+#end_drag() >
+    is_dragging = 0.
+<
+
+
+// ============================================================================
+// Input Handling
+// ============================================================================
+
+#editor_update(dt) >
+    // Clear mode switch flag at start of frame
+    vim_mode_switched = 0.
+    
+    // Update cursor blink
+    editor_blink_timer = editor_blink_timer + dt.
+    editor_cursor_visible = 1 when editor_blink_timer lt 500.
+    editor_cursor_visible = 0 when editor_blink_timer ge 500 and editor_blink_timer lt 1000.
+    editor_blink_timer = 0 when editor_blink_timer ge 1000.
+    
+    // Handle mouse
+    /editor_handle_mouse/.
+    
+    // Handle clipboard operations
+    /editor_handle_copy/ when /clipboard_copy_requested/ == 1.
+    /editor_handle_paste/ when /clipboard_paste_requested/ == 1.
+    /editor_select_all/ when /select_all_requested/ == 1.
+    /clipboard_clear_requests/.
+    
+    // ESC always goes to normal mode
+    /vim_enter_normal/ when /input_key_just_pressed/KEY_ESCAPE == 1.
+    
+    // Route to appropriate mode handler
+    /vim_update_normal/dt when vim_mode == VIM_MODE_NORMAL.
+    /vim_update_insert/dt when vim_mode == VIM_MODE_INSERT and vim_mode_switched == 0.
+<
+
+// ============================================================================
+// Vim Mode: Normal
+// ============================================================================
+
+#vim_enter_normal() >
+    vim_mode = VIM_MODE_NORMAL.
+    vim_pending = 0.
+    /clear_selection/.
+    // In normal mode, cursor can't be past end of line content
+    /vim_clamp_cursor_normal/.
+    /reset_blink/.
+<
+
+#vim_clamp_cursor_normal() >
+    len := /ds_strlen/(editor_lines[editor_cursor_line]).
+    // In normal mode, cursor should be on a character (or at 0 for empty lines)
+    // Empty line: cursor must be at 0
+    editor_cursor_col = 0 when len == 0.
+    // Non-empty line: cursor can be 0 to len-1
+    max_col := len - 1.
+    max_col = 0 when max_col lt 0.
+    editor_cursor_col = max_col when editor_cursor_col gt max_col and len gt 0.
+<
+
+#vim_update_normal(dt) >
+    shift := /input_shift_held/.
+    
+    // Movement keys with repeat (h, j, k, l) - only when no pending command
+    /vim_handle_normal_repeat/(KEY_LETTER_BASE + 7)/dt when vim_pending == 0.   // h
+    /vim_handle_normal_repeat/(KEY_LETTER_BASE + 9)/dt when vim_pending == 0.   // j
+    /vim_handle_normal_repeat/(KEY_LETTER_BASE + 10)/dt when vim_pending == 0.  // k
+    /vim_handle_normal_repeat/(KEY_LETTER_BASE + 11)/dt when vim_pending == 0.  // l
+    
+    // Arrow keys with repeat
+    /vim_handle_normal_repeat/KEY_UP/dt when vim_pending == 0.
+    /vim_handle_normal_repeat/KEY_DOWN/dt when vim_pending == 0.
+    /vim_handle_normal_repeat/KEY_LEFT/dt when vim_pending == 0.
+    /vim_handle_normal_repeat/KEY_RIGHT/dt when vim_pending == 0.
+    
+    // Word movement with repeat
+    /vim_handle_normal_repeat/(KEY_LETTER_BASE + 22)/dt when vim_pending == 0.  // w
+    /vim_handle_normal_repeat/(KEY_LETTER_BASE + 1)/dt when vim_pending == 0.   // b
+    /vim_handle_normal_repeat/(KEY_LETTER_BASE + 4)/dt when vim_pending == 0.   // e
+    
+    // x with repeat
+    /vim_handle_normal_repeat/(KEY_LETTER_BASE + 23)/dt when vim_pending == 0.  // x
+    
+    // Line navigation - only when no pending (no repeat)
+    /vim_line_start/ when /input_key_just_pressed/KEY_DIGIT_BASE == 1 and vim_pending == 0.            // 0
+    /vim_line_end/ when /input_key_just_pressed/KEY_DIGIT_BASE + 4 == 1 and shift == 1 and vim_pending == 0.  // $ (shift+4)
+    /vim_first_nonblank/ when /input_key_just_pressed/KEY_DIGIT_BASE + 6 == 1 and shift == 1 and vim_pending == 0.  // ^ (shift+6)
+    
+    // Insert mode transitions (only when no pending command)
+    /vim_insert_at_cursor/ when /input_key_just_pressed/(KEY_LETTER_BASE + 8) == 1 and shift == 0 and vim_pending == 0.  // i
+    /vim_insert_line_start/ when /input_key_just_pressed/(KEY_LETTER_BASE + 8) == 1 and shift == 1 and vim_pending == 0. // I
+    /vim_append_after/ when /input_key_just_pressed/(KEY_LETTER_BASE + 0) == 1 and shift == 0 and vim_pending == 0.      // a
+    /vim_append_line_end/ when /input_key_just_pressed/(KEY_LETTER_BASE + 0) == 1 and shift == 1 and vim_pending == 0.   // A
+    /vim_open_below/ when /input_key_just_pressed/(KEY_LETTER_BASE + 14) == 1 and shift == 0 and vim_pending == 0.       // o
+    /vim_open_above/ when /input_key_just_pressed/(KEY_LETTER_BASE + 14) == 1 and shift == 1 and vim_pending == 0.       // O
+    
+    // Paste - only when no pending (no repeat)
+    /vim_paste_after/ when /input_key_just_pressed/(KEY_LETTER_BASE + 15) == 1 and shift == 0 and vim_pending == 0.   // p
+    /vim_paste_before/ when /input_key_just_pressed/(KEY_LETTER_BASE + 15) == 1 and shift == 1 and vim_pending == 0.  // P
+    
+    // Undo/Redo
+    /vim_undo/ when /input_key_just_pressed/(KEY_LETTER_BASE + 20) == 1 and vim_pending == 0.  // u
+    /vim_redo/ when /input_key_just_pressed/(KEY_LETTER_BASE + 17) == 1 and vim_pending == 0.  // r (Ctrl+R not available, using r)
+    
+    // Two-key commands: d, y, c, g - handles all pending command logic
+    /vim_handle_pending/dt/shift.
+<
+
+#vim_handle_normal_repeat(key, dt) >
+    just_pressed := /input_key_just_pressed/key.
+    is_held := /input_key_pressed/key.
+    
+    // Key just pressed - execute immediately and start repeat timer
+    /vim_execute_normal_key/key when just_pressed == 1.
+    key_repeat_key = key when just_pressed == 1.
+    key_repeat_timer = 0 when just_pressed == 1.
+    
+    // Key held and this is the repeat key - check for repeat
+    /vim_check_normal_repeat/key/dt when is_held == 1 and key_repeat_key == key.
+    
+    // Key released - clear repeat state if this was the repeat key
+    key_repeat_key = 0 - 1 when is_held == 0 and key_repeat_key == key.
+<
+
+#vim_check_normal_repeat(key, dt) >
+    key_repeat_timer = key_repeat_timer + dt.
+    
+    // Initial delay before repeat starts
+    << 0 when key_repeat_timer lt KEY_REPEAT_DELAY.
+    
+    // After delay, repeat at rate
+    repeat_time := key_repeat_timer - KEY_REPEAT_DELAY.
+    remainder := /ds_mod/repeat_time/KEY_REPEAT_RATE.
+    /vim_execute_normal_key/key when remainder lt dt.
+<
+
+#vim_execute_normal_key(key) >
+    // Movement
+    /vim_move_left/ when key == KEY_LETTER_BASE + 7.    // h
+    /vim_move_down/ when key == KEY_LETTER_BASE + 9.    // j
+    /vim_move_up/ when key == KEY_LETTER_BASE + 10.     // k
+    /vim_move_right/ when key == KEY_LETTER_BASE + 11.  // l
+    
+    /vim_move_up/ when key == KEY_UP.
+    /vim_move_down/ when key == KEY_DOWN.
+    /vim_move_left/ when key == KEY_LEFT.
+    /vim_move_right/ when key == KEY_RIGHT.
+    
+    // Word movement
+    /vim_word_forward/ when key == KEY_LETTER_BASE + 22.  // w
+    /vim_word_backward/ when key == KEY_LETTER_BASE + 1.  // b
+    /vim_word_end/ when key == KEY_LETTER_BASE + 4.       // e
+    
+    // Delete char
+    /vim_delete_char/ when key == KEY_LETTER_BASE + 23.   // x
+<
+
+#vim_handle_pending(dt, shift) >
+    // Track original pending state to prevent starting new pending after executing command
+    orig_pending := vim_pending.
+    
+    // Handle 'dd' - delete line
+    /vim_delete_line/ when /input_key_just_pressed/(KEY_LETTER_BASE + 3) == 1 and vim_pending == 100.
+    // Handle 'd' to start pending (only if was already 0)
+    /vim_start_pending_d/ when /input_key_just_pressed/(KEY_LETTER_BASE + 3) == 1 and orig_pending == 0.
+    
+    // Handle 'yy' - yank line
+    /vim_do_yank_line/ when /input_key_just_pressed/(KEY_LETTER_BASE + 24) == 1 and vim_pending == 121.
+    // Handle 'y' to start pending (only if was already 0)
+    /vim_start_pending_y/ when /input_key_just_pressed/(KEY_LETTER_BASE + 24) == 1 and orig_pending == 0.
+    
+    // Handle 'cc' - change line
+    /vim_change_line/ when /input_key_just_pressed/(KEY_LETTER_BASE + 2) == 1 and vim_pending == 99.
+    // Handle 'c' to start pending (only if was already 0)
+    /vim_start_pending_c/ when /input_key_just_pressed/(KEY_LETTER_BASE + 2) == 1 and orig_pending == 0.
+    
+    // Handle 'w' after c/d pending (cw, dw)
+    /vim_change_word/ when /input_key_just_pressed/(KEY_LETTER_BASE + 22) == 1 and vim_pending == 99.
+    /vim_delete_word/ when /input_key_just_pressed/(KEY_LETTER_BASE + 22) == 1 and vim_pending == 100.
+    
+    // Handle 'b' after c/d pending (cb, db)
+    /vim_change_word_backward/ when /input_key_just_pressed/(KEY_LETTER_BASE + 1) == 1 and vim_pending == 99.
+    /vim_delete_word_backward/ when /input_key_just_pressed/(KEY_LETTER_BASE + 1) == 1 and vim_pending == 100.
+    
+    // Handle 'i' after c/d pending for ciw/diw
+    /vim_start_pending_ci/ when /input_key_just_pressed/(KEY_LETTER_BASE + 8) == 1 and vim_pending == 99.
+    /vim_start_pending_di/ when /input_key_just_pressed/(KEY_LETTER_BASE + 8) == 1 and vim_pending == 100.
+    
+    // Handle 'a' after c/d pending for caw/daw
+    /vim_start_pending_ca/ when /input_key_just_pressed/(KEY_LETTER_BASE + 0) == 1 and vim_pending == 99.
+    /vim_start_pending_da/ when /input_key_just_pressed/(KEY_LETTER_BASE + 0) == 1 and vim_pending == 100.
+    
+    // Handle 'w' after ci/ca/di/da pending
+    /vim_change_inner_word/ when /input_key_just_pressed/(KEY_LETTER_BASE + 22) == 1 and vim_pending == 105.
+    /vim_change_around_word/ when /input_key_just_pressed/(KEY_LETTER_BASE + 22) == 1 and vim_pending == 97.
+    /vim_delete_inner_word/ when /input_key_just_pressed/(KEY_LETTER_BASE + 22) == 1 and vim_pending == 106.
+    /vim_delete_around_word/ when /input_key_just_pressed/(KEY_LETTER_BASE + 22) == 1 and vim_pending == 98.
+    
+    // Handle 'gg' - goto first line
+    /vim_goto_first_line/ when /input_key_just_pressed/(KEY_LETTER_BASE + 6) == 1 and vim_pending == 103.
+    // Handle 'g' to start pending (only if was already 0)
+    /vim_start_pending_g/ when /input_key_just_pressed/(KEY_LETTER_BASE + 6) == 1 and orig_pending == 0 and shift == 0.
+    
+    // Handle 'G' (shift+g) for goto last line
+    /vim_goto_last_line/ when /input_key_just_pressed/(KEY_LETTER_BASE + 6) == 1 and shift == 1 and orig_pending == 0.
+    
+    // Cancel pending on ESC
+    vim_pending = 0 when /input_key_just_pressed/KEY_ESCAPE == 1.
+<
+
+#vim_start_pending_d() >
+    vim_pending = 100.
+<
+
+#vim_start_pending_y() >
+    vim_pending = 121.
+<
+
+#vim_start_pending_c() >
+    vim_pending = 99.
+<
+
+#vim_start_pending_ci() >
+    vim_pending = 105.  // ci - change inner
+<
+
+#vim_start_pending_ca() >
+    vim_pending = 97.   // ca - change around
+<
+
+#vim_start_pending_di() >
+    vim_pending = 106.  // di - delete inner
+<
+
+#vim_start_pending_da() >
+    vim_pending = 98.   // da - delete around
+<
+
+#vim_start_pending_g() >
+    vim_pending = 103.
+<
+
+// ============================================================================
+// Vim Normal Mode: Movement
+// ============================================================================
+
+#vim_move_left() >
+    vim_pending = 0.
+    editor_cursor_col = editor_cursor_col - 1 when editor_cursor_col gt 0.
+    /reset_blink/.
+<
+
+#vim_move_right() >
+    vim_pending = 0.
+    len := /ds_strlen/(editor_lines[editor_cursor_line]).
+    max_col := len - 1.
+    max_col = 0 when max_col lt 0.
+    editor_cursor_col = editor_cursor_col + 1 when editor_cursor_col lt max_col.
+    /reset_blink/.
+<
+
+#vim_move_up() >
+    vim_pending = 0.
+    << 0 when editor_cursor_line == 0.
+    editor_cursor_line = editor_cursor_line - 1.
+    /vim_clamp_cursor_normal/.
+    /reset_blink/.
+    /editor_adjust_scroll/.
+<
+
+#vim_move_down() >
+    vim_pending = 0.
+    << 0 when editor_cursor_line ge editor_num_lines - 1.
+    editor_cursor_line = editor_cursor_line + 1.
+    /vim_clamp_cursor_normal/.
+    /reset_blink/.
+    /editor_adjust_scroll/.
+<
+
+#vim_line_start() >
+    vim_pending = 0.
+    editor_cursor_col = 0.
+    /reset_blink/.
+<
+
+#vim_line_end() >
+    vim_pending = 0.
+    len := /ds_strlen/(editor_lines[editor_cursor_line]).
+    editor_cursor_col = len - 1.
+    editor_cursor_col = 0 when editor_cursor_col lt 0.
+    /reset_blink/.
+<
+
+#vim_first_nonblank() >
+    vim_pending = 0.
+    line := editor_lines[editor_cursor_line].
+    len := /ds_strlen/line.
+    col := 0.
+    loop when col lt len >
+        ch := /ds_string_at/line/col.
+        >> when ch != 32 and ch != 9.  // not space or tab
+        col = col + 1.
+    <
+    editor_cursor_col = col.
+    /vim_clamp_cursor_normal/.
+    /reset_blink/.
+<
+
+#vim_goto_first_line() >
+    vim_pending = 0.
+    editor_cursor_line = 0.
+    editor_cursor_col = 0.
+    /vim_clamp_cursor_normal/.
+    /reset_blink/.
+    /editor_adjust_scroll/.
+<
+
+#vim_goto_last_line() >
+    vim_pending = 0.
+    editor_cursor_line = editor_num_lines - 1.
+    editor_cursor_col = 0.
+    /vim_clamp_cursor_normal/.
+    /reset_blink/.
+    /editor_adjust_scroll/.
+<
+
+// ============================================================================
+// Vim Normal Mode: Word Movement
+// ============================================================================
+
+#vim_word_forward() >
+    vim_pending = 0.
+    line := editor_lines[editor_cursor_line].
+    len := /ds_strlen/line.
+    col := editor_cursor_col.
+    
+    // Skip current word (non-spaces)
+    loop when col lt len >
+        ch := /ds_string_at/line/col.
+        >> when ch == 32 or ch == 9.
+        col = col + 1.
+    <
+    
+    // Skip spaces
+    loop when col lt len >
+        ch := /ds_string_at/line/col.
+        >> when ch != 32 and ch != 9.
+        col = col + 1.
+    <
+    
+    // If at end of line, go to next line
+    /vim_word_forward_next_line/ when col ge len and editor_cursor_line lt editor_num_lines - 1.
+    editor_cursor_col = col when col lt len.
+    /vim_clamp_cursor_normal/.
+    /reset_blink/.
+<
+
+#vim_word_forward_next_line() >
+    editor_cursor_line = editor_cursor_line + 1.
+    editor_cursor_col = 0.
+    /vim_first_nonblank/.
+    /editor_adjust_scroll/.
+<
+
+#vim_word_backward() >
+    vim_pending = 0.
+    line := editor_lines[editor_cursor_line].
+    col := editor_cursor_col.
+    
+    // If at start of line, go to previous line
+    /vim_word_backward_prev_line/ when col == 0 and editor_cursor_line gt 0.
+    << 0 when col == 0.
+    
+    col = col - 1.
+    
+    // Skip spaces backward
+    loop when col gt 0 >
+        ch := /ds_string_at/line/col.
+        >> when ch != 32 and ch != 9.
+        col = col - 1.
+    <
+    
+    // Skip word backward
+    loop when col gt 0 >
+        prev_ch := /ds_string_at/line/(col - 1).
+        >> when prev_ch == 32 or prev_ch == 9.
+        col = col - 1.
+    <
+    
+    editor_cursor_col = col.
+    /reset_blink/.
+<
+
+#vim_word_backward_prev_line() >
+    editor_cursor_line = editor_cursor_line - 1.
+    len := /ds_strlen/(editor_lines[editor_cursor_line]).
+    editor_cursor_col = len - 1.
+    editor_cursor_col = 0 when editor_cursor_col lt 0.
+    /reset_blink/.
+    /editor_adjust_scroll/.
+<
+
+#vim_word_end() >
+    vim_pending = 0.
+    line := editor_lines[editor_cursor_line].
+    len := /ds_strlen/line.
+    col := editor_cursor_col.
+    
+    << 0 when len == 0.
+    
+    // Move at least one character
+    col = col + 1 when col lt len - 1.
+    
+    // Skip spaces
+    loop when col lt len >
+        ch := /ds_string_at/line/col.
+        >> when ch != 32 and ch != 9.
+        col = col + 1.
+    <
+    
+    // Skip to end of word
+    loop when col lt len - 1 >
+        next_ch := /ds_string_at/line/(col + 1).
+        >> when next_ch == 32 or next_ch == 9.
+        col = col + 1.
+    <
+    
+    editor_cursor_col = col.
+    /vim_clamp_cursor_normal/.
+    /reset_blink/.
+<
+
+// ============================================================================
+// Vim Normal Mode: Insert Transitions
+// ============================================================================
+
+#vim_enter_insert() >
+    /undo_save_state/.  // Save before insert session
+    vim_mode = VIM_MODE_INSERT.
+    vim_pending = 0.
+    vim_mode_switched = 1.
+    /reset_blink/.
+<
+
+#vim_insert_at_cursor() >
+    /vim_enter_insert/.
+<
+
+#vim_insert_line_start() >
+    /vim_first_nonblank/.
+    /vim_enter_insert/.
+<
+
+#vim_append_after() >
+    len := /ds_strlen/(editor_lines[editor_cursor_line]).
+    editor_cursor_col = editor_cursor_col + 1 when editor_cursor_col lt len.
+    /vim_enter_insert/.
+<
+
+#vim_append_line_end() >
+    editor_cursor_col = /ds_strlen/(editor_lines[editor_cursor_line]).
+    /vim_enter_insert/.
+<
+
+#vim_open_below() >
+    // Move to end of current line and insert newline
+    editor_cursor_col = /ds_strlen/(editor_lines[editor_cursor_line]).
+    /editor_newline/.
+    /vim_enter_insert/.
+<
+
+#vim_open_above() >
+    // Insert line above current
+    editor_cursor_col = 0.
+    /editor_newline/.
+    editor_cursor_line = editor_cursor_line - 1.
+    /vim_enter_insert/.
+<
+
+// ============================================================================
+// Vim Normal Mode: Editing
+// ============================================================================
+
+#vim_delete_char() >
+    /undo_save_state/.
+    vim_pending = 0.
+    line := editor_lines[editor_cursor_line].
+    len := /ds_strlen/line.
+    << 0 when len == 0.
+    
+    new_line := /ds_string_delete_char/line/editor_cursor_col.
+    editor_lines[editor_cursor_line] = new_line.
+    /vim_clamp_cursor_normal/.
+    /reset_blink/.
+<
+
+#vim_delete_line() >
+    /undo_save_state/.
+    vim_pending = 0.
+    
+    // Yank the line first
+    vim_yank_buffer = editor_lines[editor_cursor_line].
+    vim_yank_is_line = 1.
+    
+    // If only one line, just clear it
+    /vim_clear_only_line/ when editor_num_lines == 1.
+    << 0 when editor_num_lines == 1.
+    
+    // Shift lines up
+    for i in editor_cursor_line..(editor_num_lines - 1) >
+        editor_lines[i] = editor_lines[i + 1].
+    <
+    
+    editor_num_lines = editor_num_lines - 1.
+    
+    // Adjust cursor if past end
+    editor_cursor_line = editor_num_lines - 1 when editor_cursor_line ge editor_num_lines.
+    /vim_clamp_cursor_normal/.
+    /reset_blink/.
+    /editor_adjust_scroll/.
+<
+
+#vim_clear_only_line() >
+    editor_lines[0] = "".
+    editor_cursor_col = 0.
+    /reset_blink/.
+<
+
+#vim_change_line() >
+    vim_pending = 0.
+    // Clear line content and enter insert mode
+    editor_lines[editor_cursor_line] = "".
+    editor_cursor_col = 0.
+    /vim_enter_insert/.
+<
+
+#vim_change_word() >
+    vim_pending = 0.
+    /vim_delete_to_word_end/.
+    /vim_enter_insert/.
+<
+
+#vim_delete_word() >
+    /undo_save_state/.
+    vim_pending = 0.
+    /vim_delete_to_word_end/.
+<
+
+#vim_change_word_backward() >
+    vim_pending = 0.
+    /vim_delete_to_word_start/.
+    /vim_enter_insert/.
+<
+
+#vim_delete_word_backward() >
+    /undo_save_state/.
+    vim_pending = 0.
+    /vim_delete_to_word_start/.
+<
+
+#vim_delete_to_word_start() >
+    line := editor_lines[editor_cursor_line].
+    len := /ds_strlen/line.
+    << 0 when len == 0.
+    << 0 when editor_cursor_col == 0.
+    
+    col := editor_cursor_col.
+    start_col := col.
+    
+    // Go back to start of current/previous word
+    start_col = start_col - 1 when start_col gt 0.
+    
+    // Skip spaces backward
+    loop when start_col gt 0 >
+        ch := /ds_string_at/line/start_col.
+        >> when ch != 32 and ch != 9.
+        start_col = start_col - 1.
+    <
+    
+    // Skip word backward
+    loop when start_col gt 0 >
+        prev_ch := /ds_string_at/line/(start_col - 1).
+        >> when prev_ch == 32 or prev_ch == 9.
+        start_col = start_col - 1.
+    <
+    
+    // Delete from start_col to cursor
+    left := /ds_substring/line/0/start_col.
+    right := /ds_substring/line/col/(len - col).
+    new_line := /ds_string_concat/left/right.
+    editor_lines[editor_cursor_line] = new_line.
+    editor_cursor_col = start_col.
+    /vim_clamp_cursor_normal/.
+    /reset_blink/.
+<
+
+#vim_delete_to_word_end() >
+    line := editor_lines[editor_cursor_line].
+    len := /ds_strlen/line.
+    << 0 when len == 0.
+    
+    col := editor_cursor_col.
+    
+    // Find end of word (skip non-spaces, then skip spaces)
+    end_col := col.
+    loop when end_col lt len >
+        ch := /ds_string_at/line/end_col.
+        >> when ch == 32 or ch == 9.
+        end_col = end_col + 1.
+    <
+    
+    // Delete from cursor to end_col
+    left := /ds_substring/line/0/col.
+    right := /ds_substring/line/end_col/(len - end_col).
+    new_line := /ds_string_concat/left/right.
+    editor_lines[editor_cursor_line] = new_line.
+    /vim_clamp_cursor_normal/.
+    /reset_blink/.
+<
+
+#vim_change_inner_word() >
+    vim_pending = 0.
+    /vim_select_inner_word/.
+    /delete_selection/.
+    /vim_enter_insert/.
+<
+
+#vim_change_around_word() >
+    vim_pending = 0.
+    /vim_select_around_word/.
+    /delete_selection/.
+    /vim_enter_insert/.
+<
+
+#vim_delete_inner_word() >
+    /undo_save_state/.
+    vim_pending = 0.
+    /vim_select_inner_word/.
+    /delete_selection/.
+    /vim_clamp_cursor_normal/.
+<
+
+#vim_delete_around_word() >
+    /undo_save_state/.
+    vim_pending = 0.
+    /vim_select_around_word/.
+    /delete_selection/.
+    /vim_clamp_cursor_normal/.
+<
+
+#vim_select_inner_word() >
+    line := editor_lines[editor_cursor_line].
+    len := /ds_strlen/line.
+    << 0 when len == 0.
+    
+    col := editor_cursor_col.
+    
+    // Find start of word (go back while not space)
+    start_col := col.
+    loop when start_col gt 0 >
+        ch := /ds_string_at/line/(start_col - 1).
+        >> when ch == 32 or ch == 9.
+        start_col = start_col - 1.
+    <
+    
+    // Find end of word (go forward while not space)
+    end_col := col.
+    loop when end_col lt len >
+        ch := /ds_string_at/line/end_col.
+        >> when ch == 32 or ch == 9.
+        end_col = end_col + 1.
+    <
+    
+    // Set selection
+    sel_start_line = editor_cursor_line.
+    sel_start_col = start_col.
+    sel_end_line = editor_cursor_line.
+    sel_end_col = end_col.
+    has_selection = 1 when end_col gt start_col.
+<
+
+#vim_select_around_word() >
+    line := editor_lines[editor_cursor_line].
+    len := /ds_strlen/line.
+    << 0 when len == 0.
+    
+    col := editor_cursor_col.
+    
+    // Find start of word (go back while not space)
+    start_col := col.
+    loop when start_col gt 0 >
+        ch := /ds_string_at/line/(start_col - 1).
+        >> when ch == 32 or ch == 9.
+        start_col = start_col - 1.
+    <
+    
+    // Find end of word (go forward while not space)
+    end_col := col.
+    loop when end_col lt len >
+        ch := /ds_string_at/line/end_col.
+        >> when ch == 32 or ch == 9.
+        end_col = end_col + 1.
+    <
+    
+    // Include trailing spaces for "around"
+    loop when end_col lt len >
+        ch := /ds_string_at/line/end_col.
+        >> when ch != 32 and ch != 9.
+        end_col = end_col + 1.
+    <
+    
+    // Set selection
+    sel_start_line = editor_cursor_line.
+    sel_start_col = start_col.
+    sel_end_line = editor_cursor_line.
+    sel_end_col = end_col.
+    has_selection = 1 when end_col gt start_col.
+    /reset_blink/.
+<
+
+#vim_do_yank_line() >
+    vim_pending = 0.
+    vim_yank_buffer = editor_lines[editor_cursor_line].
+    vim_yank_is_line = 1.
+    /reset_blink/.
+<
+
+#vim_paste_after() >
+    /undo_save_state/.
+    vim_pending = 0.
+    << 0 when /ds_strlen/vim_yank_buffer == 0 and vim_yank_is_line == 0.
+    
+    /vim_paste_line_after/ when vim_yank_is_line == 1.
+    << 0 when vim_yank_is_line == 1.
+    
+    // Paste text at cursor
+    line := editor_lines[editor_cursor_line].
+    len := /ds_strlen/line.
+    
+    left := /ds_substring/line/0/(editor_cursor_col + 1).
+    right := /ds_substring/line/(editor_cursor_col + 1)/(len - editor_cursor_col - 1).
+    
+    new_line := /ds_string_concat/left/vim_yank_buffer.
+    new_line = /ds_string_concat/new_line/right.
+    editor_lines[editor_cursor_line] = new_line.
+    
+    editor_cursor_col = editor_cursor_col + 1.
+    /reset_blink/.
+<
+
+#vim_paste_line_after() >
+    // Insert yanked line below current
+    i := editor_num_lines.
+    loop when i gt editor_cursor_line + 1 >
+        editor_lines[i] = editor_lines[i - 1].
+        i = i - 1.
+    <
+    
+    editor_lines[editor_cursor_line + 1] = vim_yank_buffer.
+    editor_num_lines = editor_num_lines + 1.
+    editor_cursor_line = editor_cursor_line + 1.
+    editor_cursor_col = 0.
+    /vim_first_nonblank/.
+    /reset_blink/.
+    /editor_adjust_scroll/.
+<
+
+#vim_paste_before() >
+    /undo_save_state/.
+    vim_pending = 0.
+    << 0 when /ds_strlen/vim_yank_buffer == 0 and vim_yank_is_line == 0.
+    
+    /vim_paste_line_before/ when vim_yank_is_line == 1.
+    << 0 when vim_yank_is_line == 1.
+    
+    // Paste text before cursor
+    line := editor_lines[editor_cursor_line].
+    len := /ds_strlen/line.
+    
+    left := /ds_substring/line/0/editor_cursor_col.
+    right := /ds_substring/line/editor_cursor_col/(len - editor_cursor_col).
+    
+    new_line := /ds_string_concat/left/vim_yank_buffer.
+    new_line = /ds_string_concat/new_line/right.
+    editor_lines[editor_cursor_line] = new_line.
+    
+    /reset_blink/.
+<
+
+#vim_paste_line_before() >
+    // Insert yanked line above current
+    i := editor_num_lines.
+    loop when i gt editor_cursor_line >
+        editor_lines[i] = editor_lines[i - 1].
+        i = i - 1.
+    <
+    
+    editor_lines[editor_cursor_line] = vim_yank_buffer.
+    editor_num_lines = editor_num_lines + 1.
+    editor_cursor_col = 0.
+    /vim_first_nonblank/.
+    /reset_blink/.
+    /editor_adjust_scroll/.
+<
+
+// ============================================================================
+// Vim Mode: Insert
+// ============================================================================
+
+#vim_update_insert(dt) >
+    shift := /input_shift_held/.
+    
+    // Handle key input with repeat support
+    /handle_key_with_repeat/KEY_UP/dt.
+    /handle_key_with_repeat/KEY_DOWN/dt.
+    /handle_key_with_repeat/KEY_LEFT/dt.
+    /handle_key_with_repeat/KEY_RIGHT/dt.
+    /handle_key_with_repeat/KEY_BACKSPACE/dt.
+    /handle_key_with_repeat/KEY_DELETE/dt.
+    
+    // Non-repeating keys
+    /editor_home/ when /input_key_just_pressed/KEY_HOME == 1.
+    /editor_end/ when /input_key_just_pressed/KEY_END == 1.
+    /editor_newline/ when /input_key_just_pressed/KEY_ENTER == 1.
+    /editor_insert_tab/ when /input_key_just_pressed/KEY_TAB == 1.
+    
+    // Character input
+    /check_char_input_with_repeat/shift/dt.
+<
+
+#handle_key_with_repeat(key, dt) >
+    just_pressed := /input_key_just_pressed/key.
+    is_held := /input_key_pressed/key.
+    
+    // Key just pressed - execute immediately and start repeat timer
+    /execute_key_action/key when just_pressed == 1.
+    key_repeat_key = key when just_pressed == 1.
+    key_repeat_timer = 0 when just_pressed == 1.
+    
+    // Key held and this is the repeat key - check for repeat
+    /check_key_repeat/key/dt when is_held == 1 and key_repeat_key == key.
+    
+    // Key released - clear repeat state if this was the repeat key
+    /clear_repeat_if_match/key when is_held == 0.
+<
+
+#clear_repeat_if_match(key) >
+    key_repeat_key = 0 - 1 when key_repeat_key == key.
+<
+
+#check_key_repeat(key, dt) >
+    key_repeat_timer = key_repeat_timer + dt.
+    
+    // Initial delay before repeat starts
+    << 0 when key_repeat_timer lt KEY_REPEAT_DELAY.
+    
+    // After delay, repeat at rate
+    repeat_time := key_repeat_timer - KEY_REPEAT_DELAY.
+    remainder := /ds_mod/repeat_time/KEY_REPEAT_RATE.
+    /execute_key_action/key when remainder lt dt.
+<
+
+#execute_key_action(key) >
+    /editor_move_up/ when key == KEY_UP.
+    /editor_move_down/ when key == KEY_DOWN.
+    /editor_move_left/ when key == KEY_LEFT.
+    /editor_move_right/ when key == KEY_RIGHT.
+    /editor_backspace/ when key == KEY_BACKSPACE.
+    /editor_delete_char_at_cursor/ when key == KEY_DELETE.
+<
+
+#check_char_input_with_repeat(shift, dt) >
+    // For simplicity, just use just_pressed for character keys
+    // Full repeat would require tracking each key separately
+    
+    // Letters
+    for i in 0..26 >
+        key := KEY_LETTER_BASE + i.
+        /editor_insert_char/(/key_to_char/key/shift) when /input_key_just_pressed/key == 1.
+    <
+    
+    // Digits
+    for i in 0..10 >
+        key := KEY_DIGIT_BASE + i.
+        /editor_insert_char/(/key_to_char/key/shift) when /input_key_just_pressed/key == 1.
+    <
+    
+    // Special keys
+    /editor_insert_char/(/key_to_char/KEY_MINUS/shift) when /input_key_just_pressed/KEY_MINUS == 1.
+    /editor_insert_char/(/key_to_char/KEY_EQUAL/shift) when /input_key_just_pressed/KEY_EQUAL == 1.
+    /editor_insert_char/(/key_to_char/KEY_BRACKET_L/shift) when /input_key_just_pressed/KEY_BRACKET_L == 1.
+    /editor_insert_char/(/key_to_char/KEY_BRACKET_R/shift) when /input_key_just_pressed/KEY_BRACKET_R == 1.
+    /editor_insert_char/(/key_to_char/KEY_SEMICOLON/shift) when /input_key_just_pressed/KEY_SEMICOLON == 1.
+    /editor_insert_char/(/key_to_char/KEY_QUOTE/shift) when /input_key_just_pressed/KEY_QUOTE == 1.
+    /editor_insert_char/(/key_to_char/KEY_BACKQUOTE/shift) when /input_key_just_pressed/KEY_BACKQUOTE == 1.
+    /editor_insert_char/(/key_to_char/KEY_BACKSLASH/shift) when /input_key_just_pressed/KEY_BACKSLASH == 1.
+    /editor_insert_char/(/key_to_char/KEY_COMMA/shift) when /input_key_just_pressed/KEY_COMMA == 1.
+    /editor_insert_char/(/key_to_char/KEY_PERIOD/shift) when /input_key_just_pressed/KEY_PERIOD == 1.
+    /editor_insert_char/(/key_to_char/KEY_SLASH/shift) when /input_key_just_pressed/KEY_SLASH == 1.
+    /editor_insert_char/(/key_to_char/KEY_SPACE/shift) when /input_key_just_pressed/KEY_SPACE == 1.
+<
+
+// ============================================================================
+// Rendering
+// ============================================================================
+
+#render_editor() >
+    /draw_editor_header/.
+    /draw_editor_selection/ when has_selection == 1.
+    /draw_editor_content/.
+    /draw_editor_cursor/ when editor_cursor_visible == 1.
+<
+
+#draw_editor_header() >
+    hx := editor_x + 5.
+    hy := editor_y + 3.
+    
+    /text_draw/hx/hy/EDITOR_FONT_SIZE/ED_CURSOR_R/ED_CURSOR_G/ED_CURSOR_B/"[CODE EDITOR]".
+    
+    // Draw vim mode indicator
+    hx2 := editor_x + 130.
+    /draw_vim_mode_normal/hx2/hy when vim_mode == VIM_MODE_NORMAL.
+    /draw_vim_mode_insert/hx2/hy when vim_mode == VIM_MODE_INSERT.
+<
+
+#draw_vim_mode_normal(x, y) >
+    /text_draw/x/y/EDITOR_FONT_SIZE/ED_NORMAL_R/ED_NORMAL_G/ED_NORMAL_B/"-- NORMAL --".
+    
+    // Show pending command if any
+    px := x + 110.
+    /text_draw/px/y/EDITOR_FONT_SIZE/ED_COMMENT_R/ED_COMMENT_G/ED_COMMENT_B/"d..." when vim_pending == 100.
+    /text_draw/px/y/EDITOR_FONT_SIZE/ED_COMMENT_R/ED_COMMENT_G/ED_COMMENT_B/"y..." when vim_pending == 121.
+    /text_draw/px/y/EDITOR_FONT_SIZE/ED_COMMENT_R/ED_COMMENT_G/ED_COMMENT_B/"g..." when vim_pending == 103.
+    /text_draw/px/y/EDITOR_FONT_SIZE/ED_COMMENT_R/ED_COMMENT_G/ED_COMMENT_B/"c..." when vim_pending == 99.
+    /text_draw/px/y/EDITOR_FONT_SIZE/ED_COMMENT_R/ED_COMMENT_G/ED_COMMENT_B/"ci.." when vim_pending == 105.
+    /text_draw/px/y/EDITOR_FONT_SIZE/ED_COMMENT_R/ED_COMMENT_G/ED_COMMENT_B/"ca.." when vim_pending == 97.
+    /text_draw/px/y/EDITOR_FONT_SIZE/ED_COMMENT_R/ED_COMMENT_G/ED_COMMENT_B/"di.." when vim_pending == 106.
+    /text_draw/px/y/EDITOR_FONT_SIZE/ED_COMMENT_R/ED_COMMENT_G/ED_COMMENT_B/"da.." when vim_pending == 98.
+<
+
+#draw_vim_mode_insert(x, y) >
+    /text_draw/x/y/EDITOR_FONT_SIZE/ED_INSERT_R/ED_INSERT_G/ED_INSERT_B/"-- INSERT --".
+<
+
+#draw_editor_selection() >
+    content_y := editor_y + 25.
+    line_num_width := 35.
+    text_x := editor_x + line_num_width + 10.
+    
+    // Draw selection for each line in the selection range
+    /draw_sel_line/0/content_y/text_x when 0 ge sel_start_line and 0 le sel_end_line and 0 lt editor_num_lines.
+    /draw_sel_line/1/content_y/text_x when 1 ge sel_start_line and 1 le sel_end_line and 1 lt editor_num_lines.
+    /draw_sel_line/2/content_y/text_x when 2 ge sel_start_line and 2 le sel_end_line and 2 lt editor_num_lines.
+    /draw_sel_line/3/content_y/text_x when 3 ge sel_start_line and 3 le sel_end_line and 3 lt editor_num_lines.
+    /draw_sel_line/4/content_y/text_x when 4 ge sel_start_line and 4 le sel_end_line and 4 lt editor_num_lines.
+    /draw_sel_line/5/content_y/text_x when 5 ge sel_start_line and 5 le sel_end_line and 5 lt editor_num_lines.
+    /draw_sel_line/6/content_y/text_x when 6 ge sel_start_line and 6 le sel_end_line and 6 lt editor_num_lines.
+    /draw_sel_line/7/content_y/text_x when 7 ge sel_start_line and 7 le sel_end_line and 7 lt editor_num_lines.
+    /draw_sel_line/8/content_y/text_x when 8 ge sel_start_line and 8 le sel_end_line and 8 lt editor_num_lines.
+    /draw_sel_line/9/content_y/text_x when 9 ge sel_start_line and 9 le sel_end_line and 9 lt editor_num_lines.
+<
+
+#draw_sel_line(line_idx, content_y, text_x) >
+    screen_line := line_idx - editor_scroll_y.
+    << 0 when screen_line lt 0.
+    
+    // Offset by -1 to center the selection box better with the text
+    ly := content_y + screen_line * EDITOR_LINE_HEIGHT - 2.
+    line_len := /ds_strlen/(editor_lines[line_idx]).
+    
+    // Calculate selection bounds for this line
+    start_col := 0.
+    end_col := line_len.
+    
+    start_col = sel_start_col when line_idx == sel_start_line.
+    end_col = sel_end_col when line_idx == sel_end_line.
+    
+    // Draw selection highlight as filled rectangle
+    sx := text_x + /col_to_px/start_col.
+    sel_width := /col_to_px/(end_col - start_col).
+    
+    // Only draw if width > 0
+    /draw_rect/sx/ly/sel_width/EDITOR_LINE_HEIGHT/ED_SELECT_R/ED_SELECT_G/ED_SELECT_B/200 when sel_width gt 0.
+<
+
+#draw_editor_content() >
+    content_y := editor_y + 25.
+    line_num_width := 35.
+    
+    visible_lines := (editor_height - 40) / EDITOR_LINE_HEIGHT.
+    visible_lines = 1 when visible_lines lt 1.
+    
+    for i in 0..visible_lines >
+        line_idx := editor_scroll_y + i.
+        >> when line_idx ge editor_num_lines.
+        
+        ly := content_y + i * EDITOR_LINE_HEIGHT.
+        
+        // Line number
+        lnx := editor_x + 5.
+        /text_draw_int/lnx/ly/EDITOR_FONT_SIZE/ED_LINENUM_R/ED_LINENUM_G/ED_LINENUM_B/(line_idx + 1).
+        
+        // Line content
+        tx := editor_x + line_num_width + 10.
+        line_text := editor_lines[line_idx].
+        /text_draw/tx/ly/EDITOR_FONT_SIZE/ED_TEXT_R/ED_TEXT_G/ED_TEXT_B/line_text.
+    <
+<
+
+#draw_editor_cursor() >
+    content_y := editor_y + 25.
+    line_num_width := 35.
+    text_x := editor_x + line_num_width + 10.
+    
+    cursor_screen_line := editor_cursor_line - editor_scroll_y.
+    << 0 when cursor_screen_line lt 0.
+    
+    // Calculate cursor position - use offset to fine-tune
+    cx := text_x + /col_to_px/editor_cursor_col + EDITOR_CURSOR_OFFSET.
+    cy := content_y + cursor_screen_line * EDITOR_LINE_HEIGHT - 0.
+    
+    // Draw cursor based on vim mode
+    // Insert mode: thin line cursor (2px wide)
+    /draw_rect/cx/cy/2/14/ED_CURSOR_R/ED_CURSOR_G/ED_CURSOR_B/255 when vim_mode == VIM_MODE_INSERT.
+    
+    // Normal mode: block cursor (character width, semi-transparent)
+    char_width := EDITOR_CHAR_WIDTH_X10 / 10.
+    /draw_rect/cx/cy/char_width/14/ED_CURSOR_R/ED_CURSOR_G/ED_CURSOR_B/180 when vim_mode == VIM_MODE_NORMAL.
+<

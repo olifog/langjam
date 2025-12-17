@@ -89,8 +89,30 @@ int yycolumn = 1;
                     return INT_LITERAL; 
                 }
 
-\"[^\"]*\"      {
-                    yylval.sval = strndup(yytext + 1, yyleng - 2);
+\"([^\"\\]|\\.)*\"  {
+                    // Handle string with escape sequences
+                    char *src = yytext + 1;  // Skip opening quote
+                    int len = yyleng - 2;     // Exclude both quotes
+                    char *dst = malloc(len + 1);
+                    char *out = dst;
+                    for (int i = 0; i < len; i++) {
+                        if (src[i] == '\\' && i + 1 < len) {
+                            i++;
+                            switch (src[i]) {
+                                case 'n': *out++ = '\n'; break;
+                                case 't': *out++ = '\t'; break;
+                                case 'r': *out++ = '\r'; break;
+                                case '\\': *out++ = '\\'; break;
+                                case '"': *out++ = '"'; break;
+                                case '\'': *out++ = '\''; break;
+                                default: *out++ = src[i]; break;
+                            }
+                        } else {
+                            *out++ = src[i];
+                        }
+                    }
+                    *out = '\0';
+                    yylval.sval = dst;
                     return STRING_LITERAL;
                 }
 

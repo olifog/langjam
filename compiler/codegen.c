@@ -256,6 +256,8 @@ static void codegen_expr(ASTNode *node) {
     break;
 
   case NODE_ARRAY:
+    // Array literals generate brace initializers
+    // Note: This is only valid in declaration context (VAR_DECL handles this)
     emit_raw("{");
     if (node->data.array.elements && node->data.array.elements->count > 0) {
       for (size_t i = 0; i < node->data.array.elements->count; i++) {

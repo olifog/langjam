@@ -171,7 +171,13 @@ void main() {
     // Set uniforms - elapsed is in ms, shader divides by 1000 for seconds
     // C will convert the long to float automatically
     /gl_uniform1f/bg_time_loc/elapsed.
-    /gl_uniform2f/bg_res_loc/800.0f/600.0f.
+    
+    // Get dynamic screen dimensions
+    sw := /get_screen_width/.
+    sh := /get_screen_height/.
+    sw_f := sw * 1.0f.
+    sh_f := sh * 1.0f.
+    /gl_uniform2f/bg_res_loc/sw_f/sh_f.
     
     // Draw fullscreen quad
     /gl_bind_vertex_array/bg_vao.

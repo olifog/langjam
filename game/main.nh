@@ -1,30 +1,48 @@
-// nh - A NetHack-style Dungeon Crawler
-// Rendered entirely in nh using text_* functions with Berkeley Mono font
+// nh - A NetHack-style Dungeon Crawler with Code Editor
+// The player writes code to control the @ character
 
 @use "bgshader.nh".
+@use "editor.nh".
 
 // ============================================================================
-// Display Constants - Classic NetHack look
+// Screen Layout - Responsive
 // ============================================================================
 
-TILE_W := 10.           // Character width in pixels
-TILE_H := 16.           // Character height (font size)
-MAP_OFFSET_X := 20.     // Left margin
-MAP_OFFSET_Y := 32.     // Top margin  
-MAP_WIDTH := 76.        // Dungeon width (classic NetHack is 79)
-MAP_HEIGHT := 21.       // Dungeon height (classic NetHack is 21)
+SCREEN_W := 1280.
+SCREEN_H := 720.
 
-// Character codes for dungeon tiles
+// Layout mode: 0 = side by side, 1 = stacked (editor below)
+layout_mode := 0.
+
+// Panel bounds
+dungeon_x := 0.
+dungeon_y := 0.
+dungeon_w := 0.
+dungeon_h := 0.
+
+panel_editor_x := 0.
+panel_editor_y := 0.
+panel_editor_w := 0.
+panel_editor_h := 0.
+
+// ============================================================================
+// Display Constants
+// ============================================================================
+
+TILE_W := 10.
+TILE_H := 16.
+MAP_WIDTH := 50.
+MAP_HEIGHT := 20.
+
+// Tile characters
 CHAR_FLOOR := 46.       // '.'
-CHAR_WALL_H := 45.      // '-' horizontal wall
-CHAR_WALL_V := 124.     // '|' vertical wall
+CHAR_WALL_H := 45.      // '-'
+CHAR_WALL_V := 124.     // '|'
 CHAR_PLAYER := 64.      // '@'
 CHAR_DOOR := 43.        // '+'
 CHAR_CORRIDOR := 35.    // '#'
 CHAR_STAIRS_DOWN := 62. // '>'
-CHAR_STAIRS_UP := 60.   // '<'
 CHAR_GOLD := 36.        // '$'
-CHAR_EMPTY := 32.       // ' ' space
 
 // Tile types
 TILE_EMPTY := 0.
@@ -37,33 +55,32 @@ TILE_STAIRS := 6.
 TILE_GOLD := 7.
 
 // ============================================================================
-// Classic NetHack Colors (gray on black aesthetic)
+// Colors
 // ============================================================================
 
-// Standard dungeon - gray
 COL_GRAY_R := 170.
 COL_GRAY_G := 170.
 COL_GRAY_B := 170.
 
-// Player - bright white
 COL_WHITE_R := 255.
 COL_WHITE_G := 255.
 COL_WHITE_B := 255.
 
-// Gold - yellow
 COL_GOLD_R := 255.
 COL_GOLD_G := 255.
 COL_GOLD_B := 0.
 
-// Walls - brown/orange
 COL_BROWN_R := 180.
 COL_BROWN_G := 100.
 COL_BROWN_B := 40.
 
-// Stairs - white
 COL_CYAN_R := 0.
 COL_CYAN_G := 255.
 COL_CYAN_B := 255.
+
+COL_GREEN_R := 100.
+COL_GREEN_G := 255.
+COL_GREEN_B := 100.
 
 // ============================================================================
 // Dungeon Map
@@ -75,17 +92,21 @@ dungeon := [].
 // Player State
 // ============================================================================
 
-player_x := 10.
-player_y := 8.
+player_x := 5.
+player_y := 4.
 player_hp := 16.
 player_max_hp := 16.
 player_gold := 0.
-player_xp := 0.
 dungeon_level := 1.
 turns := 0.
 
+// Bot state
+bot_running := 0.
+bot_timer := 0.
+bot_step_delay := 300.  // ms between bot moves
+
 // Message
-last_message := "Welcome to nh! Find the stairs down.".
+last_message := "Write code to control @. Press F5 to run.".
 
 // ============================================================================
 // Game State
@@ -116,117 +137,96 @@ game_initialized := 0.
 <
 
 // ============================================================================
-// Room Generation - Classic NetHack style
+// Room Generation
 // ============================================================================
 
 #generate_dungeon() >
-    // Clear map
     size := MAP_WIDTH * MAP_HEIGHT.
     for i in 0..size >
         dungeon[i] = TILE_EMPTY.
     <
     
-    // Generate rooms - carefully positioned for clean corridors
     // Room 1: Starting room (left)
-    /make_room/2/2/12/7.
+    /make_room/2/2/10/6.
     
     // Room 2: Top center
-    /make_room/20/2/12/6.
+    /make_room/16/2/10/5.
     
     // Room 3: Top right
-    /make_room/38/2/12/6.
+    /make_room/30/2/10/5.
     
-    // Room 4: Bottom left
-    /make_room/2/12/12/7.
+    // Room 4: Far right
+    /make_room/42/4/6/8.
     
-    // Room 5: Bottom center
-    /make_room/20/11/12/8.
+    // Room 5: Bottom left
+    /make_room/2/11/10/7.
     
-    // Room 6: Right large room
-    /make_room/54/4/16/12.
+    // Room 6: Bottom center
+    /make_room/16/10/10/8.
     
-    // Connect with corridors
-    // Room 1 to Room 2 at y=5
-    /connect_h/13/5/20.
+    // Room 7: Bottom right
+    /make_room/30/11/12/7.
     
-    // Room 2 to Room 3 at y=5
-    /connect_h/31/5/38.
+    // Corridors
+    /connect_h/11/4/16.
+    /connect_h/25/4/30.
+    /connect_h/39/6/42.
+    /connect_v/6/7/11.
+    /connect_v/20/6/10.
+    /connect_v/35/6/11.
+    /connect_h/11/14/16.
+    /connect_h/25/14/30.
     
-    // Room 3 to Room 6 at y=5
-    /connect_h/49/5/54.
+    // Stairs in far right room
+    /set_tile/45/8/TILE_STAIRS.
     
-    // Room 1 to Room 4 at x=7
-    /connect_v/7/8/12.
+    // Gold scattered around
+    /set_tile/5/4/TILE_GOLD.
+    /set_tile/19/4/TILE_GOLD.
+    /set_tile/33/4/TILE_GOLD.
+    /set_tile/5/14/TILE_GOLD.
+    /set_tile/20/13/TILE_GOLD.
+    /set_tile/35/14/TILE_GOLD.
+    /set_tile/44/6/TILE_GOLD.
     
-    // Room 2 to Room 5 at x=25
-    /connect_v/25/7/11.
-    
-    // Room 4 to Room 5 at y=15
-    /connect_h/13/15/20.
-    
-    // Room 5 to Room 6 at y=14
-    /connect_h/31/14/54.
-    
-    // Place stairs down in Room 6
-    /set_tile/62/9/TILE_STAIRS.
-    
-    // Place gold in various rooms
-    /set_tile/6/4/TILE_GOLD.
-    /set_tile/24/4/TILE_GOLD.
-    /set_tile/42/4/TILE_GOLD.
-    /set_tile/6/15/TILE_GOLD.
-    /set_tile/25/14/TILE_GOLD.
-    /set_tile/62/12/TILE_GOLD.
-    
-    // Set player start position (in Room 1)
-    player_x = 7.
-    player_y = 5.
+    player_x = 5.
+    player_y = 4.
 <
 
 #connect_h(x1, y, x2) >
-    // Horizontal corridor from x1 to x2 at row y
-    // Places doors at walls, corridor in between
     x := x1.
     loop when x le x2 >
         tile := /get_tile/x/y.
-        // If it's a wall, make it a door
         /set_tile/x/y/TILE_DOOR when tile == TILE_WALL_H.
         /set_tile/x/y/TILE_DOOR when tile == TILE_WALL_V.
-        // If it's empty, make it corridor
         /set_tile/x/y/TILE_CORRIDOR when tile == TILE_EMPTY.
         x = x + 1.
     <
 <
 
 #connect_v(x, y1, y2) >
-    // Vertical corridor from y1 to y2 at column x
     y := y1.
     loop when y le y2 >
         tile := /get_tile/x/y.
-        // If it's a wall, make it a door
         /set_tile/x/y/TILE_DOOR when tile == TILE_WALL_H.
         /set_tile/x/y/TILE_DOOR when tile == TILE_WALL_V.
-        // If it's empty, make it corridor
         /set_tile/x/y/TILE_CORRIDOR when tile == TILE_EMPTY.
         y = y + 1.
     <
 <
 
 #make_room(rx, ry, rw, rh) >
-    // Draw floor
     for dy in 1..(rh - 1) >
         for dx in 1..(rw - 1) >
             /set_tile/(rx + dx)/(ry + dy)/TILE_FLOOR.
         <
     <
     
-    // Draw horizontal walls (top and bottom)
     for dx in 0..rw >
         /set_tile/(rx + dx)/ry/TILE_WALL_H.
         /set_tile/(rx + dx)/(ry + rh - 1)/TILE_WALL_H.
     <
     
-    // Draw vertical walls (left and right)
     for dy in 1..(rh - 1) >
         /set_tile/rx/(ry + dy)/TILE_WALL_V.
         /set_tile/(rx + rw - 1)/(ry + dy)/TILE_WALL_V.
@@ -256,12 +256,12 @@ game_initialized := 0.
     << 0 when walkable == 0.
     
     // Collect gold
-    last_message = "You pick up the gold." when tile == TILE_GOLD.
+    last_message = "You pick up gold!" when tile == TILE_GOLD.
     player_gold = player_gold + /rng_int/20 + 5 when tile == TILE_GOLD.
     /set_tile/new_x/new_y/TILE_FLOOR when tile == TILE_GOLD.
     
-    // Stairs message
-    last_message = "You see a staircase going down." when tile == TILE_STAIRS.
+    // Stairs
+    last_message = "You found the stairs! Level complete!" when tile == TILE_STAIRS.
     
     player_x = new_x.
     player_y = new_y.
@@ -271,16 +271,91 @@ game_initialized := 0.
 <
 
 // ============================================================================
+// Layout Calculation - Truly Responsive
+// ============================================================================
+
+#calculate_layout() >
+    w := /get_screen_width/.
+    h := /get_screen_height/.
+    
+    SCREEN_W = w.
+    SCREEN_H = h.
+    
+    // Stacked layout if height > width (portrait mode)
+    layout_mode = 1 when h gt w.
+    layout_mode = 0 when w ge h.
+    
+    /setup_side_layout/w/h when layout_mode == 0.
+    /setup_stacked_layout/w/h when layout_mode == 1.
+<
+
+#setup_side_layout(w, h) >
+    // Calculate dungeon size
+    dw := MAP_WIDTH * TILE_W + 40.
+    dh := MAP_HEIGHT * TILE_H + 100.
+    
+    // Dungeon on left
+    dungeon_x = 20.
+    dungeon_y = 20.
+    dungeon_w = dw.
+    dungeon_h = h - 40.
+    
+    // Editor fills remaining space on right
+    panel_editor_x = dw + 40.
+    panel_editor_y = 20.
+    panel_editor_w = w - dw - 60.
+    panel_editor_h = h - 40.
+    
+    /set_editor_bounds/panel_editor_x/panel_editor_y/panel_editor_w/panel_editor_h.
+<
+
+#setup_stacked_layout(w, h) >
+    half_h := h / 2.
+    
+    // Dungeon on top
+    dungeon_x = 20.
+    dungeon_y = 10.
+    dungeon_w = w - 40.
+    dungeon_h = half_h - 20.
+    
+    // Editor on bottom
+    panel_editor_x = 20.
+    panel_editor_y = half_h + 10.
+    panel_editor_w = w - 40.
+    panel_editor_h = half_h - 20.
+    
+    /set_editor_bounds/panel_editor_x/panel_editor_y/panel_editor_w/panel_editor_h.
+<
+
+// ============================================================================
+// Bot Execution (Simple Demo)
+// ============================================================================
+
+#bot_step() >
+    // For now, just move right as a demo
+    // In a full implementation, we'd parse and execute the editor code
+    dir := /rng_int/4.
+    
+    neg1 := 0 - 1.
+    /try_move/neg1/0 when dir == 0.  // left
+    /try_move/1/0 when dir == 1.     // right
+    /try_move/0/neg1 when dir == 2.  // up
+    /try_move/0/1 when dir == 3.     // down
+<
+
+// ============================================================================
 // Game Init
 // ============================================================================
 
 #game_init() >
-    /console_log/"nh dungeon initializing...".
+    /console_log/"nh dungeon with editor initializing...".
     /rng_seed/12345.
     /init_background_shader/.
+    /calculate_layout/.
     /generate_dungeon/.
+    /init_editor/.
     game_initialized = 1.
-    /console_log/"Dungeon ready!".
+    /console_log/"Ready! Write code and press F5 to run the bot.".
 <
 
 // ============================================================================
@@ -288,24 +363,36 @@ game_initialized := 0.
 // ============================================================================
 
 #game_update(dt) >
-    /do_update/ when game_initialized == 1.
+    /do_update/dt when game_initialized == 1.
 <
 
-#do_update() >
-    left := /input_key_just_pressed/0.
-    right := /input_key_just_pressed/1.
-    up := /input_key_just_pressed/2.
-    down := /input_key_just_pressed/3.
-    wait := /input_key_just_pressed/4.
+#do_update(dt) >
+    /calculate_layout/.
     
-    neg1 := 0 - 1.
-    /try_move/0/1 when down == 1.
-    /try_move/1/0 when right == 1.
-    /try_move/0/neg1 when up == 1.
-    /try_move/neg1/0 when left == 1.
+    // Update editor (handles all input)
+    /editor_update/dt.
     
-    turns = turns + 1 when wait == 1.
-    last_message = "Time passes..." when wait == 1.
+    // Bot execution
+    /update_bot/dt when bot_running == 1.
+    
+    // Bot toggle removed - will add button later
+<
+
+#toggle_bot() >
+    bot_running = 0 when bot_running == 1.
+    bot_running = 1 when bot_running == 0.
+    last_message = "Bot started! Watch @ move." when bot_running == 1.
+    last_message = "Bot stopped." when bot_running == 0.
+    bot_timer = 0.
+<
+
+#update_bot(dt) >
+    bot_timer = bot_timer + dt.
+    
+    << 0 when bot_timer lt bot_step_delay.
+    
+    bot_timer = 0.
+    /bot_step/.
 <
 
 // ============================================================================
@@ -317,81 +404,75 @@ game_initialized := 0.
 <
 
 #do_render() >
-    // Render swirly background shader first
     /render_background/.
-    
     /text_clear/.
+    /render_dungeon/.
+    /render_editor/.
+<
+
+#render_dungeon() >
+    map_offset_x := dungeon_x.
+    map_offset_y := dungeon_y + 12.
     
-    // Draw dungeon
+    // Draw tiles
     for y in 0..MAP_HEIGHT >
         for x in 0..MAP_WIDTH >
-            /draw_tile/x/y.
+            /draw_tile/x/y/map_offset_x/map_offset_y.
         <
     <
     
-    // Draw player on top
-    px := MAP_OFFSET_X + player_x * TILE_W.
-    py := MAP_OFFSET_Y + player_y * TILE_H.
+    // Draw player
+    px := map_offset_x + player_x * TILE_W.
+    py := map_offset_y + player_y * TILE_H.
     /text_char/px/py/TILE_H/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/CHAR_PLAYER.
     
-    // Draw status line (NetHack style)
-    /draw_status/.
+    // Status
+    /draw_status/map_offset_x/map_offset_y.
     
-    // Draw message line
-    /text_draw/MAP_OFFSET_X/560/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/last_message.
+    // Message
+    msg_y := map_offset_y + MAP_HEIGHT * TILE_H + 60.
+    /text_draw/map_offset_x/msg_y/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/last_message.
+    
+    // Header
+    /text_draw/map_offset_x/dungeon_y/12/COL_CYAN_R/COL_CYAN_G/COL_CYAN_B/"[DUNGEON]".
+    
+    // Bot status
+    bot_x := map_offset_x + 100.
+    /text_draw/bot_x/dungeon_y/12/COL_GREEN_R/COL_GREEN_G/COL_GREEN_B/"BOT: RUNNING" when bot_running == 1.
+    /text_draw/bot_x/dungeon_y/12/COL_GRAY_R/COL_GRAY_G/COL_GRAY_B/"BOT: STOPPED" when bot_running == 0.
 <
 
-#draw_tile(x, y) >
+#draw_tile(x, y, offset_x, offset_y) >
     tile := /get_tile/x/y.
     << 0 when tile == TILE_EMPTY.
     
-    sx := MAP_OFFSET_X + x * TILE_W.
-    sy := MAP_OFFSET_Y + y * TILE_H.
+    sx := offset_x + x * TILE_W.
+    sy := offset_y + y * TILE_H.
     
-    // Floor
     /text_char/sx/sy/TILE_H/COL_GRAY_R/COL_GRAY_G/COL_GRAY_B/CHAR_FLOOR when tile == TILE_FLOOR.
-    
-    // Walls
     /text_char/sx/sy/TILE_H/COL_BROWN_R/COL_BROWN_G/COL_BROWN_B/CHAR_WALL_H when tile == TILE_WALL_H.
     /text_char/sx/sy/TILE_H/COL_BROWN_R/COL_BROWN_G/COL_BROWN_B/CHAR_WALL_V when tile == TILE_WALL_V.
-    
-    // Corridor
     /text_char/sx/sy/TILE_H/COL_GRAY_R/COL_GRAY_G/COL_GRAY_B/CHAR_CORRIDOR when tile == TILE_CORRIDOR.
-    
-    // Door
     /text_char/sx/sy/TILE_H/COL_BROWN_R/COL_BROWN_G/COL_BROWN_B/CHAR_DOOR when tile == TILE_DOOR.
-    
-    // Stairs
     /text_char/sx/sy/TILE_H/COL_CYAN_R/COL_CYAN_G/COL_CYAN_B/CHAR_STAIRS_DOWN when tile == TILE_STAIRS.
-    
-    // Gold
     /text_char/sx/sy/TILE_H/COL_GOLD_R/COL_GOLD_G/COL_GOLD_B/CHAR_GOLD when tile == TILE_GOLD.
 <
 
-#draw_status() >
-    // NetHack-style status line at bottom
-    y := 375.
+#draw_status(offset_x, offset_y) >
+    y := offset_y + MAP_HEIGHT * TILE_H + 10.
     
-    // Character info
-    /text_draw/MAP_OFFSET_X/y/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/"Player the Adventurer".
+    /text_draw/offset_x/y/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/"Player the Adventurer".
     
-    // Stats line
-    y2 := 395.
-    /text_draw/MAP_OFFSET_X/y2/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/"Dlvl:".
-    /text_draw_int/70/y2/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/dungeon_level.
+    y2 := y + 20.
+    /text_draw/offset_x/y2/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/"Dlvl:".
+    /text_draw_int/(offset_x + 50)/y2/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/dungeon_level.
     
-    /text_draw/120/y2/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/"$:".
-    /text_draw_int/140/y2/14/COL_GOLD_R/COL_GOLD_G/COL_GOLD_B/player_gold.
+    /text_draw/(offset_x + 80)/y2/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/"$:".
+    /text_draw_int/(offset_x + 100)/y2/14/COL_GOLD_R/COL_GOLD_G/COL_GOLD_B/player_gold.
     
-    /text_draw/200/y2/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/"HP:".
-    /text_draw_int/230/y2/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/player_hp.
-    /text_draw/250/y2/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/"(".
-    /text_draw_int/260/y2/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/player_max_hp.
-    /text_draw/280/y2/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/")".
+    /text_draw/(offset_x + 150)/y2/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/"HP:".
+    /text_draw_int/(offset_x + 180)/y2/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/player_hp.
     
-    /text_draw/320/y2/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/"T:".
-    /text_draw_int/340/y2/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/turns.
-    
-    // Controls
-    /text_draw/MAP_OFFSET_X/580/12/100/100/100/"Move: arrows/hjkl  Wait: .  Collect gold ($) and find the stairs (>)".
+    /text_draw/(offset_x + 220)/y2/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/"T:".
+    /text_draw_int/(offset_x + 240)/y2/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/turns.
 <

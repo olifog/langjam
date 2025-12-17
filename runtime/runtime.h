@@ -28,11 +28,15 @@ typedef char GLchar;
 #endif
 
 // ============================================================================
-// Screen Constants
+// Screen Constants (reference resolution)
 // ============================================================================
 
-#define SCREEN_WIDTH 800
-#define SCREEN_HEIGHT 600
+#define SCREEN_WIDTH 1280
+#define SCREEN_HEIGHT 720
+
+// Get actual screen dimensions (may differ from constants on web)
+Value get_screen_width(void);
+Value get_screen_height(void);
 
 // ============================================================================
 // Raw GL Constants (subset of WebGL2 / OpenGL ES 3.0)
@@ -241,22 +245,40 @@ void gl_tex_parameteri(Value target, Value pname, Value param);
 // Input API (minimal)
 // ============================================================================
 
-#define KEY_LEFT 0
-#define KEY_RIGHT 1
-#define KEY_UP 2
-#define KEY_DOWN 3
-#define KEY_SPACE 4
-#define KEY_ENTER 5
-#define KEY_W 6
-#define KEY_A 7
-#define KEY_S 8
-#define KEY_D 9
+// Key constants - use RT_ prefix to avoid conflicts with nh code
+#define RT_KEY_LEFT 0
+#define RT_KEY_RIGHT 1
+#define RT_KEY_UP 2
+#define RT_KEY_DOWN 3
+#define RT_KEY_SPACE 4
+#define RT_KEY_ENTER 5
+#define RT_KEY_W 6
+#define RT_KEY_A 7
+#define RT_KEY_S 8
+#define RT_KEY_D 9
+#define RT_KEY_TAB 10
+#define RT_KEY_BACKSPACE 11
+#define RT_KEY_DELETE 12
+#define RT_KEY_HOME 13
+#define RT_KEY_END 14
+#define RT_KEY_ESCAPE 15
+
+// Letter keys: 100 + (0-25) for a-z
+// Digit keys: 200 + (0-9) for 0-9
+// Special keys: 210+ for symbols
 
 // Check if a key is currently pressed (1 = pressed, 0 = not)
 Value input_key_pressed(Value key);
 
 // Check if a key was just pressed this frame
 Value input_key_just_pressed(Value key);
+
+// Check if shift key is held
+Value input_shift_held(void);
+
+// Shift key callbacks
+EXPORT void on_shift_down(void);
+EXPORT void on_shift_up(void);
 
 // ============================================================================
 // Timing
@@ -290,6 +312,9 @@ void text_char(Value x, Value y, Value size, Value r, Value g, Value b, char c);
 // Draw an integer at position
 void text_draw_int(Value x, Value y, Value size, Value r, Value g, Value b,
                    Value value);
+
+// Draw a filled rectangle
+void draw_rect(Value x, Value y, Value w, Value h, Value r, Value g, Value b, Value a);
 
 // ============================================================================
 // Math Helpers (since .nh has limited math)
@@ -366,6 +391,27 @@ Value ds_substring(Value str, Value start, Value len);
 Value ds_streq(Value s1, Value s2);
 Value ds_div(Value a, Value b);
 Value ds_mod(Value a, Value b);
+
+// String manipulation for text editing
+Value ds_string_insert_char(Value str, Value pos, Value char_code);
+Value ds_string_delete_char(Value str, Value pos);
+Value ds_string_concat(Value str1, Value str2);
+Value ds_char_to_string(Value char_code);
+
+// Mouse input
+Value input_mouse_x(void);
+Value input_mouse_y(void);
+Value input_mouse_down(void);
+Value input_mouse_just_pressed(void);
+Value input_mouse_just_released(void);
+
+// Clipboard
+Value clipboard_copy_requested(void);
+Value clipboard_paste_requested(void);
+Value clipboard_get_text(void);
+void clipboard_set_text(Value str);
+void clipboard_clear_requests(void);
+Value select_all_requested(void);
 
 // List helpers
 Value ds_list_create(void);

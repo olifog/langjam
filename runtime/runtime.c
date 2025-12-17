@@ -171,7 +171,12 @@ Value ds_mod(Value a, Value b) {
 Value ds_substring(Value str_val, Value start, Value len) {
   const char *str = (const char *)str_val;
   if (!str || len <= 0)
-    return 0;
+    return (Value)"";
+  size_t str_len = strlen(str);
+  if (start >= (Value)str_len)
+    return (Value)"";
+  if (start + len > (Value)str_len)
+    len = str_len - start;
   char *sub = malloc(len + 1);
   strncpy(sub, str + start, len);
   sub[len] = '\0';
@@ -185,6 +190,57 @@ Value ds_string_at(Value str_val, Value index) {
   if (index < 0 || index >= (Value)strlen(str))
     return 0;
   return (Value)str[index];
+}
+
+// Insert a character at position in string, returns new string
+Value ds_string_insert_char(Value str_val, Value pos, Value char_code) {
+  const char *str = (const char *)str_val;
+  if (!str) str = "";
+  size_t len = strlen(str);
+  if (pos < 0) pos = 0;
+  if (pos > (Value)len) pos = len;
+  
+  char *result = malloc(len + 2);
+  strncpy(result, str, pos);
+  result[pos] = (char)char_code;
+  strcpy(result + pos + 1, str + pos);
+  return (Value)result;
+}
+
+// Delete character at position in string, returns new string
+Value ds_string_delete_char(Value str_val, Value pos) {
+  const char *str = (const char *)str_val;
+  if (!str) return (Value)"";
+  size_t len = strlen(str);
+  if (pos < 0 || pos >= (Value)len) return str_val;
+  
+  char *result = malloc(len);
+  strncpy(result, str, pos);
+  strcpy(result + pos, str + pos + 1);
+  return (Value)result;
+}
+
+// Concatenate two strings
+Value ds_string_concat(Value str1_val, Value str2_val) {
+  const char *str1 = (const char *)str1_val;
+  const char *str2 = (const char *)str2_val;
+  if (!str1) str1 = "";
+  if (!str2) str2 = "";
+  
+  size_t len1 = strlen(str1);
+  size_t len2 = strlen(str2);
+  char *result = malloc(len1 + len2 + 1);
+  strcpy(result, str1);
+  strcpy(result + len1, str2);
+  return (Value)result;
+}
+
+// Create a single-character string from char code
+Value ds_char_to_string(Value char_code) {
+  char *result = malloc(2);
+  result[0] = (char)char_code;
+  result[1] = '\0';
+  return (Value)result;
 }
 
 // ============================================================================
@@ -287,7 +343,7 @@ static void ensure_gl_context(void) {
     
     EMSCRIPTEN_WEBGL_CONTEXT_HANDLE ctx = emscripten_webgl_create_context("#canvas", &attrs);
     if (ctx <= 0) {
-      printf("Failed to create WebGL2 context: %d\n", ctx);
+      printf("Failed to create WebGL2 context: %ld\n", (long)ctx);
       return;
     }
     emscripten_webgl_make_context_current(ctx);
@@ -618,6 +674,7 @@ void gl_tex_parameteri(Value target, Value pname, Value param) {
 
 static int keys[512];
 static int keys_prev[512];
+static int shift_held = 0;
 
 Value input_key_pressed(Value key) {
   if (key < 0 || key >= 512)
@@ -629,6 +686,148 @@ Value input_key_just_pressed(Value key) {
   if (key < 0 || key >= 512)
     return 0;
   return keys[key] && !keys_prev[key];
+}
+
+Value input_shift_held(void) {
+  return shift_held;
+}
+
+void on_shift_down(void) {
+  shift_held = 1;
+}
+
+void on_shift_up(void) {
+  shift_held = 0;
+}
+
+// ============================================================================
+// Mouse Input
+// ============================================================================
+
+Value input_mouse_x(void) {
+#ifdef __EMSCRIPTEN__
+  return EM_ASM_INT({
+    return window.mouseX || 0;
+  });
+#else
+  return 0;
+#endif
+}
+
+Value input_mouse_y(void) {
+#ifdef __EMSCRIPTEN__
+  return EM_ASM_INT({
+    return window.mouseY || 0;
+  });
+#else
+  return 0;
+#endif
+}
+
+Value input_mouse_down(void) {
+#ifdef __EMSCRIPTEN__
+  return EM_ASM_INT({
+    return window.mouseDown || 0;
+  });
+#else
+  return 0;
+#endif
+}
+
+Value input_mouse_just_pressed(void) {
+#ifdef __EMSCRIPTEN__
+  return EM_ASM_INT({
+    return window.mouseJustPressed || 0;
+  });
+#else
+  return 0;
+#endif
+}
+
+Value input_mouse_just_released(void) {
+#ifdef __EMSCRIPTEN__
+  return EM_ASM_INT({
+    return window.mouseJustReleased || 0;
+  });
+#else
+  return 0;
+#endif
+}
+
+// ============================================================================
+// Clipboard
+// ============================================================================
+
+Value clipboard_copy_requested(void) {
+#ifdef __EMSCRIPTEN__
+  return EM_ASM_INT({
+    return window.clipboardCopyRequested || 0;
+  });
+#else
+  return 0;
+#endif
+}
+
+Value clipboard_paste_requested(void) {
+#ifdef __EMSCRIPTEN__
+  return EM_ASM_INT({
+    return window.clipboardPasteRequested || 0;
+  });
+#else
+  return 0;
+#endif
+}
+
+static char clipboard_buffer[16384];
+
+Value clipboard_get_text(void) {
+#ifdef __EMSCRIPTEN__
+  EM_ASM({
+    var text = window.clipboardText || "";
+    var ptr = $0;
+    for (var i = 0; i < text.length && i < 16383; i++) {
+      HEAP8[ptr + i] = text.charCodeAt(i);
+    }
+    HEAP8[ptr + Math.min(text.length, 16383)] = 0;
+  }, clipboard_buffer);
+  return (Value)clipboard_buffer;
+#else
+  clipboard_buffer[0] = 0;
+  return (Value)clipboard_buffer;
+#endif
+}
+
+void clipboard_set_text(Value str) {
+#ifdef __EMSCRIPTEN__
+  const char *s = (const char *)str;
+  EM_ASM({
+    var str = UTF8ToString($0);
+    window.clipboardText = str;
+    navigator.clipboard.writeText(str).catch(function(){});
+  }, s);
+#else
+  (void)str;
+#endif
+}
+
+void clipboard_clear_requests(void) {
+#ifdef __EMSCRIPTEN__
+  EM_ASM({
+    window.clipboardCopyRequested = 0;
+    window.clipboardPasteRequested = 0;
+    window.selectAllRequested = 0;
+  });
+#endif
+}
+
+Value select_all_requested(void) {
+#ifdef __EMSCRIPTEN__
+  return EM_ASM_INT({
+    return window.selectAllRequested || 0;
+  });
+#else
+  return 0;
+#endif
 }
 
 // ============================================================================
@@ -653,15 +852,41 @@ void console_log_float(float value) { printf("[LOG] %f\n", value); }
 #include <emscripten.h>
 #endif
 
+// Screen dimensions - can be updated dynamically
+static int screen_width = 1280;
+static int screen_height = 720;
+
+Value get_screen_width(void) {
+#ifdef __EMSCRIPTEN__
+  return EM_ASM_INT({
+    return window.screenWidth || 1280;
+  });
+#else
+  return screen_width;
+#endif
+}
+
+Value get_screen_height(void) {
+#ifdef __EMSCRIPTEN__
+  return EM_ASM_INT({
+    return window.screenHeight || 720;
+  });
+#else
+  return screen_height;
+#endif
+}
+
 void text_clear(void) {
 #ifdef __EMSCRIPTEN__
-  EM_ASM({
+  int w = get_screen_width();
+  int h = get_screen_height();
+  EM_ASM_({
     if (window.textCtx) {
-      window.textCtx.clearRect(0, 0, 800, 600);
-      window.textCtx.font = '15px "Berkeley Mono", monospace';
+      window.textCtx.clearRect(0, 0, $0, $1);
+      window.textCtx.font = '14px "Berkeley Mono", monospace';
       window.textCtx.textBaseline = 'top';
     }
-  });
+  }, w, h);
 #else
   // Native GL clear handles it
 #endif
@@ -726,6 +951,19 @@ void text_draw_int(Value x, Value y, Value size, Value r, Value g, Value b,
   char buf[32];
   sprintf(buf, "%ld", value);
   text_draw(x, y, size, r, g, b, (Value)buf);
+}
+
+void draw_rect(Value x, Value y, Value w, Value h, Value r, Value g, Value b, Value a) {
+#ifdef __EMSCRIPTEN__
+  EM_ASM({
+    if (window.textCtx) {
+      window.textCtx.fillStyle = 'rgba(' + $4 + ',' + $5 + ',' + $6 + ',' + ($7 / 255.0) + ')';
+      window.textCtx.fillRect($0, $1, $2, $3);
+    }
+  }, x, y, w, h, r, g, b, a);
+#else
+  (void)x; (void)y; (void)w; (void)h; (void)r; (void)g; (void)b; (void)a;
+#endif
 }
 
 // ============================================================================

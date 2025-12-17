@@ -4,10 +4,27 @@
     <meta charset="UTF-8">
     <title>nh</title>
     <style>
-        * { margin: 0; padding: 0; }
-        body { background: #000; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
-        .game { position: relative; width: 800px; height: 600px; }
-        #canvas, #textCanvas { position: absolute; top: 0; left: 0; }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { 
+            width: 100%; 
+            height: 100%; 
+            overflow: hidden;
+            background: #000; 
+        }
+        .game { 
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+        #canvas, #textCanvas { 
+            position: absolute; 
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
         #textCanvas { pointer-events: none; }
         @font-face {
             font-family: 'Berkeley Mono';
@@ -17,8 +34,8 @@
 </head>
 <body>
     <div class="game">
-        <canvas id="canvas" width="800" height="600"></canvas>
-        <canvas id="textCanvas" width="800" height="600"></canvas>
+        <canvas id="canvas"></canvas>
+        <canvas id="textCanvas"></canvas>
     </div>
     <script src="game.js"></script>
     <script>
@@ -26,18 +43,114 @@
         const textCanvas = document.getElementById('textCanvas');
         window.textCtx = textCanvas.getContext('2d');
         
+        // Screen dimensions - updated on resize
+        window.screenWidth = window.innerWidth;
+        window.screenHeight = window.innerHeight;
+        
         let wasmModule = null;
         let lastTime = performance.now();
         
+        // Mouse state
+        window.mouseX = 0;
+        window.mouseY = 0;
+        window.mouseDown = 0;
+        window.mouseJustPressed = 0;
+        window.mouseJustReleased = 0;
+        
+        // Clipboard state
+        window.clipboardText = '';
+        window.clipboardPasteRequested = 0;
+        window.clipboardCopyRequested = 0;
+        
+        // Extended key map for text editing
         const keyMap = {
             'ArrowLeft': 0, 'ArrowRight': 1, 'ArrowUp': 2, 'ArrowDown': 3,
             'Space': 4, 'Enter': 5,
-            'KeyW': 6, 'KeyA': 7, 'KeyS': 8, 'KeyD': 9,
-            'KeyH': 0, 'KeyL': 1, 'KeyK': 2, 'KeyJ': 3,
-            'Period': 4
+            // Editor mode toggle
+            'Tab': 10,
+            // Backspace
+            'Backspace': 11,
+            // Delete
+            'Delete': 12,
+            // Home/End
+            'Home': 13,
+            'End': 14,
+            // Escape
+            'Escape': 15
         };
         
+        // Letter keys (a-z) start at 100
+        for (let i = 0; i < 26; i++) {
+            keyMap['Key' + String.fromCharCode(65 + i)] = 100 + i;
+        }
+        // Digit keys (0-9) start at 200
+        for (let i = 0; i < 10; i++) {
+            keyMap['Digit' + i] = 200 + i;
+        }
+        // Numpad keys (0-9) also map to 200+
+        for (let i = 0; i < 10; i++) {
+            keyMap['Numpad' + i] = 200 + i;
+        }
+        // Special characters
+        const specialKeys = {
+            'Minus': 210, 'Equal': 211, 'BracketLeft': 212, 'BracketRight': 213,
+            'Semicolon': 214, 'Quote': 215, 'Backquote': 216, 'Backslash': 217,
+            'Comma': 218, 'Period': 219, 'Slash': 220
+        };
+        Object.assign(keyMap, specialKeys);
+        
+        // Track shift state
+        let shiftHeld = false;
+        
+        function resizeCanvas() {
+            const w = window.innerWidth;
+            const h = window.innerHeight;
+            
+            // Canvas fills entire screen - no aspect ratio preservation
+            canvas.width = w;
+            canvas.height = h;
+            textCanvas.width = w;
+            textCanvas.height = h;
+            
+            // Store dimensions for the game to query
+            window.screenWidth = w;
+            window.screenHeight = h;
+            
+            // Update text context font settings
+            if (window.textCtx) {
+                window.textCtx.font = '14px "Berkeley Mono", monospace';
+                window.textCtx.textBaseline = 'top';
+            }
+        }
+        
+        // Handle keyboard input
         document.addEventListener('keydown', (e) => {
+            if (e.key === 'Shift') {
+                shiftHeld = true;
+                if (wasmModule) wasmModule._on_shift_down();
+                return;
+            }
+            
+            // Handle Ctrl+C (copy)
+            if ((e.ctrlKey || e.metaKey) && e.key === 'c') {
+                window.clipboardCopyRequested = 1;
+                e.preventDefault();
+                return;
+            }
+            
+            // Handle Ctrl+V (paste) - just set flag, actual paste handled by paste event
+            if ((e.ctrlKey || e.metaKey) && e.key === 'v') {
+                // Don't prevent default - let paste event fire
+                return;
+            }
+            
+            // Handle Ctrl+A (select all)
+            if ((e.ctrlKey || e.metaKey) && e.key === 'a') {
+                window.selectAllRequested = 1;
+                e.preventDefault();
+                return;
+            }
+            
             const key = keyMap[e.code];
             if (key !== undefined && wasmModule) {
                 wasmModule._on_key_down(key);
@@ -45,21 +158,70 @@
             }
         });
         
+        // Handle paste event
+        document.addEventListener('paste', (e) => {
+            const text = e.clipboardData.getData('text');
+            if (text) {
+                window.clipboardText = text;
+                window.clipboardPasteRequested = 1;
+            }
+            e.preventDefault();
+        });
+        
         document.addEventListener('keyup', (e) => {
+            if (e.key === 'Shift') {
+                shiftHeld = false;
+                if (wasmModule) wasmModule._on_shift_up();
+                return;
+            }
+            
             const key = keyMap[e.code];
             if (key !== undefined && wasmModule) {
                 wasmModule._on_key_up(key);
             }
         });
         
+        // Mouse handling
+        function getMousePos(e) {
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+            return {
+                x: Math.floor((e.clientX - rect.left) * scaleX),
+                y: Math.floor((e.clientY - rect.top) * scaleY)
+            };
+        }
+        
+        canvas.addEventListener('mousedown', (e) => {
+            const pos = getMousePos(e);
+            window.mouseX = pos.x;
+            window.mouseY = pos.y;
+            window.mouseDown = 1;
+            window.mouseJustPressed = 1;
+        });
+        
+        canvas.addEventListener('mouseup', (e) => {
+            window.mouseDown = 0;
+            window.mouseJustReleased = 1;
+        });
+        
+        canvas.addEventListener('mousemove', (e) => {
+            const pos = getMousePos(e);
+            window.mouseX = pos.x;
+            window.mouseY = pos.y;
+        });
+        
         function renderFrame(now) {
             if (!wasmModule) return;
             const dt = Math.floor(now - lastTime);
             lastTime = now;
-            // Update and render first, THEN clear just_pressed flags for next frame
+            // Update and render first, THEN clear flags for next frame
             wasmModule._game_update(dt);
             wasmModule._game_render();
-            wasmModule._on_frame_start();  // Clear just_pressed AFTER reading them
+            wasmModule._on_frame_start();
+            // Clear mouse just pressed/released flags
+            window.mouseJustPressed = 0;
+            window.mouseJustReleased = 0;
             requestAnimationFrame(renderFrame);
         }
         
@@ -70,6 +232,11 @@
                     print: (t) => console.log('[nh]', t),
                     printErr: (t) => console.error('[nh]', t)
                 });
+                
+                // Initial resize
+                resizeCanvas();
+                window.addEventListener('resize', resizeCanvas);
+                
                 await new Promise(r => requestAnimationFrame(r));
                 wasmModule._game_init();
                 lastTime = performance.now();
