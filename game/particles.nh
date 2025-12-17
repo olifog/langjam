@@ -1,0 +1,101 @@
+// ============================================================================
+// Particle System
+// ============================================================================
+
+MAX_PARTICLES := 100.
+
+// Parallel arrays for particle state
+// We can't initialize them with size in .nh, so we use [] and fill them in init
+part_x := [].
+part_y := [].
+part_vx := [].
+part_vy := [].
+part_life := [].
+
+part_head := 0. // Index for round-robin spawning
+
+#init_particles() >
+    // Initialize arrays with 0s
+    for i in 0..MAX_PARTICLES >
+        part_x[i] = 0.
+        part_y[i] = 0.
+        part_vx[i] = 0.
+        part_vy[i] = 0.
+        part_life[i] = 0.
+    <
+<
+
+#spawn_particles(x, y) >
+    // Spawn a burst of particles
+    count := 10.
+    
+    // Pixel coordinates scaled by 100 for fixed point
+    // Use dungeon_x and dungeon_y + 12 as the map offset
+    px := (dungeon_x + x * TILE_W + 5) * 100.
+    py := (dungeon_y + 12 + y * TILE_H + 8) * 100.
+    
+    for i in 0..count >
+        idx := part_head.
+        
+        part_x[idx] = px.
+        part_y[idx] = py.
+        
+        // Random velocity (approx -1.0 to 1.0)
+        // Scaled by 100 on velocity too
+        r1 := /rng_int/200. // 0 to 200 => -100 to 100 (1.0 pixel)
+        part_vx[idx] = r1 - 100.
+        
+        // Y velocity: pop up (-2.0 to -0.5 pixels)
+        // -200 to -50
+        r2 := /rng_int/150. // 0 to 150
+        part_vy[idx] = (0 - 50) - r2. // -50 to -200
+        
+        // Life (20-40 frames)
+        part_life[idx] = 20 + /rng_int/20.
+        
+        // Advance head
+        part_head = part_head + 1.
+        part_head = 0 when part_head ge MAX_PARTICLES.
+    <
+<
+
+#update_particles() >
+    for i in 0..MAX_PARTICLES >
+        life := part_life[i].
+        /update_single_particle/i/life when life gt 0.
+    <
+<
+
+#update_single_particle(i, life) >
+    // Update position
+    part_x[i] = part_x[i] + part_vx[i].
+    part_y[i] = part_y[i] + part_vy[i].
+    
+    // Gravity effect (0.2 pixels/frame^2 = 20 fixed point)
+    part_vy[i] = part_vy[i] + 20.
+    
+    // Decrease life
+    part_life[i] = life - 1.
+<
+
+#draw_particles() >
+    for i in 0..MAX_PARTICLES >
+        life := part_life[i].
+        /draw_single_particle/i/life when life gt 0.
+    <
+<
+
+#draw_single_particle(i, life) >
+    // Scale down for drawing
+    px := part_x[i] / 100.
+    py := part_y[i] / 100.
+    
+    // Flicker color based on life
+    // Gold to Red fade
+    r := 255.
+    g := life * 10.
+    g = 255 when g gt 255.
+    b := 0.
+    
+    /text_char/px/py/10/r/g/b/42. // '*' character
+<

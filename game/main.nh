@@ -6,6 +6,7 @@
 @use "dungeon.nh".
 @use "player.nh".
 @use "render.nh".
+@use "particles.nh".
 
 // ============================================================================
 // Screen Layout - Responsive
@@ -101,6 +102,7 @@ game_initialized := 0.
     /console_log/"nh dungeon with editor initializing...".
     seed := /time_ms/.
     /rng_seed/seed.
+    /init_particles/.
     /init_background_shader/.
     /calculate_layout/.
     /generate_dungeon/.
@@ -115,6 +117,7 @@ game_initialized := 0.
 
 #game_update(dt) >
     /do_update/dt when game_initialized == 1.
+    /update_particles/ when game_initialized == 1.
 <
 
 #do_update(dt) >
@@ -149,5 +152,6 @@ game_initialized := 0.
 
     /text_clear/.
     /render_dungeon/.
+    /draw_particles/.
     /render_editor/.
 <
