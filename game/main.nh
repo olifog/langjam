@@ -62,24 +62,28 @@ game_initialized := 0.
 BUTTON_BAR_HEIGHT := 44.
 
 #setup_side_layout(w, h) >
-    // Calculate dungeon size
+    // Calculate split point
+    split_x := w / 2.
+
+    // Calculate dungeon size (just for reference or centering)
     dw := MAP_WIDTH * TILE_W + 40.
-    dh := MAP_HEIGHT * TILE_H + 100.
     
-    // Dungeon on left
+    // Dungeon on left (centered in left half?)
+    // For now keep at 20, or maybe center it? 
+    // Let's keep it at 20 for simplicity unless requested.
     dungeon_x = 20.
     dungeon_y = 20.
-    dungeon_w = dw.
+    dungeon_w = split_x - 40.
     dungeon_h = h - 40.
     
-    // Editor fills remaining space on right (with button bar above)
-    panel_editor_x = dw + 40.
+    // Editor fills right half
+    panel_editor_x = split_x + 20.
     panel_editor_y = 20 + BUTTON_BAR_HEIGHT.
-    panel_editor_w = w - dw - 60.
+    panel_editor_w = (w - split_x) - 40.
     panel_editor_h = h - 40 - BUTTON_BAR_HEIGHT.
     
     /set_editor_bounds/panel_editor_x/panel_editor_y/panel_editor_w/panel_editor_h.
-    /set_button_positions/(dw + 40)/20.
+    /set_button_positions/(split_x + 20)/20.
 <
 
 #setup_stacked_layout(w, h) >

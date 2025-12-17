@@ -12,6 +12,28 @@ player_gold := 0.
 dungeon_level := 1.
 turns := 0.
 
+// Attributes
+player_name := "Wizard".
+player_rank := "Candidate".
+player_align := "Chaotic".
+
+player_str := 18.
+player_str_exc := 3. // 18/03
+player_dex := 13.
+player_con := 8.
+player_int := 9.
+player_wis := 15.
+player_cha := 9.
+
+player_pw := 4.
+player_max_pw := 5.
+player_ac := 4.
+
+player_xp_level := 1.
+player_xp_points := 5.
+
+player_status_str := "Conf".
+
 // Animation state
 anim_timer := 0.
 anim_duration_scaled := 200.  // Current animation duration (scaled by speed)

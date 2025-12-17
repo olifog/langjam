@@ -124,20 +124,135 @@ COL_GREEN_B := 100.
 #draw_status(offset_x, offset_y) >
     y := offset_y + MAP_HEIGHT * TILE_H + 10.
     
-    /text_draw/offset_x/y/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/"Player the Adventurer".
+    // LINE 1
+    // Wizard the Candidate             St:18/03 Dx:13 Co:8 In:9 Wi:15 Ch:9  Chaotic
     
+    // Name + Rank
+    x := offset_x.
+    /text_draw/x/y/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/player_name.
+    
+    x = x + /ds_strlen/player_name * 9 + 10.
+    /text_draw/x/y/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/"the".
+    
+    x = x + 35.
+    /text_draw/x/y/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/player_rank.
+    
+    // Attributes starting around x=300?
+    attr_x := offset_x + 350.
+    
+    // St:18/03
+    /text_draw/attr_x/y/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/"St:".
+    /text_draw_int/(attr_x + 25)/y/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/player_str.
+    /text_draw/(attr_x + 45)/y/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/"/".
+    // 03 padding
+    val := player_str_exc.
+    /text_draw/(attr_x + 55)/y/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/"0" when val lt 10.
+    draw_val_x := attr_x + 55.
+    draw_val_x = attr_x + 65 when val lt 10.
+    /text_draw_int/draw_val_x/y/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/val.
+    
+    // Dx:13
+    attr_x = attr_x + 90.
+    /text_draw/attr_x/y/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/"Dx:".
+    /text_draw_int/(attr_x + 25)/y/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/player_dex.
+    
+    // Co:8
+    attr_x = attr_x + 60.
+    /text_draw/attr_x/y/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/"Co:".
+    /text_draw_int/(attr_x + 25)/y/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/player_con.
+    
+    // In:9
+    attr_x = attr_x + 50.
+    /text_draw/attr_x/y/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/"In:".
+    /text_draw_int/(attr_x + 25)/y/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/player_int.
+    
+    // Wi:15
+    attr_x = attr_x + 50.
+    /text_draw/attr_x/y/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/"Wi:".
+    /text_draw_int/(attr_x + 25)/y/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/player_wis.
+    
+    // Ch:9
+    attr_x = attr_x + 60.
+    /text_draw/attr_x/y/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/"Ch:".
+    /text_draw_int/(attr_x + 25)/y/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/player_cha.
+    
+    // Align
+    attr_x = attr_x + 60.
+    /text_draw/attr_x/y/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/player_align.
+    
+    
+    // LINE 2
+    // Dlvl:1  $:43  HP:11(14) Pw:4(5) AC:4  Xp:1/5 T:7 Conf
     y2 := y + 20.
-    /text_draw/offset_x/y2/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/"Dlvl:".
-    /text_draw_int/(offset_x + 50)/y2/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/dungeon_level.
+    x2 := offset_x.
     
-    /text_draw/(offset_x + 80)/y2/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/"$:".
-    /text_draw_int/(offset_x + 100)/y2/14/COL_GOLD_R/COL_GOLD_G/COL_GOLD_B/player_gold.
+    // Dlvl:1
+    /text_draw/x2/y2/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/"Dlvl:".
+    /text_draw_int/(x2 + 40)/y2/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/dungeon_level.
     
-    /text_draw/(offset_x + 150)/y2/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/"HP:".
-    /text_draw_int/(offset_x + 180)/y2/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/player_hp.
+    // $:43
+    x2 = x2 + 80.
+    /text_draw/x2/y2/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/"$:".
+    /text_draw_int/(x2 + 20)/y2/14/COL_GOLD_R/COL_GOLD_G/COL_GOLD_B/player_gold.
     
-    /text_draw/(offset_x + 220)/y2/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/"T:".
-    /text_draw_int/(offset_x + 240)/y2/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/turns.
+    // HP:11(14)
+    x2 = x2 + 80.
+    /text_draw/x2/y2/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/"HP:".
+    /text_draw_int/(x2 + 30)/y2/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/player_hp.
+    
+    hp_width := 15. // Approx
+    hp_width = 25 when player_hp gt 9.
+    
+    x_brack := x2 + 30 + hp_width.
+    /text_draw/x_brack/y2/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/"(".
+    /text_draw_int/(x_brack + 10)/y2/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/player_max_hp.
+    
+    hp_max_width := 15.
+    hp_max_width = 25 when player_max_hp gt 9.
+    
+    /text_draw/(x_brack + 10 + hp_max_width)/y2/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/")".
+    
+    // Pw:4(5)
+    x2 = x2 + 130.
+    /text_draw/x2/y2/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/"Pw:".
+    /text_draw_int/(x2 + 30)/y2/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/player_pw.
+    
+    pw_width := 10.
+    pw_width = 20 when player_pw gt 9.
+    
+    x_brack_pw := x2 + 30 + pw_width.
+    /text_draw/x_brack_pw/y2/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/"(".
+    /text_draw_int/(x_brack_pw + 10)/y2/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/player_max_pw.
+    
+    pw_max_width := 10.
+    pw_max_width = 20 when player_max_pw gt 9.
+    
+    /text_draw/(x_brack_pw + 10 + pw_max_width)/y2/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/")".
+    
+    // AC:4
+    x2 = x2 + 110.
+    /text_draw/x2/y2/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/"AC:".
+    /text_draw_int/(x2 + 30)/y2/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/player_ac.
+    
+    // Xp:1/5
+    x2 = x2 + 70.
+    /text_draw/x2/y2/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/"Xp:".
+    /text_draw_int/(x2 + 30)/y2/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/player_xp_level.
+    
+    xp_width := 10.
+    xp_width = 20 when player_xp_level gt 9.
+    
+    /text_draw/(x2 + 30 + xp_width)/y2/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/"/".
+    /text_draw_int/(x2 + 40 + xp_width)/y2/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/player_xp_points.
+    
+    // T:7
+    x2 = x2 + 100.
+    /text_draw/x2/y2/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/"T:".
+    /text_draw_int/(x2 + 20)/y2/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/turns.
+    
+    // Conf / Status
+    x2 = x2 + 80.
+    /text_draw/x2/y2/14/255/100/100/player_status_str.
 <
 
 
