@@ -40,6 +40,8 @@ anim_duration_scaled := 200.  // Current animation duration (scaled by speed)
 player_prev_x := 5.
 player_prev_y := 4.
 
+player_is_dead := 0.
+
 // Message
 // Message
 last_message := "Write code to control @. Click Play to run.".
@@ -156,6 +158,38 @@ last_message_buffer := "".
     /generate_dungeon/.
     
     last_message = "You descend deeper...".
+    << 1.
+<
+
+#check_player_death() >
+    // Only die if HP <= 0
+    << 0 when player_hp gt 0.
+    << 1 when player_is_dead == 1. // Already dead
+    
+    player_is_dead = 1.
+    last_message = "You died! Press SPACE to restart.".
+    bot_message = "Script Terminated (Death).".
+    
+    << 1.
+<
+
+#restart_game() >
+    player_is_dead = 0.
+    
+    // Reset stats
+    player_hp = player_max_hp.
+    player_gold = 0.
+    dungeon_level = 1.
+    player_xp_points = 0.
+    player_xp_level = 1.
+    
+    // New Dungeon
+    /generate_dungeon/.
+    
+    // Messages
+    last_message = "Welcome back to the dungeon.".
+    bot_message = "Bot ready.".
+    
     << 1.
 <
 

@@ -304,3 +304,46 @@ COL_RED_B := 80.
         /text_char/sx/sy/TILE_H/r/g/b/etype when active == 1.
     <
 <
+
+#draw_tombstone() >
+   // Center on screen
+   cx := dungeon_x + dungeon_w / 2.
+   cy := dungeon_y + dungeon_h / 2.
+   
+   // Box dimensions
+   w := 300.
+   h := 200.
+   x := cx - w / 2.
+   y := cy - h / 2.
+   
+   // Draw background (Black box)
+   /draw_rect/x/y/w/h/0/0/0/230.
+   
+   // Draw Border
+   /draw_rect/x/y/w/2/255/255/255/255.      // Top
+   /draw_rect/x/(y + h - 2)/w/2/255/255/255/255. // Bottom
+   /draw_rect/x/y/2/h/255/255/255/255.      // Left
+   /draw_rect/(x + w - 2)/y/2/h/255/255/255/255. // Right
+   
+   // Text
+   ty := y + 20.
+   /text_draw/(cx - 40)/ty/24/200/200/200/"R.I.P.".
+   
+   ty = ty + 40.
+   /text_draw/(x + 40)/ty/16/255/255/255/"Here lies the Wizard".
+   
+   ty = ty + 30.
+   lvl_msg := "Level: ".
+   /text_draw/(x + 40)/ty/14/200/200/200/lvl_msg.
+   /text_draw_int/(x + 100)/ty/14/255/255/0/dungeon_level.
+   
+   ty = ty + 20.
+   gold_msg := "Gold: ".
+   /text_draw/(x + 40)/ty/14/200/200/200/gold_msg.
+   /text_draw_int/(x + 100)/ty/14/255/255/0/player_gold.
+   
+   ty = ty + 40.
+   rgb := 255.
+   // Pulsate or something? No, simple.
+   /text_draw/(cx - 80)/ty/14/100/255/100/"Press SPACE to Restart".
+<

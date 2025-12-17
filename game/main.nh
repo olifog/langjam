@@ -138,6 +138,19 @@ BUTTON_BAR_HEIGHT := 44.
 #do_update(dt) >
     /calculate_layout/.
     
+    // If dead, wait for restart
+    can_update := 1.
+    can_update = 0 when player_is_dead == 1.
+    
+    // Restart Check
+    spc := /input_key_just_pressed/KEY_SPACE. // SPACE
+    /restart_game/ when player_is_dead == 1 and spc == 1.
+    
+    // Normal Update
+    /do_normal_update/dt when can_update == 1.
+<
+
+#do_normal_update(dt) >
     // Update animation timer
     anim_timer = anim_timer - dt.
     anim_timer = 0 when anim_timer lt 0.
@@ -151,6 +164,10 @@ BUTTON_BAR_HEIGHT := 44.
     
     // Bot execution with timing
     /update_bot_runner/dt when bot_is_running == 1.
+    
+    // Check for death (manual or bot)
+    died := /check_player_death/.
+    /bot_stop/ when died == 1.
 <
 
 #update_bot_runner(dt) >
@@ -168,6 +185,13 @@ BUTTON_BAR_HEIGHT := 44.
         bot_step_timer = bot_step_timer - bot_step_delay.
         /bot_run_tick/.
         ticks = ticks + 1.
+        
+        // Check for death inside loop too?
+        // Yes, if bot kills us, stop immediately
+        died := /check_player_death/.
+        /bot_stop/ when died == 1.
+        // Break loop (by setting ticks = max)
+        ticks = max_ticks when died == 1.
     <
 <
 
@@ -194,4 +218,7 @@ BUTTON_BAR_HEIGHT := 44.
     /draw_buttons/.
     /draw_slider/.
     /render_editor/.
+    
+    // Tombstone on top
+    /draw_tombstone/ when player_is_dead == 1.
 <
