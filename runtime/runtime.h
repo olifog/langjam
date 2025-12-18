@@ -4,7 +4,21 @@
 #include <stdint.h>
 
 // Basic types
+// Basic types
 typedef long Value;
+
+// Tagging: Integers are odd (bit 0 = 1), Pointers are passed through unchanged
+// 0 is represented as 1 (VAL_INT(0))
+#define VAL_INT(x) ((long)(((unsigned long)(x) << 1) | 1))
+#define VAL_OBJ(x) ((Value)(x))
+#define AS_INT(x) ((long)(x) >> 1)
+#define AS_OBJ(x)                                                              \
+  ((void *)(x)) // Don't modify pointer - WASM strings may be at odd addresses
+#define IS_INT(x) (((x) & 1))
+#define IS_OBJ(x) (!((x) & 1))
+
+// Check if value is a string (vs integer)
+Value ds_is_string(Value v);
 
 // ============================================================================
 // Platform Detection
@@ -307,7 +321,8 @@ void text_draw(Value x, Value y, Value size, Value r, Value g, Value b,
                Value text);
 
 // Draw a single character (for dungeon rendering)
-void text_char(Value x, Value y, Value size, Value r, Value g, Value b, char c);
+void text_char(Value x, Value y, Value size, Value r, Value g, Value b,
+               Value c);
 
 // Draw an integer at position
 void text_draw_int(Value x, Value y, Value size, Value r, Value g, Value b,
@@ -380,7 +395,7 @@ Value math_cos(Value x);
 Value math_random(Value min, Value max);
 
 // Object System
-Value ds_object_create(int count, ...);
+Value ds_object_create(Value count_val, ...);
 Value ds_object_get(Value obj, Value key);
 void ds_object_set(Value *obj, Value key, Value value);
 void ds_set_prop(Value obj, Value key, Value value);
@@ -393,6 +408,7 @@ Value ds_streq(Value s1, Value s2);
 Value ds_div(Value a, Value b);
 Value ds_mod(Value a, Value b);
 Value ds_is_string_like(Value val);
+Value val_eq(Value a, Value b);
 
 // String manipulation for text editing
 Value ds_string_insert_char(Value str, Value pos, Value char_code);
