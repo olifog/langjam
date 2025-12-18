@@ -17,6 +17,18 @@ typedef long Value;
 #define IS_INT(x) (((x) & 1))
 #define IS_OBJ(x) (!((x) & 1))
 
+// ============================================================================
+// Garbage Collection - Root Registration
+// ============================================================================
+
+// Register an array as a GC root (call at init for all global arrays that may
+// hold strings)
+void gc_register_root_array(Value *array, int size);
+
+// Register a single value as a GC root (call at init for all global variables
+// that may hold strings)
+void gc_register_root_value(Value *value_ptr);
+
 // Check if value is a string (vs integer)
 Value ds_is_string(Value v);
 
