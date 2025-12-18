@@ -58,12 +58,26 @@
         const textCanvas = document.getElementById('textCanvas');
         window.textCtx = textCanvas.getContext('2d');
 
+        // Hide text canvas - we will render it into the WebGL scene
+        textCanvas.style.display = 'none';
+
         // Screen dimensions - updated on resize
         window.screenWidth = window.innerWidth;
         window.screenHeight = window.innerHeight;
 
         let wasmModule = null;
         let lastTime = performance.now();
+
+        // CRT Shader State
+        let gl = null;
+        let crtProgram = null;
+        let quadVBO = null;
+        let quadVAO = null;
+
+        // Framebuffers & Textures
+        let sceneFBO = null;
+        let sceneTexture = null;
+        let textTexture = null;
 
         // Mouse state
         window.mouseX = 0;
@@ -120,37 +134,166 @@
         // =====================================================================
         // Value Tagging for WASM Interop
         // =====================================================================
-        // The runtime uses tagged values to distinguish integers from pointers:
-        //   - Integers: bit 0 = 1 (value is shifted left by 1, then OR'd with 1)
-        //   - Pointers: bit 0 = 0 (pointers are passed unchanged)
-        // 
-        // When calling WASM functions that expect a tagged integer (Value type),
-        // we must tag the value first. Use tagInt() for this purpose.
-        // =====================================================================
         function tagInt(n) {
-            // TAG_INT formula: (n << 1) | 1
-            // This makes the value odd, distinguishing it from aligned pointers
             return (n << 1) | 1;
+        }
+
+        // =====================================================================
+        // WebGL / CRT Shader Setup
+        // =====================================================================
+
+        async function initCRT() {
+            gl = canvas.getContext('webgl2');
+            if (!gl) {
+                console.error("WebGL 2 not supported");
+                return;
+            }
+
+            // Fix inverted text texture
+            gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+
+            // Fetch Shader Code
+            const response = await fetch('shaders/crt.glsl');
+            const crtFunctions = await response.text();
+
+            const vsSource = `#version 300 es
+            layout(location = 0) in vec2 aPos;
+            out vec2 vUv;
+            void main() {
+                vUv = aPos * 0.5 + 0.5;
+                gl_Position = vec4(aPos, 0.0, 1.0);
+            }`;
+
+            const fsSource = `#version 300 es
+            precision highp float;
+            out vec4 FragColor;
+            in vec2 vUv;
+            
+            uniform sampler2D uScene;
+            uniform sampler2D uText;
+            uniform vec2 iResolution;
+            uniform float iTime;
+
+            ${crtFunctions}
+
+            void main() {
+                // Apply CRT distortion to UVs
+                vec2 crtUv = crtCurve(vUv);
+                
+                // If out of bounds, return black
+                if (crtUv.x < 0.0 || crtUv.x > 1.0 || crtUv.y < 0.0 || crtUv.y > 1.0) {
+                    FragColor = vec4(0.0, 0.0, 0.0, 1.0);
+                    return;
+                }
+
+                // Sample Scene and Text at distorted UVs
+                vec4 sceneCol = texture(uScene, crtUv);
+                vec4 textCol = texture(uText, crtUv);
+                vec3 textRGB = sampleChromatic(uText, crtUv);
+
+                vec3 finalCol = mix(sceneCol.rgb, textRGB, textCol.a);
+
+                // Apply CRT effects (scanlines, vignette, etc.)
+                finalCol = applyCRT(crtUv * iResolution, finalCol);
+
+                FragColor = vec4(finalCol, 1.0);
+            }`;
+
+            // Compile Shaders
+            function createShader(type, source) {
+                const s = gl.createShader(type);
+                gl.shaderSource(s, source);
+                gl.compileShader(s);
+                if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) {
+                    console.error("Shader compile error:", gl.getShaderInfoLog(s));
+                    return null;
+                }
+                return s;
+            }
+
+            const vs = createShader(gl.VERTEX_SHADER, vsSource);
+            const fs = createShader(gl.FRAGMENT_SHADER, fsSource);
+            crtProgram = gl.createProgram();
+            gl.attachShader(crtProgram, vs);
+            gl.attachShader(crtProgram, fs);
+            gl.linkProgram(crtProgram);
+
+            if (!gl.getProgramParameter(crtProgram, gl.LINK_STATUS)) {
+                console.error("Program link error:", gl.getProgramInfoLog(crtProgram));
+            }
+
+            // Fullscreen Quad
+            const vertices = new Float32Array([
+                -1, -1, 1, -1, -1, 1,
+                -1, 1, 1, -1, 1, 1
+            ]);
+
+            quadVAO = gl.createVertexArray();
+            quadVBO = gl.createBuffer();
+            gl.bindVertexArray(quadVAO);
+            gl.bindBuffer(gl.ARRAY_BUFFER, quadVBO);
+            gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW);
+            gl.enableVertexAttribArray(0);
+            gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+            gl.bindVertexArray(null);
+
+            // Initialize Framebuffers
+            initFramebuffers();
+        }
+
+        function initFramebuffers() {
+            const w = canvas.width;
+            const h = canvas.height;
+
+            // 1. Scene FBO (Game renders here)
+            if (sceneTexture) gl.deleteTexture(sceneTexture);
+            if (sceneFBO) gl.deleteFramebuffer(sceneFBO);
+
+            sceneTexture = gl.createTexture();
+            gl.bindTexture(gl.TEXTURE_2D, sceneTexture);
+            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, w, h, 0, gl.RGB, gl.UNSIGNED_BYTE, null);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+
+            sceneFBO = gl.createFramebuffer();
+            gl.bindFramebuffer(gl.FRAMEBUFFER, sceneFBO);
+            gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, sceneTexture, 0);
+
+            // 2. Text Texture (We upload canvas here)
+            if (textTexture) gl.deleteTexture(textTexture);
+            textTexture = gl.createTexture();
+            gl.bindTexture(gl.TEXTURE_2D, textTexture);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+
+            gl.bindFramebuffer(gl.FRAMEBUFFER, null);
         }
 
         function resizeCanvas() {
             const w = window.innerWidth;
             const h = window.innerHeight;
 
-            // Canvas fills entire screen - no aspect ratio preservation
             canvas.width = w;
             canvas.height = h;
             textCanvas.width = w;
             textCanvas.height = h;
 
-            // Store dimensions for the game to query
             window.screenWidth = w;
             window.screenHeight = h;
 
-            // Update text context font settings
             if (window.textCtx) {
                 window.textCtx.font = '14px "Berkeley Mono", monospace';
                 window.textCtx.textBaseline = 'top';
+            }
+
+            // Re-init buffers on resize
+            if (gl) {
+                initFramebuffers();
+                gl.viewport(0, 0, w, h);
             }
         }
 
@@ -169,9 +312,8 @@
                 return;
             }
 
-            // Handle Ctrl+V (paste) - just set flag, actual paste handled by paste event
+            // Handle Ctrl+V (paste)
             if ((e.ctrlKey || e.metaKey) && e.key === 'v') {
-                // Don't prevent default - let paste event fire
                 return;
             }
 
@@ -215,11 +357,11 @@
         // Mouse handling
         function getMousePos(e) {
             const rect = canvas.getBoundingClientRect();
-            const scaleX = canvas.width / rect.width;
-            const scaleY = canvas.height / rect.height;
+            // TODO: Un-distort mouse coordinates if we want mouse to work perfectly with CRT
+            // For now, raw coordinates are fine as the distortion is mostly visual
             return {
-                x: Math.floor((e.clientX - rect.left) * scaleX),
-                y: Math.floor((e.clientY - rect.top) * scaleY)
+                x: Math.floor(e.clientX),
+                y: Math.floor(e.clientY)
             };
         }
 
@@ -246,26 +388,66 @@
             if (!wasmModule) return;
             const dt = Math.floor(now - lastTime);
             lastTime = now;
-            // Update and render first, THEN clear flags for next frame
+
+            // 1. Render Game World to FBO
+            gl.bindFramebuffer(gl.FRAMEBUFFER, sceneFBO);
+            gl.viewport(0, 0, canvas.width, canvas.height);
+            gl.clearColor(0, 0, 0, 1);
+            gl.clear(gl.COLOR_BUFFER_BIT);
+
+            // This calls game_render -> bgshader (draws to current FBO) 
+            // AND updates textCanvas (2D context)
             wasmModule._game_update(tagInt(dt));
             wasmModule._game_render();
             wasmModule._on_frame_start();
-            // Clear mouse just pressed/released flags
+
+            // 2. Upload Text Canvas to Texture
+            gl.bindTexture(gl.TEXTURE_2D, textTexture);
+            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, textCanvas);
+
+            // 3. Composite to Screen using CRT Shader
+            gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+            gl.viewport(0, 0, canvas.width, canvas.height);
+            gl.clear(gl.COLOR_BUFFER_BIT);
+
+            gl.useProgram(crtProgram);
+
+            // Set Uniforms
+            gl.uniform1i(gl.getUniformLocation(crtProgram, "uScene"), 0);
+            gl.uniform1i(gl.getUniformLocation(crtProgram, "uText"), 1);
+            gl.uniform2f(gl.getUniformLocation(crtProgram, "iResolution"), canvas.width, canvas.height);
+            gl.uniform1f(gl.getUniformLocation(crtProgram, "iTime"), now / 1000.0);
+
+            // Bind Textures
+            gl.activeTexture(gl.TEXTURE0);
+            gl.bindTexture(gl.TEXTURE_2D, sceneTexture);
+            gl.activeTexture(gl.TEXTURE1);
+            gl.bindTexture(gl.TEXTURE_2D, textTexture);
+
+            // Draw Quad
+            gl.bindVertexArray(quadVAO);
+            gl.drawArrays(gl.TRIANGLES, 0, 6);
+            gl.bindVertexArray(null);
+
+            // Clear input flags
             window.mouseJustPressed = 0;
             window.mouseJustReleased = 0;
+
             requestAnimationFrame(renderFrame);
         }
 
         async function init() {
             try {
+                // Initialize CRT resources first
+                await initCRT();
+                resizeCanvas(); // Ensure buffers are correct size
+
                 wasmModule = await createModule({
                     canvas: canvas,
                     print: (t) => console.log('[nh]', t),
                     printErr: (t) => console.error('[nh]', t)
                 });
 
-                // Initial resize
-                resizeCanvas();
                 window.addEventListener('resize', resizeCanvas);
 
                 await new Promise(r => requestAnimationFrame(r));
