@@ -76,10 +76,6 @@ void gc_register_root_array(Value *array, int size) {
 // Register a single value as a GC root (called from generated code)
 void gc_register_root_value(Value *value_ptr) {
   if (gc_root_value_count < GC_MAX_ROOT_VALUES) {
-    // Debug: trace registrations around the old limit
-    if (gc_root_value_count >= 250 && gc_root_value_count <= 270) {
-      printf("[GC DEBUG] Registering root value #%d\n", gc_root_value_count);
-    }
     gc_root_values[gc_root_value_count++] = value_ptr;
   } else {
     printf("[GC ERROR] gc_register_root_value: capacity exceeded! Max=%d\n",
@@ -323,10 +319,6 @@ static Value alloc_object(void) {
       objects[i].in_use = 1;
       objects[i].marked = 0;
       objects[i].prop_count = 0;
-      // Debug: trace object allocation
-      if (i < 50) { // First 50 objects are likely important
-        printf("[GC DEBUG] alloc_object: created object %d\n", i);
-      }
       return VAL_INT(i);
     }
   }
@@ -380,8 +372,6 @@ void ds_object_set(Value *obj, Value key_val, Value value) {
   }
 
   if (!objects[handle].in_use) {
-    printf("[GC DEBUG] ds_object_set FAILED: handle=%ld in_use=%d key=%s\n",
-           handle, objects[handle].in_use, key ? key : "(null)");
     return;
   }
 
@@ -1061,14 +1051,6 @@ static void gc_mark_value(Value val) {
 static void gc_mark(void) {
   // Mark collected roots
 
-  // DEBUG: Show total root counts
-  static int gc_debug_count = 0;
-  if (gc_debug_count < 5) {
-    printf("[GC DEBUG] gc_mark called: gc_root_value_count=%d\n",
-           gc_root_value_count);
-  }
-  gc_debug_count++;
-
   // 1. Registered root arrays (globals)
   for (int i = 0; i < GC_MAX_ROOT_ARRAYS; i++) {
     if (gc_root_arrays[i].in_use) {
@@ -1083,11 +1065,6 @@ static void gc_mark(void) {
     if (gc_root_values[i]) {
       Value val = *gc_root_values[i];
       long id = AS_INT(val);
-      // Debug: trace roots with LOW object IDs (these are real objects)
-      if (id > 0 && id < 50 && objects[id].in_use) {
-        printf("[GC DEBUG] Root[%d] raw=%ld obj_id=%ld in_use=%d marked=%d\n",
-               i, (long)val, id, objects[id].in_use, objects[id].marked);
-      }
       gc_mark_value(val);
     }
   }
@@ -1127,10 +1104,6 @@ static void gc_sweep(void) {
   for (int i = 1; i < MAX_OBJECTS; i++) {
     if (objects[i].in_use) {
       if (!objects[i].marked) {
-        // Debug: trace sweeping of objects with high IDs (likely env objects)
-        if (i > 1000) {
-          printf("[GC DEBUG] SWEEPING object %d (not marked)\n", i);
-        }
         objects[i].in_use = 0; // Reclaim slot
         // Keys are GC_TYPE_STRING and will be collected by sweep above
       } else {
