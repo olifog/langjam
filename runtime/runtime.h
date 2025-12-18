@@ -33,6 +33,15 @@ void gc_register_root_value(Value *value_ptr);
 void gc_push_env(Value env);
 void gc_pop_env(void);
 
+// Force a garbage collection cycle
+void gc_force_collect(void);
+
+// Clear the execution stack (call when interpreter stops)
+void gc_clear_exec_stack(void);
+
+// Clear a root array (set all elements to 0 so GC can collect old objects)
+void gc_clear_array(Value *array, Value size_val);
+
 // Check if value is a string (vs integer)
 Value ds_is_string(Value v);
 

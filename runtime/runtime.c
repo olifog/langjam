@@ -45,7 +45,7 @@ static int gc_next_alloc_slot = 0; // Cursor for next-fit allocation
 // gc_register_root_array() and gc_register_root_value() for safe collection.
 
 // Root array registry - for arrays like editor_lines[]
-#define GC_MAX_ROOT_ARRAYS 64
+#define GC_MAX_ROOT_ARRAYS 1024
 
 typedef struct {
   Value *array; // Pointer to array start
@@ -88,7 +88,7 @@ void gc_register_root_value(Value *value_ptr) {
 // Protects temporary environments (e.g., function call envs) during execution
 // ============================================================================
 
-#define GC_MAX_EXEC_STACK 64
+#define GC_MAX_EXEC_STACK 512
 
 static Value gc_exec_stack[GC_MAX_EXEC_STACK];
 static int gc_exec_stack_depth = 0;
@@ -104,6 +104,17 @@ void gc_push_env(Value env) {
 void gc_pop_env(void) {
   if (gc_exec_stack_depth > 0) {
     gc_exec_stack_depth--;
+  }
+}
+
+// Clear the execution stack (call when interpreter stops)
+void gc_clear_exec_stack(void) { gc_exec_stack_depth = 0; }
+
+// Clear a root array (set all elements to 0 so GC can collect old objects)
+void gc_clear_array(Value *array, Value size_val) {
+  int size = AS_INT(size_val);
+  for (int i = 0; i < size; i++) {
+    array[i] = 0;
   }
 }
 
@@ -172,11 +183,12 @@ static void gc_hash_init(void) {
 }
 
 static unsigned int gc_hash_ptr(void *ptr) {
-  // Simple hash: use pointer value, mix bits
-  uintptr_t p = (uintptr_t)ptr;
-  p = p ^ (p >> 16);
-  p = p ^ (p >> 8);
-  return (unsigned int)(p & (GC_HASH_SIZE - 1));
+  // Better mixing function for pointer hashing
+  uintptr_t x = (uintptr_t)ptr;
+  x = (x ^ (x >> 16)) * 0x45d9f3b;
+  x = (x ^ (x >> 16)) * 0x45d9f3b;
+  x = x ^ (x >> 16);
+  return (unsigned int)(x & (GC_HASH_SIZE - 1));
 }
 
 static void gc_hash_insert(void *ptr, int slot) {
@@ -196,16 +208,37 @@ static void gc_hash_insert(void *ptr, int slot) {
 
 static void gc_hash_remove(void *ptr) {
   unsigned int h = gc_hash_ptr(ptr);
+  int found_idx = -1;
   for (int i = 0; i < GC_HASH_SIZE; i++) {
     unsigned int idx = (h + i) & (GC_HASH_SIZE - 1);
     if (gc_hash_table[idx].ptr == ptr) {
-      gc_hash_table[idx].ptr = NULL;
-      gc_hash_table[idx].slot = -1;
-      return;
+      found_idx = idx;
+      break;
     }
     if (gc_hash_table[idx].ptr == NULL) {
       return; // Not found
     }
+  }
+
+  if (found_idx == -1)
+    return;
+
+  // Clear the found slot
+  gc_hash_table[found_idx].ptr = NULL;
+  gc_hash_table[found_idx].slot = -1;
+
+  // Re-hash the following cluster to fill the hole
+  int j = found_idx;
+  while (1) {
+    j = (j + 1) & (GC_HASH_SIZE - 1);
+    if (gc_hash_table[j].ptr == NULL)
+      break;
+
+    void *rehash_ptr = gc_hash_table[j].ptr;
+    int rehash_slot = gc_hash_table[j].slot;
+    gc_hash_table[j].ptr = NULL;
+    gc_hash_table[j].slot = -1;
+    gc_hash_insert(rehash_ptr, rehash_slot);
   }
 }
 
@@ -258,6 +291,9 @@ static void gc_maybe_collect(void) {
   }
 }
 
+// Public function to force a GC cycle (called when bot stops)
+void gc_force_collect(void) { gc_collect(); }
+
 // Unregister an allocation (for manual free)
 static void gc_unregister(void *ptr) {
   int slot = gc_find_slot(ptr);
@@ -288,7 +324,7 @@ Value time_ms(void) {
 // ============================================================================
 
 #define MAX_OBJECTS 65536
-#define MAX_PROPS 64
+#define MAX_PROPS 256
 
 typedef struct {
   char *key;
