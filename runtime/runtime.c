@@ -69,13 +69,14 @@ static Value alloc_object(void) {
   return VAL_INT(0);
 }
 
-Value ds_object_create(int count, ...) {
+Value ds_object_create(Value count_val, ...) {
+  int count = (int)AS_INT(count_val);
   Value handle = alloc_object();
   if (AS_INT(handle) == 0)
     return VAL_INT(0);
 
   va_list args;
-  va_start(args, count);
+  va_start(args, count_val);
 
   for (int i = 0; i < count; i++) {
     const char *key = va_arg(args, const char *);
@@ -152,6 +153,18 @@ Value ds_strlen(Value str_val) {
 Value ds_streq(Value s1_val, Value s2_val) {
   const char *s1 = (const char *)AS_OBJ(s1_val);
   const char *s2 = (const char *)AS_OBJ(s2_val);
+  if (!s1 || !s2)
+    return VAL_INT(0);
+  return VAL_INT(strcmp(s1, s2) == 0);
+}
+
+Value val_eq(Value a, Value b) {
+  if (a == b)
+    return VAL_INT(1);
+  if (IS_INT(a) || IS_INT(b))
+    return VAL_INT(0);
+  const char *s1 = (const char *)AS_OBJ(a);
+  const char *s2 = (const char *)AS_OBJ(b);
   if (!s1 || !s2)
     return VAL_INT(0);
   return VAL_INT(strcmp(s1, s2) == 0);

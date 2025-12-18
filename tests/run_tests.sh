@@ -104,12 +104,13 @@ static Value alloc_object(void) {
 // Forward decl
 static void ds_object_set_impl(Value *obj, const char *key, Value value);
 
-static inline Value ds_object_create(int count, ...) {
+static inline Value ds_object_create(Value count_val, ...) {
+  int count = (int)AS_INT(count_val);
   Value handle = alloc_object();
-  if (handle == 0) return 0;
+  if (handle == 0) return VAL_INT(0);
 
   va_list args;
-  va_start(args, count);
+  va_start(args, count_val);
   for (int i = 0; i < count; i++) {
     const char *key = va_arg(args, const char *);
     Value val = va_arg(args, Value);
@@ -180,6 +181,18 @@ static inline Value ds_streq(Value s1, Value s2) {
     const char* b = (const char*)AS_OBJ(s2);
     if(!a || !b) return VAL_INT(0);
     return VAL_INT(strcmp(a, b) == 0);
+}
+
+static inline Value val_eq(Value a, Value b) {
+    if (a == b) return VAL_INT(1);
+    // If integer, equality already checked by a==b.
+    // So if either is int here, they are different or different types
+    if (IS_INT(a) || IS_INT(b)) return VAL_INT(0);
+
+    const char *s1 = (const char *)AS_OBJ(a);
+    const char *s2 = (const char *)AS_OBJ(b);
+    if (!s1 || !s2) return VAL_INT(0);
+    return VAL_INT(strcmp(s1, s2) == 0);
 }
 
 // ============================================================================

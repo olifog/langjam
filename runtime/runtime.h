@@ -395,7 +395,7 @@ Value math_cos(Value x);
 Value math_random(Value min, Value max);
 
 // Object System
-Value ds_object_create(int count, ...);
+Value ds_object_create(Value count_val, ...);
 Value ds_object_get(Value obj, Value key);
 void ds_object_set(Value *obj, Value key, Value value);
 void ds_set_prop(Value obj, Value key, Value value);
@@ -408,6 +408,7 @@ Value ds_streq(Value s1, Value s2);
 Value ds_div(Value a, Value b);
 Value ds_mod(Value a, Value b);
 Value ds_is_string_like(Value val);
+Value val_eq(Value a, Value b);
 
 // String manipulation for text editing
 Value ds_string_insert_char(Value str, Value pos, Value char_code);

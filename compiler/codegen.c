@@ -8,6 +8,7 @@ static FILE *out;
 static int indent_level = 0;
 static int temp_counter = 0;
 static int lambda_counter = 0;
+static int in_main = 0; // Track if we're generating main() function
 
 // Track context for implicit _ (the piped/matched value)
 #define MAX_CONTEXT_DEPTH 32
@@ -257,19 +258,17 @@ static void codegen_expr(ASTNode *node) {
       // Operands for comparison ops (EQ/NE/LT...) need AS_INT unless we do
       // operator overloading For simplicity: Int comparisons
       if (node->data.binary.op == OP_EQ) {
-        // Equality is special: works for both if types match
-        // But tagged ints != pointers, so just raw equality works!
-        emit_raw("VAL_INT((");
+        emit_raw("val_eq((");
         codegen_expr(node->data.binary.left);
-        emit_raw(") == (");
+        emit_raw("), (");
         codegen_expr(node->data.binary.right);
         emit_raw("))");
       } else if (node->data.binary.op == OP_NE) {
-        emit_raw("VAL_INT((");
+        emit_raw("(val_eq((");
         codegen_expr(node->data.binary.left);
-        emit_raw(") != (");
+        emit_raw("), (");
         codegen_expr(node->data.binary.right);
-        emit_raw("))");
+        emit_raw(")) == VAL_INT(0) ? VAL_INT(1) : VAL_INT(0))");
       } else if (node->data.binary.op == OP_AND) {
         emit_raw("(((");
         codegen_expr(node->data.binary.left);
@@ -536,7 +535,7 @@ static void codegen_expr(ASTNode *node) {
   case NODE_OBJECT:
     // Objects are implemented as a simple struct with string keys
     // We'll generate a compound literal with the ds_object type
-    emit_raw("ds_object_create(%zu",
+    emit_raw("ds_object_create(VAL_INT(%zu)",
              node->data.object.fields ? node->data.object.fields->count : 0);
     if (node->data.object.fields) {
       for (size_t i = 0; i < node->data.object.fields->count; i++) {
@@ -682,12 +681,23 @@ static void codegen_stmt(ASTNode *node) {
     break;
 
   case NODE_RETURN:
-    emit("return");
-    if (node->data.return_stmt.value) {
-      emit_raw(" ");
-      codegen_expr(node->data.return_stmt.value);
+    if (in_main) {
+      // main() should return raw int for proper exit code
+      emit("return AS_INT(");
+      if (node->data.return_stmt.value) {
+        codegen_expr(node->data.return_stmt.value);
+      } else {
+        emit_raw("0");
+      }
+      emit_raw(");\n");
+    } else {
+      emit("return");
+      if (node->data.return_stmt.value) {
+        emit_raw(" ");
+        codegen_expr(node->data.return_stmt.value);
+      }
+      emit_raw(";\n");
     }
-    emit_raw(";\n");
     break;
 
   case NODE_BREAK:
@@ -762,10 +772,16 @@ static int function_has_return(ASTNode *body) {
 }
 
 static void codegen_function(ASTNode *func) {
+  const char *name = func->data.function.name;
+  int is_main = (strcmp(name, "main") == 0);
+  in_main = is_main;
+
   const char *ret_type =
-      function_has_return(func->data.function.body) ? "long" : "void";
-  const char *name = mangle_func_name(func->data.function.name);
-  emit("%s %s(", ret_type, name);
+      is_main
+          ? "int"
+          : (function_has_return(func->data.function.body) ? "long" : "void");
+  const char *mangled_name = mangle_func_name(name);
+  emit("%s %s(", ret_type, mangled_name);
 
   ASTList *params = func->data.function.params;
   if (params && params->count > 0) {
@@ -869,10 +885,14 @@ static void emit_lambdas(void) {
 
 // Emit forward declaration for a function
 static void codegen_function_decl(ASTNode *func) {
+  const char *name = func->data.function.name;
+  int is_main = (strcmp(name, "main") == 0);
   const char *ret_type =
-      function_has_return(func->data.function.body) ? "long" : "void";
-  const char *name = mangle_func_name(func->data.function.name);
-  emit("%s %s(", ret_type, name);
+      is_main
+          ? "int"
+          : (function_has_return(func->data.function.body) ? "long" : "void");
+  const char *mangled_name = mangle_func_name(name);
+  emit("%s %s(", ret_type, mangled_name);
 
   ASTList *params = func->data.function.params;
   if (params && params->count > 0) {
