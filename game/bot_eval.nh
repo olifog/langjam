@@ -275,6 +275,9 @@
     
     call_env := /bot_env_new_child/closure_env.
     
+    // Protect call_env from GC during recursive evaluation
+    /gc_push_env/call_env.
+    
     num_args := /ds_list_len/args.
     i := 0.
     loop >
@@ -290,6 +293,9 @@
     
     ret := /bot_env_get_return/call_env.
     flow := /bot_env_get_flow/call_env.
+    
+    // Pop env from GC protection stack before returning
+    /gc_pop_env/.
     
     << (flow == 2) | >
         1 => ret
