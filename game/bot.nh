@@ -25,8 +25,6 @@ bot_step_delay := 500. // Delay between steps in continuous mode (ms)
 bot_error := "".       // Error message if any
 bot_has_error := 0.    // 1 if there's an error
 
-// Step counter for display
-bot_step_count := 0.
 
 // Current execution line (0-indexed, -1 = not running)
 bot_current_line := 0 - 1.
@@ -151,7 +149,6 @@ bot_has_print := 0.        // 1 if there's a value to display
 <
 
 #bot_reset_on_change() >
-    bot_step_count = 0.
     bot_current_line = 0 - 1.
     bot_stmt_count = 0.
     bot_stmt_index = 0.
@@ -191,7 +188,6 @@ bot_message := "".
     bot_is_running = 1.
     bot_is_stepping = 0.
     bot_step_timer = 0.
-    bot_step_count = 0.
     bot_stmt_index = 0.
     // Reset loop state for fresh start
     bot_yield = 0.
@@ -211,7 +207,6 @@ bot_message := "".
     bot_is_running = 0.
     bot_is_stepping = 0.
     bot_env = 0.
-    bot_step_count = 0.
     bot_stmt_count = 0.
     bot_stmt_index = 0.
     bot_current_line = 0 - 1.
@@ -225,6 +220,29 @@ bot_message := "".
     bot_loop_body_idx = 0.
     // last_message = "Bot stopped.". // Removed to prevent duplicate
     bot_message = "Bot stopped.".
+<
+
+#bot_pause() >
+    // Pause execution but keep all state intact
+    bot_is_running = 0.
+    bot_message = "Paused.".
+<
+
+#bot_resume() >
+    // Resume from current state if we have one, otherwise start fresh
+    // Check if we have existing state (env exists and statements parsed)
+    has_state := 0.
+    has_state = 1 when bot_env != 0 and bot_stmt_count gt 0.
+    
+    // If no existing state, start fresh
+    << /bot_start/ when has_state == 0.
+    
+    // Resume from current position
+    bot_is_running = 1.
+    bot_is_stepping = 0.
+    bot_step_timer = 0.
+    bot_ops_count = 0.
+    bot_message = "Resumed...".
 <
 
 #bot_step_once() >
@@ -441,7 +459,10 @@ bot_message := "".
     // If already stepping/running, only recompile if code changed
     << 0 when bot_is_stepping == 1.
     
-    // Not yet stepping, need to compile
+    // If we have existing state (paused mid-execution), don't recompile
+    << 0 when bot_env != 0 and bot_stmt_count gt 0.
+    
+    // Not yet stepping and no state, need to compile
     /bot_compile_editor_code/.
     
     // Set the current line to show first statement (before it runs)
@@ -464,7 +485,6 @@ bot_message := "".
     // Only advance if we're NOT suspended mid-loop
     // If we yielded inside a loop, don't advance - we'll resume this statement
     bot_stmt_index = bot_stmt_index + 1 when bot_in_loop == 0.
-    bot_step_count = bot_step_count + 1.
 <
 
 
@@ -496,9 +516,36 @@ bot_message := "".
 <
 
 #bot_handle_stairs() >
-    last_message = "You found the stairs! Generating new dungeon...".
+    last_message = "You found the stairs! Banking gold...".
+    
+    // Dungeon completion bonus (flat 1 for now, will increase later)
+    dngn_bonus = 1.
+    
+    // Add current gold + bonus to bank
+    player_bank = player_bank + player_gold + dngn_bonus.
+    
+    // Reset current gold for new floor
+    player_gold = 0.
+    
+    // Reset health to full
+    player_hp = player_max_hp.
+    
+    // Advance to next floor
     dungeon_level = dungeon_level + 1.
     /generate_dungeon/.
     last_message = "Welcome to the next level!".
     /spawn_particles/player_x/player_y.
+    
+    // Reset bot program to start from beginning
+    bot_stmt_index = 0.
+    bot_current_line = bot_stmt_lines[0] when bot_stmt_count gt 0.
+    // Reset loop state
+    bot_yield = 0.
+    bot_in_loop = 0.
+    bot_loop_node = 0.
+    bot_loop_env = 0.
+    bot_loop_body_count = 0.
+    bot_loop_body_idx = 0.
+    
+    bot_message = "Program restarting on new level...".
 <

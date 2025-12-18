@@ -75,6 +75,10 @@ ASTNode *ast_new_break(ASTNode *condition) {
   return node;
 }
 
+ASTNode *ast_new_continue(void) {
+  return alloc_node(NODE_CONTINUE);
+}
+
 ASTNode *ast_new_when_stmt(ASTNode *action, ASTNode *condition, int is_unless) {
   ASTNode *node = alloc_node(NODE_WHEN_STMT);
   node->data.when_stmt.action = action;
@@ -393,6 +397,10 @@ void ast_print(ASTNode *node, int indent) {
     if (node->data.break_stmt.condition) {
       ast_print(node->data.break_stmt.condition, indent + 1);
     }
+    break;
+
+  case NODE_CONTINUE:
+    printf("Continue\n");
     break;
 
   case NODE_WHEN_STMT:

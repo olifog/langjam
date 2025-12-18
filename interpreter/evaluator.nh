@@ -117,7 +117,7 @@
     
     i := start.
     loop >
-        >> when i gt end.
+        >> when i ge end.
         
         /env_set/env/var/i.
         /eval/node->body/env.

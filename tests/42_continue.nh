@@ -1,0 +1,26 @@
+// Test: Continue Statement (><)
+// EXPECT: 25
+
+#main() >
+    // Test 1: Continue in loop - skip odds, sum evens 0-8
+    sum := 0.
+    for i in 0..9 >
+        remainder := i - ((i / 2) * 2).
+        >< when remainder == 1.  // Skip odd numbers
+        sum = sum + i.
+    <
+    // sum = 0 + 2 + 4 + 6 + 8 = 20
+    
+    // Test 2: Continue with condition
+    count := 0.
+    for j in 0..10 >
+        >< when j lt 5.  // Skip first 5
+        count = count + 1.
+    <
+    // count = 5 (5,6,7,8,9)
+    
+    result := sum + count.  // 20 + 5 = 25
+    /console_log_int/result.
+    << 0.
+<
+

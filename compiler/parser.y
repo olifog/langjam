@@ -28,7 +28,7 @@ void yyerror(const char *s);
 
 %token LOOP FOR IN IF ELSE WHEN UNLESS
 %token AND OR NOT TRUE FALSE
-%token ASSIGN_DECL RETURN BREAK ARROW RANGE MEMBER_ACCESS
+%token ASSIGN_DECL RETURN BREAK CONTINUE ARROW RANGE MEMBER_ACCESS
 %token EQ NE LE GE LT GT
 %token DOT COMMA COLON ASSIGN
 %token PLUS MINUS STAR SLASH PERCENT
@@ -120,10 +120,14 @@ statement
     | RETURN DOT { $$ = ast_new_return(NULL); }
     | BREAK DOT { $$ = ast_new_break(NULL); }
     | BREAK WHEN expr DOT { $$ = ast_new_break($3); }
+    | CONTINUE DOT { $$ = ast_new_continue(); }
+    | CONTINUE WHEN expr DOT { $$ = ast_new_when_stmt(ast_new_continue(), $3, 0); }
     | expr DOT { $$ = ast_new_expr_stmt($1); }
     | expr WHEN expr DOT { $$ = ast_new_when_stmt($1, $3, 0); }
     | expr UNLESS expr DOT { $$ = ast_new_when_stmt($1, $3, 1); }
     | block { $$ = $1; }
+    | block WHEN expr DOT { $$ = ast_new_when_stmt($1, $3, 0); }
+    | block UNLESS expr DOT { $$ = ast_new_when_stmt($1, $3, 1); }
     ;
 
 var_decl

@@ -117,8 +117,10 @@
         
         res = /bot_eval/node->body/env.
         flow := /bot_env_get_flow/env.
-        >> when flow == 1.
-        >> when flow == 2.
+        >> when flow == 1. // break
+        >> when flow == 2. // return
+        // continue (flow == 3): reset flow and continue loop
+        /bot_env_set_flow/env/0 when flow == 3.
         
         // Check if we should yield (from move)
         // Save loop state for resumption
@@ -151,6 +153,11 @@
 
 #bot_eval_break(node, env) >
     /bot_env_set_flow/env/1.
+    << 0.
+<
+
+#bot_eval_continue(node, env) >
+    /bot_env_set_flow/env/3.
     << 0.
 <
 
@@ -192,8 +199,10 @@
         /bot_eval/node->body/env.
         
         flow := /bot_env_get_flow/env.
-        >> when flow == 1.
-        >> when flow == 2.
+        >> when flow == 1. // break
+        >> when flow == 2. // return
+        // continue (flow == 3): reset flow, increment i, continue loop
+        /bot_env_set_flow/env/0 when flow == 3.
         
         i = i + 1.
         
@@ -416,6 +425,7 @@
         TAG_NOT => (not /bot_eval/node->a/env)
         TAG_LOOP => /bot_eval_loop/node/env
         TAG_BREAK => /bot_eval_break/node/env
+        TAG_CONTINUE => /bot_eval_continue/node/env
         TAG_IF => /bot_eval_if/node/env
         TAG_WHEN => /bot_eval_when/node/env
         TAG_FOR => /bot_eval_for/node/env

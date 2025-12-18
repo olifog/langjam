@@ -26,6 +26,7 @@ TOK_UNLESS := 24.
 TOK_IF := 25.
 TOK_ELSE := 26.
 TOK_BREAK := 27.
+TOK_CONTINUE := 50. // ><
 TOK_SCOPE_IN := 28. // >
 TOK_SCOPE_OUT := 29. // <
 TOK_FOR := 30.
@@ -123,22 +124,25 @@ lex_line := 0.
     
     type := TOK_IDENT.
     
-    type = (/ds_streq/s/"lt") | > 1 => TOK_LT _ => type <.
-    type = (/ds_streq/s/"gt") | > 1 => TOK_GT _ => type <.
-    type = (/ds_streq/s/"le") | > 1 => TOK_LE _ => type <.
-    type = (/ds_streq/s/"ge") | > 1 => TOK_GE _ => type <.
-    type = (/ds_streq/s/"eq") | > 1 => TOK_EQ _ => type <.
-    type = (/ds_streq/s/"ne") | > 1 => TOK_NE _ => type <.
-    type = (/ds_streq/s/"and") | > 1 => TOK_AND _ => type <.
-    type = (/ds_streq/s/"or") | > 1 => TOK_OR _ => type <.
-    type = (/ds_streq/s/"not") | > 1 => TOK_NOT _ => type <.
-    type = (/ds_streq/s/"loop") | > 1 => TOK_LOOP _ => type <.
-    type = (/ds_streq/s/"when") | > 1 => TOK_WHEN _ => type <.
-    type = (/ds_streq/s/"unless") | > 1 => TOK_UNLESS _ => type <.
-    type = (/ds_streq/s/"if") | > 1 => TOK_IF _ => type <.
-    type = (/ds_streq/s/"else") | > 1 => TOK_ELSE _ => type <.
-    type = (/ds_streq/s/"for") | > 1 => TOK_FOR _ => type <.
-    type = (/ds_streq/s/"in") | > 1 => TOK_IN _ => type <.
+    // Check for wildcard _ first
+    type = (/ds_streq/s/"_") | > 1 => TOK_UNDER 0 => type <.
+    
+    type = (/ds_streq/s/"lt") | > 1 => TOK_LT 0 => type <.
+    type = (/ds_streq/s/"gt") | > 1 => TOK_GT 0 => type <.
+    type = (/ds_streq/s/"le") | > 1 => TOK_LE 0 => type <.
+    type = (/ds_streq/s/"ge") | > 1 => TOK_GE 0 => type <.
+    type = (/ds_streq/s/"eq") | > 1 => TOK_EQ 0 => type <.
+    type = (/ds_streq/s/"ne") | > 1 => TOK_NE 0 => type <.
+    type = (/ds_streq/s/"and") | > 1 => TOK_AND 0 => type <.
+    type = (/ds_streq/s/"or") | > 1 => TOK_OR 0 => type <.
+    type = (/ds_streq/s/"not") | > 1 => TOK_NOT 0 => type <.
+    type = (/ds_streq/s/"loop") | > 1 => TOK_LOOP 0 => type <.
+    type = (/ds_streq/s/"when") | > 1 => TOK_WHEN 0 => type <.
+    type = (/ds_streq/s/"unless") | > 1 => TOK_UNLESS 0 => type <.
+    type = (/ds_streq/s/"if") | > 1 => TOK_IF 0 => type <.
+    type = (/ds_streq/s/"else") | > 1 => TOK_ELSE 0 => type <.
+    type = (/ds_streq/s/"for") | > 1 => TOK_FOR 0 => type <.
+    type = (/ds_streq/s/"in") | > 1 => TOK_IN 0 => type <.
     
     val := (type == TOK_IDENT) | > 1 => s 0 => 0 <.
     
@@ -178,6 +182,10 @@ lex_line := 0.
     // Check for >>
     is_break := (c == 62 and next == 62).
     << /do/(/ds_list_push/tokens/(/token/TOK_BREAK/0))/(i + 2) when is_break.
+    
+    // Check for >< (continue)
+    is_continue := (c == 62 and next == 60).
+    << /do/(/ds_list_push/tokens/(/token/TOK_CONTINUE/0))/(i + 2) when is_continue.
     
     // Check for ..
     is_range := (c == 46 and next == 46).

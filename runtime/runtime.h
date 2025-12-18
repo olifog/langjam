@@ -423,6 +423,10 @@ Value input_mouse_down(void);
 Value input_mouse_just_pressed(void);
 Value input_mouse_just_released(void);
 
+// Scroll wheel input
+Value input_scroll_delta(void);
+void input_scroll_clear(void);
+
 // Clipboard
 Value clipboard_copy_requested(void);
 Value clipboard_paste_requested(void);

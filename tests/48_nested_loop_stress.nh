@@ -1,0 +1,71 @@
+// Test: Nested Loop Stress - Multiple Break/Continue Patterns
+// EXPECT: 42
+
+#main() >
+    result := 0.
+    
+    // Pattern 1: Alternating break in nested loops
+    count1 := 0.
+    for i in 0..4 >
+        for j in 0..4 >
+            count1 = count1 + 1.
+            >> when j == 1.   // Always break at j=1
+        <
+    <
+    // 4 outer * 2 inner (j=0,1) = 8
+    result = result + count1.
+    
+    // Pattern 2: Continue then break combination
+    count2 := 0.
+    for i in 0..3 >
+        for j in 0..6 >
+            remainder := j - ((j / 2) * 2).
+            >< when remainder == 0.  // Skip even j
+            count2 = count2 + 1.
+            >> when j == 3.          // Break at j=3 (after counting)
+        <
+    <
+    // j sequence: 0(skip), 1(count), 2(skip), 3(count+break)
+    // So 2 counts per outer, 3 outer = 6
+    result = result + count2.
+    
+    // Pattern 3: Nested with early exit
+    count3 := 0.
+    for i in 0..5 >
+        found := 0.
+        for j in 0..5 >
+            // "Find" when i == j
+            found = 1 when i == j.
+            >> when found == 1.
+            count3 = count3 + 1.
+        <
+    <
+    // i=0: j=0 matches, break (0 counts before)
+    // i=1: j=0 (1 count), j=1 matches, break
+    // i=2: j=0,1 (2 counts), j=2 matches, break
+    // i=3: j=0,1,2 (3 counts), j=3 matches, break
+    // i=4: j=0,1,2,3 (4 counts), j=4 matches, break
+    // Total: 0+1+2+3+4 = 10
+    result = result + count3.
+    
+    // Pattern 4: Both loops can break independently
+    count4 := 0.
+    outer_broke := 0.
+    for i in 0..10 >
+        for j in 0..10 >
+            count4 = count4 + 1.
+            >> when j ge 2.
+        <
+        >> when i ge 5.
+    <
+    // Inner always runs 3 (j=0,1,2)
+    // Outer runs 6 (i=0,1,2,3,4,5)
+    // Total: 6 * 3 = 18
+    result = result + count4.
+    
+    // result = 8 + 6 + 10 + 18 = 42
+    
+    /console_log_int/result.
+    << 0.
+<
+

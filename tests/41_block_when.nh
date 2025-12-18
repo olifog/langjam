@@ -1,0 +1,46 @@
+// Test: Block-When Syntax
+// EXPECT: 42
+
+#main() >
+    result := 0.
+    
+    // Test 1: Basic block-when
+    x := 5.
+    >
+        result = result + 10.
+        result = result + 5.
+    < when x == 5.
+    // result = 15
+    
+    // Test 2: Block-when with false condition (should not execute)
+    >
+        result = 999.
+    < when x == 0.
+    // result still 15
+    
+    // Test 3: Block-when in a loop
+    for i in 0..3 >
+        >
+            result = result + i.
+        < when i gt 0.
+    <
+    // result = 15 + 1 + 2 = 18
+    
+    // Test 4: Block-unless
+    >
+        result = result + 20.
+    < unless x == 0.
+    // result = 18 + 20 = 38
+    
+    // Test 5: Nested statements in block-when
+    y := 2.
+    >
+        temp := y * 2.
+        result = result + temp.
+    < when y == 2.
+    // result = 38 + 4 = 42
+    
+    /console_log_int/result.
+    << 0.
+<
+

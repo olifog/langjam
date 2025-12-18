@@ -1,0 +1,8 @@
+node_modules
+dist
+*.local
+
+# Generated WASM files (built from source)
+public/game.js
+public/game.wasm
+

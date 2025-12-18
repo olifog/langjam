@@ -599,6 +599,12 @@
     << { node: /return_stmt/res->node, end: res->end }.
 <
 
+// Parse standalone block: > ... <
+#parse_standalone_block(tokens, pos) >
+    pos = pos + 1. // Skip >
+    << /parse_block/tokens/pos.
+<
+
 #parse_stmt(tokens, pos) >
     tok := /peek/tokens/pos.
     
@@ -606,14 +612,16 @@
         TOK_LOOP => /parse_loop/tokens/pos
         TOK_FOR => /parse_for/tokens/pos
         TOK_BREAK => { node: /break_stmt/, end: pos + 1 }
+        TOK_CONTINUE => { node: /continue_stmt/, end: pos + 1 }
         TOK_HASH => /parse_func/tokens/pos
         TOK_RETURN => /parse_return/tokens/pos
         TOK_SLASH => /parse_call/tokens/pos
         TOK_IDENT => /parse_stmt_ident/tokens/pos/tok
+        TOK_SCOPE_IN => /parse_standalone_block/tokens/pos
         _ => /parse_stmt_expr_stmt/tokens/pos
     <.
     
-    // Check for trailing modifiers
+    // Check for trailing modifiers (works for blocks too now!)
     next := /peek/tokens/res->end.
     << next->type | >
         TOK_WHEN => /parse_modifier/tokens/res/TOK_WHEN

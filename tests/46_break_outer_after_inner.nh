@@ -1,0 +1,23 @@
+// Test: Break Outer Loop After Inner Completes
+// EXPECT: 6
+
+#main() >
+    // Inner loop completes fully, then outer loop breaks
+    
+    total := 0.
+    
+    for i in 0..10 >
+        for j in 0..3 >       // j = 0, 1, 2 (3 iterations each)
+            total = total + 1.
+        <
+        >> when i == 1.       // Break outer after i=0 and i=1
+    <
+    
+    // i=0: inner adds 3
+    // i=1: inner adds 3, then outer breaks
+    // Total: 6
+    
+    /console_log_int/total.
+    << 0.
+<
+

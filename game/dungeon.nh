@@ -480,6 +480,19 @@ room_params := [].
 // ============================================================================
 
 #generate_dungeon() >
+    // Generate new seed and save it
+    dungeon_seed = /time_ms/.
+    /rng_seed/dungeon_seed.
+    /do_generate_dungeon/.
+<
+
+#regenerate_dungeon() >
+    // Regenerate with same seed (for retry)
+    /rng_seed/dungeon_seed.
+    /do_generate_dungeon/.
+<
+
+#do_generate_dungeon() >
     size := MAP_WIDTH * MAP_HEIGHT.
     for i in 0..size >
         dungeon[i] = TILE_EMPTY.

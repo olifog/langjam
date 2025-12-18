@@ -127,7 +127,7 @@
     
     /run_test/"Test 16: For Loop"/
         "x := 0.
-         for i in 1..5 >
+         for i in 1..6 >
              x = x + i.
          <.
          x."
@@ -144,13 +144,78 @@
 
     /run_test/"Test 17b: Nested For Loop"/
         "total := 0.
-         for i in 1..2 >
-             for j in 1..2 >
+         for i in 1..3 >
+             for j in 1..3 >
                  total = total + 1.
              <.
          <.
          total."
         /4.
+
+    // ========================================
+    // Nested Loop Control Flow
+    // ========================================
+
+    /run_test/"Test 17c: Break Inner Loop Only"/
+        "result := 0.
+         outer_count := 0.
+         for i in 0..3 >
+             outer_count = outer_count + 1.
+             inner_count := 0.
+             for j in 0..10 >
+                 inner_count = inner_count + 1.
+                 >> when j == 2.
+             <.
+             result = result + inner_count.
+         <.
+         result + outer_count."
+        /12.
+
+    /run_test/"Test 17d: Triple Nested Break"/
+        "count := 0.
+         for a in 0..2 >
+             for b in 0..3 >
+                 for c in 0..10 >
+                     count = count + 1.
+                     >> when c == 1.
+                 <.
+             <.
+         <.
+         count."
+        /12.
+
+    /run_test/"Test 17e: Break Outer After Inner"/
+        "total := 0.
+         for i in 0..10 >
+             for j in 0..3 >
+                 total = total + 1.
+             <.
+             >> when i == 1.
+         <.
+         total."
+        /6.
+
+    /run_test/"Test 17f: Inner Break Preserves Outer"/
+        "last_i := 0.
+         for i in 0..5 >
+             last_i = i.
+             for j in 0..100 >
+                 >>.
+             <.
+         <.
+         last_i."
+        /4.
+
+    /run_test/"Test 17g: Nested Loop with Accumulator"/
+        "sum := 0.
+         for i in 0..3 >
+             for j in 0..3 >
+                 sum = sum + 1.
+                 >> when j == i.
+             <.
+         <.
+         sum."
+        /6.
 
     // ========================================
     // Functions
@@ -227,7 +292,7 @@
     /run_test/"Test 26: Array Sum"/
         "arr := [1, 2, 3, 4, 5].
          sum := 0.
-         for i in 0..4 >
+         for i in 0..5 >
              sum = sum + arr[i].
          <.
          sum."

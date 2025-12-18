@@ -9,30 +9,20 @@ player_y := 4.
 player_hp := 16.
 player_max_hp := 16.
 player_gold := 0.
+player_bank := 0.      // Persistent currency for upgrades (survives deaths)
+dngn_bonus := 0.       // Bonus $ for completing a floor
 dungeon_level := 1.
+dungeon_seed := 0.     // Seed for current dungeon (for retry)
 turns := 0.
 
-// Attributes
-player_name := "Wizard".
-player_rank := "Candidate".
-player_align := "Chaotic".
-
+// Core attributes (kept for gameplay)
 player_str := 18.
-player_str_exc := 3. // 18/03
-player_dex := 13.
-player_con := 8.
-player_int := 9.
-player_wis := 15.
-player_cha := 9.
-
-player_pw := 4.
-player_max_pw := 5.
+player_str_exc := 3. // 18/03 - used for combat calculations
+player_dex := 13.    // Used for hit bonus
 player_ac := 4.
 
 player_xp_level := 1.
-player_xp_points := 5.
-
-player_status_str := "Conf".
+player_xp_points := 0.
 
 // Animation state
 anim_timer := 0.
@@ -109,7 +99,7 @@ last_message_buffer := "".
     // Collect gold
     gold_msg := "You pick up gold!".
     /append_message/gold_msg when can_move == 1 and tile == TILE_GOLD.
-    player_gold = player_gold + /rng_int/20 + 5 when can_move == 1 and tile == TILE_GOLD.
+    player_gold = player_gold + /rng_int/4 + 1 when can_move == 1 and tile == TILE_GOLD.
     /spawn_gold_particles/new_x/new_y when can_move == 1 and tile == TILE_GOLD.
     /set_tile/new_x/new_y/TILE_FLOOR when can_move == 1 and tile == TILE_GOLD.
     
@@ -173,7 +163,7 @@ last_message_buffer := "".
     << 1 when player_is_dead == 1. // Already dead
     
     player_is_dead = 1.
-    last_message = "You died! Press SPACE to restart.".
+    last_message = "You died!".
     bot_message = "Script Terminated (Death).".
     
     // Fix visual glitch: Snap to final position
@@ -185,18 +175,40 @@ last_message_buffer := "".
 #restart_game() >
     player_is_dead = 0.
     
-    // Reset stats
+    // Reset stats (but NOT bank - that persists across deaths)
     player_hp = player_max_hp.
     player_gold = 0.
+    dngn_bonus = 0.
     dungeon_level = 1.
     player_xp_points = 0.
     player_xp_level = 1.
     
-    // New Dungeon
+    // New Dungeon (generates new seed)
     /generate_dungeon/.
     
     // Messages
     last_message = "Welcome back to the dungeon.".
+    bot_message = "Bot ready.".
+    
+    << 1.
+<
+
+#retry_game() >
+    player_is_dead = 0.
+    
+    // Reset stats (but NOT bank - that persists across deaths)
+    player_hp = player_max_hp.
+    player_gold = 0.
+    turns = 0.
+    // Keep dngn_bonus and dungeon_level - we're retrying same floor
+    player_xp_points = 0.
+    player_xp_level = 1.
+    
+    // Regenerate SAME dungeon (uses saved seed)
+    /regenerate_dungeon/.
+    
+    // Messages
+    last_message = "Retrying same dungeon...".
     bot_message = "Bot ready.".
     
     << 1.

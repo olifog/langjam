@@ -17,6 +17,7 @@ A NetHack-themed programming language for the langjam.
 | Function call | `/name/arg1/arg2.` |
 | Return | `<< value` |
 | Break | `>>` |
+| Continue | `><` |
 | Pipe | `value \| func` |
 | Match | `value \| > pattern => result <` |
 | Lambda | `\(args) => expr` |
@@ -252,6 +253,20 @@ player->hp = 0 when dead.
 count = count + 1 when valid.
 ```
 
+### Block Conditions
+
+Execute multiple statements conditionally using block-when:
+
+```
+>
+    dir = new_dir.
+    /move/dx/dy.
+    count = count + 1.
+< when can_move == 1.
+```
+
+This is cleaner than repeating the condition on each line.
+
 ### Inline If-Else
 
 ```
@@ -266,6 +281,7 @@ Basic loop:
 loop >
     /tick/.
     >> when done.     // Break out
+    >< when skip.     // Continue to next iteration
 <
 ```
 

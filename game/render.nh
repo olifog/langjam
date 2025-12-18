@@ -89,10 +89,6 @@ COL_GREEN_B := 100.
     /text_draw/bot_x/dungeon_y/12/COL_GRAY_R/COL_GRAY_G/COL_GRAY_B/"BOT: STOPPED" when bot_is_running == 0 and bot_has_error == 0.
     /text_draw/bot_x/dungeon_y/12/255/80/80/"BOT: ERROR" when bot_has_error == 1.
     
-    // Step counter
-    step_x := map_offset_x + 220.
-    /text_draw/step_x/dungeon_y/12/COL_CYAN_R/COL_CYAN_G/COL_CYAN_B/"Step:".
-    /text_draw_int/(step_x + 45)/dungeon_y/12/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/bot_step_count.
 <
 
 #draw_player() >
@@ -204,135 +200,145 @@ COL_GREEN_B := 100.
 #draw_status(offset_x, offset_y) >
     y := offset_y + MAP_HEIGHT * TILE_H + 10.
     
-    // LINE 1
-    // Wizard the Candidate             St:18/03 Dx:13 Co:8 In:9 Wi:15 Ch:9  Chaotic
-    
-    // Name + Rank
+    // LINE 1: Name  HP  St  AC  $
     x := offset_x.
-    /text_draw/x/y/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/player_name.
     
-    x = x + /ds_strlen/player_name * 9 + 10.
-    /text_draw/x/y/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/"the".
+    // Rodney the Wizard (NetHack style)
+    /text_draw/x/y/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/"Rodney the Wizard".
     
-    x = x + 35.
-    /text_draw/x/y/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/player_rank.
+    // HP:11(14) - in red
+    x = x + 200.
+    /text_draw/x/y/14/COL_RED_R/COL_RED_G/COL_RED_B/"HP:".
+    /text_draw_int/(x + 30)/y/14/COL_RED_R/COL_RED_G/COL_RED_B/player_hp.
     
-    // Attributes starting around x=300?
-    attr_x := offset_x + 350.
-    
-    // St:18/03
-    /text_draw/attr_x/y/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/"St:".
-    /text_draw_int/(attr_x + 25)/y/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/player_str.
-    /text_draw/(attr_x + 45)/y/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/"/".
-    // 03 padding
-    val := player_str_exc.
-    /text_draw/(attr_x + 55)/y/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/"0" when val lt 10.
-    draw_val_x := attr_x + 55.
-    draw_val_x = attr_x + 65 when val lt 10.
-    /text_draw_int/draw_val_x/y/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/val.
-    
-    // Dx:13
-    attr_x = attr_x + 90.
-    /text_draw/attr_x/y/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/"Dx:".
-    /text_draw_int/(attr_x + 25)/y/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/player_dex.
-    
-    // Co:8
-    attr_x = attr_x + 60.
-    /text_draw/attr_x/y/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/"Co:".
-    /text_draw_int/(attr_x + 25)/y/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/player_con.
-    
-    // In:9
-    attr_x = attr_x + 50.
-    /text_draw/attr_x/y/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/"In:".
-    /text_draw_int/(attr_x + 25)/y/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/player_int.
-    
-    // Wi:15
-    attr_x = attr_x + 50.
-    /text_draw/attr_x/y/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/"Wi:".
-    /text_draw_int/(attr_x + 25)/y/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/player_wis.
-    
-    // Ch:9
-    attr_x = attr_x + 60.
-    /text_draw/attr_x/y/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/"Ch:".
-    /text_draw_int/(attr_x + 25)/y/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/player_cha.
-    
-    // Align
-    attr_x = attr_x + 60.
-    /text_draw/attr_x/y/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/player_align.
-    
-    
-    // LINE 2
-    // Dlvl:1  $:43  HP:11(14) Pw:4(5) AC:4  Xp:1/5 T:7 Conf
-    y2 := y + 20.
-    x2 := offset_x.
-    
-    // Dlvl:1
-    /text_draw/x2/y2/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/"Dlvl:".
-    /text_draw_int/(x2 + 40)/y2/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/dungeon_level.
-    
-    // $:43
-    x2 = x2 + 80.
-    /text_draw/x2/y2/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/"$:".
-    /text_draw_int/(x2 + 20)/y2/14/COL_GOLD_R/COL_GOLD_G/COL_GOLD_B/player_gold.
-    
-    // HP:11(14)
-    x2 = x2 + 80.
-    /text_draw/x2/y2/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/"HP:".
-    /text_draw_int/(x2 + 30)/y2/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/player_hp.
-    
-    hp_width := 15. // Approx
+    hp_width := 15.
     hp_width = 25 when player_hp gt 9.
     
-    x_brack := x2 + 30 + hp_width.
-    /text_draw/x_brack/y2/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/"(".
-    /text_draw_int/(x_brack + 10)/y2/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/player_max_hp.
+    x_brack := x + 30 + hp_width.
+    /text_draw/x_brack/y/14/COL_RED_R/COL_RED_G/COL_RED_B/"(".
+    /text_draw_int/(x_brack + 10)/y/14/COL_RED_R/COL_RED_G/COL_RED_B/player_max_hp.
     
     hp_max_width := 15.
     hp_max_width = 25 when player_max_hp gt 9.
     
-    /text_draw/(x_brack + 10 + hp_max_width)/y2/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/")".
+    /text_draw/(x_brack + 10 + hp_max_width)/y/14/COL_RED_R/COL_RED_G/COL_RED_B/")".
     
-    // Pw:4(5)
-    x2 = x2 + 130.
-    /text_draw/x2/y2/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/"Pw:".
-    /text_draw_int/(x2 + 30)/y2/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/player_pw.
-    
-    pw_width := 10.
-    pw_width = 20 when player_pw gt 9.
-    
-    x_brack_pw := x2 + 30 + pw_width.
-    /text_draw/x_brack_pw/y2/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/"(".
-    /text_draw_int/(x_brack_pw + 10)/y2/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/player_max_pw.
-    
-    pw_max_width := 10.
-    pw_max_width = 20 when player_max_pw gt 9.
-    
-    /text_draw/(x_brack_pw + 10 + pw_max_width)/y2/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/")".
+    // St:18
+    x = x + 110.
+    /text_draw/x/y/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/"St:".
+    /text_draw_int/(x + 25)/y/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/player_str.
     
     // AC:4
-    x2 = x2 + 110.
-    /text_draw/x2/y2/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/"AC:".
-    /text_draw_int/(x2 + 30)/y2/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/player_ac.
+    x = x + 70.
+    /text_draw/x/y/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/"AC:".
+    /text_draw_int/(x + 30)/y/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/player_ac.
     
-    // Xp:1/5
-    x2 = x2 + 70.
-    /text_draw/x2/y2/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/"Xp:".
-    /text_draw_int/(x2 + 30)/y2/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/player_xp_level.
+    // $:43 (current floor gold - lost on death)
+    x = x + 70.
+    /text_draw/x/y/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/"$:".
+    /text_draw_int/(x + 20)/y/14/COL_GOLD_R/COL_GOLD_G/COL_GOLD_B/player_gold.
     
-    xp_width := 10.
-    xp_width = 20 when player_xp_level gt 9.
+    // LINE 2: BANK  BONUS  STREAK  T  restart button
+    y2 := y + 20.
+    x = offset_x.
     
-    /text_draw/(x2 + 30 + xp_width)/y2/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/"/".
-    /text_draw_int/(x2 + 40 + xp_width)/y2/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/player_xp_points.
+    // BANK:100 (persistent gold for upgrades)
+    /text_draw/x/y2/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/"BANK:".
+    /text_draw_int/(x + 50)/y2/14/COL_GREEN_R/COL_GREEN_G/COL_GREEN_B/player_bank.
     
-    // T:7
-    x2 = x2 + 100.
-    /text_draw/x2/y2/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/"T:".
-    /text_draw_int/(x2 + 20)/y2/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/turns.
+    // BONUS (last bonus earned)
+    x = x + 110.
+    /text_draw/x/y2/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/"BONUS:".
+    /text_draw_int/(x + 55)/y2/14/COL_CYAN_R/COL_CYAN_G/COL_CYAN_B/dngn_bonus.
     
-    // Conf / Status
-    x2 = x2 + 80.
-    /text_draw/x2/y2/14/255/100/100/player_status_str.
+    // STREAK (dungeon_level - 1, floors completed)
+    x = x + 100.
+    streak := dungeon_level - 1.
+    /text_draw/x/y2/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/"STREAK:".
+    /text_draw_int/(x + 60)/y2/14/255/200/100/streak.
+    
+    // T (turns)
+    x = x + 100.
+    /text_draw/x/y2/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/"T:".
+    /text_draw_int/(x + 20)/y2/14/COL_WHITE_R/COL_WHITE_G/COL_WHITE_B/turns.
+    
+    // Restart button (end of line 2)
+    skull_x := x + 80.
+    /draw_skull_button/skull_x/y2.
+<
+
+// ============================================================================
+// Skull Restart Button
+// ============================================================================
+
+restart_btn_x := 0.
+restart_btn_y := 0.
+restart_btn_w := 95.
+restart_btn_h := 20.
+restart_btn_hovered := 0.
+
+#draw_skull_button(x, y) >
+    restart_btn_x = x.
+    restart_btn_y = y - 2.
+    
+    // Check hover
+    mx := /input_mouse_x/.
+    my := /input_mouse_y/.
+    restart_btn_hovered = 0.
+    restart_btn_hovered = 1 when mx ge x and mx lt x + restart_btn_w and my ge y - 2 and my lt y + restart_btn_h.
+    
+    // Button background
+    bg_r := 40. bg_g := 30. bg_b := 30.
+    bg_r = 80 when restart_btn_hovered == 1. bg_g = 40 when restart_btn_hovered == 1. bg_b = 40 when restart_btn_hovered == 1.
+    /draw_rect/x/(y - 2)/restart_btn_w/restart_btn_h/bg_r/bg_g/bg_b/255.
+    
+    // Border
+    border_r := 120. border_g := 80. border_b := 80.
+    border_r = 200 when restart_btn_hovered == 1. border_g = 100 when restart_btn_hovered == 1. border_b = 100 when restart_btn_hovered == 1.
+    /draw_rect/x/(y - 2)/restart_btn_w/1/border_r/border_g/border_b/255.
+    /draw_rect/x/(y + restart_btn_h - 3)/restart_btn_w/1/border_r/border_g/border_b/255.
+    /draw_rect/x/(y - 2)/1/restart_btn_h/border_r/border_g/border_b/255.
+    /draw_rect/(x + restart_btn_w - 1)/(y - 2)/1/restart_btn_h/border_r/border_g/border_b/255.
+    
+    // Gravestone icon
+    icon_x := x + 6.
+    icon_y := y.
+    stone_r := 140. stone_g := 140. stone_b := 150.
+    stone_r = 200 when restart_btn_hovered == 1. stone_g = 200 when restart_btn_hovered == 1. stone_b = 210 when restart_btn_hovered == 1.
+    
+    // Main body of gravestone
+    /draw_rect/(icon_x + 1)/(icon_y + 4)/10/10/stone_r/stone_g/stone_b/255.
+    // Rounded top (stepped rectangles)
+    /draw_rect/(icon_x + 2)/(icon_y + 2)/8/2/stone_r/stone_g/stone_b/255.
+    /draw_rect/(icon_x + 3)/(icon_y)/6/2/stone_r/stone_g/stone_b/255.
+    
+    // RIP text on gravestone (darker)
+    rip_r := 60. rip_g := 60. rip_b := 70.
+    /draw_rect/(icon_x + 3)/(icon_y + 6)/2/1/rip_r/rip_g/rip_b/255.
+    /draw_rect/(icon_x + 6)/(icon_y + 6)/2/1/rip_r/rip_g/rip_b/255.
+    /draw_rect/(icon_x + 4)/(icon_y + 8)/4/1/rip_r/rip_g/rip_b/255.
+    
+    // RESTART text
+    txt_r := 180. txt_g := 180. txt_b := 180.
+    txt_r = 255 when restart_btn_hovered == 1. txt_g = 200 when restart_btn_hovered == 1. txt_b = 200 when restart_btn_hovered == 1.
+    /text_draw/(x + 26)/(y)/14/txt_r/txt_g/txt_b/"RESTART".
+    
+    // Handle click
+    just_pressed := /input_mouse_just_pressed/.
+    /full_restart/ when just_pressed == 1 and restart_btn_hovered == 1.
+<
+
+#full_restart() >
+    // Reset to floor 1 (but keep bank)
+    turns = 0.
+    
+    // Stop bot and reset
+    /bot_stop/.
+    
+    // Use existing restart_game function (generates new dungeon)
+    /restart_game/.
+    
+    last_message = "Starting fresh from floor 1.".
 <
 
 
@@ -445,7 +451,7 @@ COL_RED_B := 80.
    
    // Box dimensions
    w := 300.
-   h := 200.
+   h := 220.
    x := cx - w / 2.
    y := cy - h / 2.
    
@@ -466,17 +472,142 @@ COL_RED_B := 80.
    /text_draw/(x + 40)/ty/16/255/255/255/"Here lies the Wizard".
    
    ty = ty + 30.
-   lvl_msg := "Level: ".
-   /text_draw/(x + 40)/ty/14/200/200/200/lvl_msg.
-   /text_draw_int/(x + 100)/ty/14/255/255/0/dungeon_level.
+   streak := dungeon_level - 1.
+   /text_draw/(x + 40)/ty/14/200/200/200/"Streak: ".
+   /text_draw_int/(x + 110)/ty/14/255/200/100/streak.
    
    ty = ty + 20.
-   gold_msg := "Gold: ".
-   /text_draw/(x + 40)/ty/14/200/200/200/gold_msg.
-   /text_draw_int/(x + 100)/ty/14/255/255/0/player_gold.
+   bank_msg := "Bank: ".
+   /text_draw/(x + 40)/ty/14/200/200/200/bank_msg.
+   /text_draw_int/(x + 100)/ty/14/100/255/100/player_bank.
    
-   ty = ty + 40.
-   rgb := 255.
-   // Pulsate or something? No, simple.
-   /text_draw/(cx - 80)/ty/14/100/255/100/"Press SPACE to Restart".
+   // Two buttons side by side: RETRY (same dungeon) and RESTART (new dungeon)
+   ty = ty + 35.
+   btn_spacing := 10.
+   btn_w := 120.
+   total_w := btn_w * 2 + btn_spacing.
+   btn_start_x := cx - total_w / 2.
+   
+   /draw_death_retry_button/btn_start_x/ty.
+   /draw_death_restart_button/(btn_start_x + btn_w + btn_spacing)/ty.
+<
+
+// Death screen restart button (larger, centered)
+death_btn_x := 0.
+death_btn_y := 0.
+death_btn_w := 120.
+death_btn_h := 32.
+death_btn_hovered := 0.
+
+#draw_death_restart_button(x, y) >
+    death_btn_x = x.
+    death_btn_y = y.
+    
+    // Check hover
+    mx := /input_mouse_x/.
+    my := /input_mouse_y/.
+    death_btn_hovered = 0.
+    death_btn_hovered = 1 when mx ge x and mx lt x + death_btn_w and my ge y and my lt y + death_btn_h.
+    
+    // Button background
+    bg_r := 60. bg_g := 30. bg_b := 30.
+    bg_r = 100 when death_btn_hovered == 1. bg_g = 50 when death_btn_hovered == 1. bg_b = 50 when death_btn_hovered == 1.
+    /draw_rect/x/y/death_btn_w/death_btn_h/bg_r/bg_g/bg_b/255.
+    
+    // Border
+    border_r := 150. border_g := 80. border_b := 80.
+    border_r = 255 when death_btn_hovered == 1. border_g = 120 when death_btn_hovered == 1. border_b = 120 when death_btn_hovered == 1.
+    /draw_rect/x/y/death_btn_w/2/border_r/border_g/border_b/255.
+    /draw_rect/x/(y + death_btn_h - 2)/death_btn_w/2/border_r/border_g/border_b/255.
+    /draw_rect/x/y/2/death_btn_h/border_r/border_g/border_b/255.
+    /draw_rect/(x + death_btn_w - 2)/y/2/death_btn_h/border_r/border_g/border_b/255.
+    
+    // Gravestone icon (larger for death screen)
+    icon_x := x + 12.
+    icon_y := y + 4.
+    stone_r := 180. stone_g := 180. stone_b := 190.
+    stone_r = 230 when death_btn_hovered == 1. stone_g = 230 when death_btn_hovered == 1. stone_b = 240 when death_btn_hovered == 1.
+    
+    // Main body of gravestone
+    /draw_rect/(icon_x + 2)/(icon_y + 6)/14/16/stone_r/stone_g/stone_b/255.
+    // Rounded top (stepped rectangles)
+    /draw_rect/(icon_x + 3)/(icon_y + 3)/12/3/stone_r/stone_g/stone_b/255.
+    /draw_rect/(icon_x + 5)/(icon_y)/8/3/stone_r/stone_g/stone_b/255.
+    
+    // RIP text on gravestone (darker)
+    rip_r := 80. rip_g := 80. rip_b := 90.
+    /draw_rect/(icon_x + 5)/(icon_y + 9)/3/2/rip_r/rip_g/rip_b/255.
+    /draw_rect/(icon_x + 10)/(icon_y + 9)/3/2/rip_r/rip_g/rip_b/255.
+    /draw_rect/(icon_x + 6)/(icon_y + 13)/6/2/rip_r/rip_g/rip_b/255.
+    
+    // RESTART text
+    txt_r := 200. txt_g := 200. txt_b := 200.
+    txt_r = 255 when death_btn_hovered == 1. txt_g = 255 when death_btn_hovered == 1. txt_b = 255 when death_btn_hovered == 1.
+    /text_draw/(x + 38)/(y + 8)/14/txt_r/txt_g/txt_b/"RESTART".
+    
+    // Handle click - restart creates NEW dungeon
+    just_pressed := /input_mouse_just_pressed/.
+    /full_restart/ when just_pressed == 1 and death_btn_hovered == 1.
+<
+
+// Death screen retry button (same dungeon)
+retry_btn_x := 0.
+retry_btn_y := 0.
+retry_btn_w := 120.
+retry_btn_h := 32.
+retry_btn_hovered := 0.
+
+#draw_death_retry_button(x, y) >
+    retry_btn_x = x.
+    retry_btn_y = y.
+    
+    // Check hover
+    mx := /input_mouse_x/.
+    my := /input_mouse_y/.
+    retry_btn_hovered = 0.
+    retry_btn_hovered = 1 when mx ge x and mx lt x + retry_btn_w and my ge y and my lt y + retry_btn_h.
+    
+    // Button background (cyan-ish for retry)
+    bg_r := 30. bg_g := 50. bg_b := 60.
+    bg_r = 50 when retry_btn_hovered == 1. bg_g = 80 when retry_btn_hovered == 1. bg_b = 100 when retry_btn_hovered == 1.
+    /draw_rect/x/y/retry_btn_w/retry_btn_h/bg_r/bg_g/bg_b/255.
+    
+    // Border
+    border_r := 80. border_g := 150. border_b := 150.
+    border_r = 120 when retry_btn_hovered == 1. border_g = 220 when retry_btn_hovered == 1. border_b = 255 when retry_btn_hovered == 1.
+    /draw_rect/x/y/retry_btn_w/2/border_r/border_g/border_b/255.
+    /draw_rect/x/(y + retry_btn_h - 2)/retry_btn_w/2/border_r/border_g/border_b/255.
+    /draw_rect/x/y/2/retry_btn_h/border_r/border_g/border_b/255.
+    /draw_rect/(x + retry_btn_w - 2)/y/2/retry_btn_h/border_r/border_g/border_b/255.
+    
+    // Retry icon (circular arrow)
+    icon_x := x + 12.
+    icon_y := y + 6.
+    arrow_r := 150. arrow_g := 200. arrow_b := 200.
+    arrow_r = 200 when retry_btn_hovered == 1. arrow_g = 255 when retry_btn_hovered == 1. arrow_b = 255 when retry_btn_hovered == 1.
+    
+    // Simple circular arrow shape
+    /draw_rect/(icon_x + 4)/(icon_y)/10/3/arrow_r/arrow_g/arrow_b/255.
+    /draw_rect/(icon_x + 12)/(icon_y + 3)/3/8/arrow_r/arrow_g/arrow_b/255.
+    /draw_rect/(icon_x + 4)/(icon_y + 17)/10/3/arrow_r/arrow_g/arrow_b/255.
+    /draw_rect/(icon_x)/(icon_y + 6)/3/8/arrow_r/arrow_g/arrow_b/255.
+    // Arrow head
+    /draw_rect/(icon_x + 10)/(icon_y - 2)/3/3/arrow_r/arrow_g/arrow_b/255.
+    
+    // RETRY text
+    txt_r := 180. txt_g := 220. txt_b := 220.
+    txt_r = 220 when retry_btn_hovered == 1. txt_g = 255 when retry_btn_hovered == 1. txt_b = 255 when retry_btn_hovered == 1.
+    /text_draw/(x + 38)/(y + 8)/14/txt_r/txt_g/txt_b/"RETRY".
+    
+    // Handle click - retry keeps SAME dungeon
+    just_pressed := /input_mouse_just_pressed/.
+    /do_retry/ when just_pressed == 1 and retry_btn_hovered == 1.
+<
+
+#do_retry() >
+    // Stop bot and reset
+    /bot_stop/.
+    
+    // Use retry_game function (regenerates same dungeon)
+    /retry_game/.
 <
