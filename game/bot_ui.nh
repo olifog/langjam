@@ -71,7 +71,11 @@ speed_multiplier := 1.  // Computed from slider_pos
     // Handle click
     << 0 when /input_mouse_just_pressed/ == 0.
     
-    /bot_start/ when btn_hovered == BTN_PLAY and bot_is_running == 0.
+    // Play/Pause toggle: pause if running, resume/start if not running
+    // Must capture running state BEFORE calling pause/resume to avoid race condition
+    was_running := bot_is_running.
+    /bot_pause/ when btn_hovered == BTN_PLAY and was_running == 1.
+    /bot_resume/ when btn_hovered == BTN_PLAY and was_running == 0.
     /bot_stop/ when btn_hovered == BTN_STOP.
     /bot_step_once/ when btn_hovered == BTN_STEP.
 <
@@ -85,7 +89,7 @@ speed_multiplier := 1.  // Computed from slider_pos
     bx := btn_play_x.
     by := btn_play_y.
     
-    // Play button (triangle)
+    // Play/Pause button (triangle when stopped, pause bars when running)
     play_hover := (btn_hovered == BTN_PLAY).
     play_active := bot_is_running.
     play_r := 60. play_g := 180. play_b := 80.
@@ -95,7 +99,9 @@ speed_multiplier := 1.  // Computed from slider_pos
     // Draw active border for play button
     /draw_rect/(bx - 2)/(by - 2)/(btn_size + 4)/(btn_size + 4)/80/220/100/255 when play_active == 1.
     /draw_rect/bx/by/btn_size/btn_size/30/35/40/255.
-    /draw_play_icon/(bx + 8)/(by + 6)/play_r/play_g/play_b.
+    // Show pause icon when running, play icon when stopped
+    /draw_pause_icon/(bx + 10)/(by + 8)/play_r/play_g/play_b when play_active == 1.
+    /draw_play_icon/(bx + 8)/(by + 6)/play_r/play_g/play_b when play_active == 0.
     
     // Stop button (square)
     bx = btn_play_x + btn_size + btn_spacing.
@@ -129,6 +135,12 @@ speed_multiplier := 1.  // Computed from slider_pos
     /draw_rect/(x + 6)/(y + 6)/4/8/r/g/b/255.
     /draw_rect/(x + 8)/(y + 8)/4/4/r/g/b/255.
     /draw_rect/(x + 10)/(y + 9)/4/2/r/g/b/255.
+<
+
+#draw_pause_icon(x, y, r, g, b) >
+    // Draw two vertical bars (pause icon)
+    /draw_rect/x/y/4/16/r/g/b/255.
+    /draw_rect/(x + 8)/y/4/16/r/g/b/255.
 <
 
 #draw_stop_icon(x, y, r, g, b) >

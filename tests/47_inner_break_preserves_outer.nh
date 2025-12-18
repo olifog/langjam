@@ -1,0 +1,22 @@
+// Test: Inner Break Preserves Outer Loop Counter
+// EXPECT: 4
+
+#main() >
+    // Breaking inner loop immediately should not affect outer counter
+    
+    last_i := 0.
+    
+    for i in 0..5 >           // i = 0, 1, 2, 3, 4
+        last_i = i.
+        for j in 0..100 >
+            >>.               // Break inner immediately
+        <
+        // Outer loop should still continue to next i
+    <
+    
+    // last_i should be 4 (the last value before loop ends)
+    
+    /console_log_int/last_i.
+    << 0.
+<
+

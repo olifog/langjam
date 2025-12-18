@@ -49,6 +49,7 @@ int yycolumn = 1;
 ":="            { return ASSIGN_DECL; }
 "<<"            { return RETURN; }
 ">>"            { return BREAK; }
+"><"            { return CONTINUE; }
 "=>"            { return ARROW; }
 ".."            { return RANGE; }
 "->"            { return MEMBER_ACCESS; }

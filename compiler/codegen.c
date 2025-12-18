@@ -739,34 +739,51 @@ static void codegen_stmt(ASTNode *node) {
     }
     break;
 
+  case NODE_CONTINUE:
+    emit("continue;\n");
+    break;
+
   case NODE_WHEN_STMT:
     if (node->data.when_stmt.is_unless) {
       emit("if ((");
       codegen_expr(node->data.when_stmt.condition);
-      emit_raw(") == VAL_INT(0)) { ");
+      emit_raw(") == VAL_INT(0)) {\n");
     } else {
       emit("if ((");
       codegen_expr(node->data.when_stmt.condition);
-      emit_raw(") != VAL_INT(0)) { ");
+      emit_raw(") != VAL_INT(0)) {\n");
     }
+    indent_level++;
     // Inline the action
-    if (node->data.when_stmt.action->type == NODE_WAND_CALL) {
+    if (node->data.when_stmt.action->type == NODE_BLOCK) {
+      // Block body - generate all statements
+      if (node->data.when_stmt.action->data.block.statements) {
+        for (size_t i = 0; i < node->data.when_stmt.action->data.block.statements->count; i++) {
+          codegen_stmt(node->data.when_stmt.action->data.block.statements->items[i]);
+        }
+      }
+    } else if (node->data.when_stmt.action->type == NODE_WAND_CALL) {
+      emit("");
       codegen_expr(node->data.when_stmt.action);
-      emit_raw(";");
+      emit_raw(";\n");
     } else if (node->data.when_stmt.action->type == NODE_BREAK) {
-      emit_raw("break;");
+      emit("break;\n");
+    } else if (node->data.when_stmt.action->type == NODE_CONTINUE) {
+      emit("continue;\n");
     } else if (node->data.when_stmt.action->type == NODE_RETURN) {
-      emit_raw("return");
+      emit("return");
       if (node->data.when_stmt.action->data.return_stmt.value) {
         emit_raw(" ");
         codegen_expr(node->data.when_stmt.action->data.return_stmt.value);
       }
-      emit_raw(";");
+      emit_raw(";\n");
     } else {
+      emit("");
       codegen_expr(node->data.when_stmt.action);
-      emit_raw(";");
+      emit_raw(";\n");
     }
-    emit_raw(" }\n");
+    indent_level--;
+    emit("}\n");
     break;
 
   case NODE_EXPR_STMT:

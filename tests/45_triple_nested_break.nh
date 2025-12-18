@@ -1,0 +1,24 @@
+// Test: Triple Nested Loops with Break
+// EXPECT: 12
+
+#main() >
+    // Three levels of nesting
+    // Innermost breaks at c=1, so runs 2 times per middle iteration
+    
+    count := 0.
+    
+    for a in 0..2 >           // a = 0, 1 (2 iterations)
+        for b in 0..3 >       // b = 0, 1, 2 (3 iterations)
+            for c in 0..10 >  // c breaks at 1, so c = 0, 1 (2 iterations)
+                count = count + 1.
+                >> when c == 1.
+            <
+        <
+    <
+    
+    // Total: 2 * 3 * 2 = 12
+    
+    /console_log_int/count.
+    << 0.
+<
+

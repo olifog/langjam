@@ -12,23 +12,48 @@
 @use "bot.nh".
 
 // ============================================================================
-// Screen Layout - Responsive
+// Screen Layout - Responsive Two-Pane Layout
 // ============================================================================
 
 SCREEN_W := 1280.
 SCREEN_H := 720.
 
-// Layout mode: 0 = side by side, 1 = stacked (editor below)
-layout_mode := 0.
-
 ANIM_DURATION := 200.   // Animation duration in ms (base, scaled by speed)
 
-// Panel bounds
+// Split position (0.0 to 1.0, represents fraction of width for left pane)
+split_ratio := 50.      // Stored as 0-100 (represents 0.0-1.0)
+split_min_ratio := 20.  // Minimum left pane is 20%
+split_max_ratio := 80.  // Maximum left pane is 80%
+
+// Divider state
+divider_x := 0.
+divider_width := 12.
+divider_padding := 6.  // Padding on each side of divider
+divider_dragging := 0.
+divider_hovered := 0.
+divider_drag_start_x := 0.      // Mouse X when drag started
+divider_drag_start_ratio := 0.  // Split ratio when drag started
+
+// Left pane bounds
+left_pane_x := 0.
+left_pane_y := 0.
+left_pane_w := 0.
+left_pane_h := 0.
+
+// Dungeon panel bounds (top of left pane, right-aligned)
 dungeon_x := 0.
 dungeon_y := 0.
 dungeon_w := 0.
 dungeon_h := 0.
 
+// Tech tree placeholder bounds (bottom of left pane)
+tech_tree_x := 0.
+tech_tree_y := 0.
+tech_tree_w := 0.
+tech_tree_h := 0.
+TECH_TREE_HEIGHT := 150.  // Fixed height for tech tree placeholder
+
+// Right pane / Editor bounds
 panel_editor_x := 0.
 panel_editor_y := 0.
 panel_editor_w := 0.
@@ -41,8 +66,12 @@ panel_editor_h := 0.
 game_initialized := 0.
 
 // ============================================================================
-// Layout Calculation - Truly Responsive
+// Layout Calculation - Two-Pane Layout with Resizable Divider
 // ============================================================================
+
+// Button bar height
+BUTTON_BAR_HEIGHT := 44.
+LAYOUT_PADDING := 16.
 
 #calculate_layout() >
     w := /get_screen_width/.
@@ -51,59 +80,94 @@ game_initialized := 0.
     SCREEN_W = w.
     SCREEN_H = h.
     
-    // Stacked layout if height > width (portrait mode)
-    layout_mode = 1 when h gt w.
-    layout_mode = 0 when w ge h.
-    
-    /setup_side_layout/w/h when layout_mode == 0.
-    /setup_stacked_layout/w/h when layout_mode == 1.
+    /setup_two_pane_layout/w/h.
 <
 
-// Button bar height
-BUTTON_BAR_HEIGHT := 44.
-
-#setup_side_layout(w, h) >
-    // Calculate split point
-    split_x := w / 2.
-
-    // Calculate dungeon size (just for reference or centering)
-    dw := MAP_WIDTH * TILE_W + 40.
+#setup_two_pane_layout(w, h) >
+    // Calculate split point based on ratio
+    split_x := w * split_ratio / 100.
     
-    // Dungeon on left (centered in left half?)
-    // For now keep at 20, or maybe center it? 
-    // Let's keep it at 20 for simplicity unless requested.
-    dungeon_x = 20.
-    dungeon_y = 20.
-    dungeon_w = split_x - 40.
-    dungeon_h = h - 40.
+    // Clamp to minimum/maximum
+    min_x := w * split_min_ratio / 100.
+    max_x := w * split_max_ratio / 100.
+    split_x = min_x when split_x lt min_x.
+    split_x = max_x when split_x gt max_x.
     
-    // Editor fills right half
-    panel_editor_x = split_x + 20.
-    panel_editor_y = 20 + BUTTON_BAR_HEIGHT.
-    panel_editor_w = (w - split_x) - 40.
-    panel_editor_h = h - 40 - BUTTON_BAR_HEIGHT.
+    // Divider position (centered on split point)
+    divider_x = split_x - divider_width / 2.
+    
+    // =========== LEFT PANE ===========
+    left_pane_x = LAYOUT_PADDING.
+    left_pane_y = LAYOUT_PADDING.
+    left_pane_w = split_x - LAYOUT_PADDING - divider_width / 2 - divider_padding.
+    left_pane_h = h - LAYOUT_PADDING * 2.
+    
+    // Split left pane into two equal halves vertically
+    half_height := (left_pane_h - LAYOUT_PADDING) / 2.
+    
+    // ===== SHARED CONTENT WIDTH =====
+    // Dungeon content width: map tiles + status bar (which extends further)
+    // Status bar has attributes starting at +350 and extending to ~+700
+    content_pix_w := 700.  // Wide enough for status bar
+    
+    // Use content width or pane width, whichever is smaller
+    shared_pane_w := content_pix_w.
+    shared_pane_w = left_pane_w when left_pane_w lt content_pix_w.
+    
+    // Calculate shared X position (right-aligned within left pane)
+    shared_pane_x := left_pane_x + left_pane_w - shared_pane_w.
+    shared_pane_x = left_pane_x when shared_pane_x lt left_pane_x.
+    
+    // ===== TOP HALF: Dungeon (bottom-right aligned within top half) =====
+    top_half_y := left_pane_y.
+    top_half_h := half_height.
+    
+    // Dungeon actual pixel dimensions (for vertical alignment)
+    dungeon_pix_h := MAP_HEIGHT * TILE_H + 120.  // Include header + status lines
+    
+    dungeon_w = shared_pane_w.
+    dungeon_h = top_half_h.
+    dungeon_x = shared_pane_x.
+    
+    // Bottom-align within top half: push down if content is shorter
+    dungeon_y = top_half_y.
+    dungeon_y = top_half_y + top_half_h - dungeon_pix_h when dungeon_pix_h lt top_half_h.
+    dungeon_y = top_half_y when dungeon_y lt top_half_y.  // Clamp to half
+    
+    // ===== BOTTOM HALF: Tech tree (centered within shared pane width) =====
+    bottom_half_y := left_pane_y + half_height + LAYOUT_PADDING.
+    bottom_half_h := half_height.
+    
+    // Tech tree has a max width, centered within the shared pane
+    tech_tree_max_w := 380.
+    tech_tree_w = tech_tree_max_w.
+    tech_tree_w = shared_pane_w when shared_pane_w lt tech_tree_max_w.
+    tech_tree_h = TECH_TREE_HEIGHT.
+    
+    // Center horizontally within the shared pane area
+    tech_tree_x = shared_pane_x + (shared_pane_w - tech_tree_w) / 2.
+    tech_tree_x = shared_pane_x when tech_tree_x lt shared_pane_x.
+    
+    // Vertically center within bottom half
+    tech_tree_y = bottom_half_y + (bottom_half_h - tech_tree_h) / 2.
+    tech_tree_y = bottom_half_y when tech_tree_y lt bottom_half_y.  // Clamp
+    
+    // =========== RIGHT PANE (EDITOR) ===========
+    right_pane_x := split_x + divider_width / 2 + divider_padding.
+    right_pane_y := LAYOUT_PADDING.
+    right_pane_w := w - right_pane_x - LAYOUT_PADDING.
+    right_pane_h := h - LAYOUT_PADDING * 2.
+    
+    // Button bar at top of right pane
+    /set_button_positions/right_pane_x/right_pane_y.
+    
+    // Editor fills rest of right pane (below buttons)
+    panel_editor_x = right_pane_x.
+    panel_editor_y = right_pane_y + BUTTON_BAR_HEIGHT.
+    panel_editor_w = right_pane_w.
+    panel_editor_h = right_pane_h - BUTTON_BAR_HEIGHT.
     
     /set_editor_bounds/panel_editor_x/panel_editor_y/panel_editor_w/panel_editor_h.
-    /set_button_positions/(split_x + 20)/20.
-<
-
-#setup_stacked_layout(w, h) >
-    half_h := h / 2.
-    
-    // Dungeon on top
-    dungeon_x = 20.
-    dungeon_y = 10.
-    dungeon_w = w - 40.
-    dungeon_h = half_h - 20.
-    
-    // Editor on bottom (with button bar above)
-    panel_editor_x = 20.
-    panel_editor_y = half_h + 10 + BUTTON_BAR_HEIGHT.
-    panel_editor_w = w - 40.
-    panel_editor_h = half_h - 20 - BUTTON_BAR_HEIGHT.
-    
-    /set_editor_bounds/panel_editor_x/panel_editor_y/panel_editor_w/panel_editor_h.
-    /set_button_positions/20/(half_h + 10).
 <
 
 // ============================================================================
@@ -138,13 +202,9 @@ BUTTON_BAR_HEIGHT := 44.
 #do_update(dt) >
     /calculate_layout/.
     
-    // If dead, wait for restart
+    // If dead, wait for restart (use buttons on death screen)
     can_update := 1.
     can_update = 0 when player_is_dead == 1.
-    
-    // Restart Check
-    spc := /input_key_just_pressed/KEY_SPACE. // SPACE
-    /restart_game/ when player_is_dead == 1 and spc == 1.
     
     // Normal Update
     /do_normal_update/dt when can_update == 1.
@@ -154,6 +214,9 @@ BUTTON_BAR_HEIGHT := 44.
     // Update animation timer
     anim_timer = anim_timer - dt.
     anim_timer = 0 when anim_timer lt 0.
+    
+    // Update divider dragging (must be before other mouse handlers)
+    /update_divider/.
     
     // Update buttons and slider (must be before editor to intercept clicks)
     /update_slider/.
@@ -168,6 +231,54 @@ BUTTON_BAR_HEIGHT := 44.
     // Check for death (manual or bot)
     died := /check_player_death/.
     /bot_stop/ when died == 1.
+<
+
+// ============================================================================
+// Divider Update - Handle Resizing
+// ============================================================================
+
+#update_divider() >
+    mx := /input_mouse_x/.
+    my := /input_mouse_y/.
+    down := /input_mouse_down/.
+    just_pressed := /input_mouse_just_pressed/.
+    
+    // Check if mouse is over divider (with some padding for easier grabbing)
+    grab_padding := 8.
+    in_divider := mx ge divider_x - grab_padding and mx lt divider_x + divider_width + grab_padding.
+    in_divider = in_divider * (my ge LAYOUT_PADDING and my lt SCREEN_H - LAYOUT_PADDING).
+    
+    // Update hover state
+    divider_hovered = 0.
+    divider_hovered = 1 when in_divider == 1.
+    
+    // Start dragging - store starting position and ratio
+    divider_drag_start_x = mx when just_pressed == 1 and in_divider == 1.
+    divider_drag_start_ratio = split_ratio when just_pressed == 1 and in_divider == 1.
+    divider_dragging = 1 when just_pressed == 1 and in_divider == 1.
+    
+    // Stop dragging
+    divider_dragging = 0 when down == 0.
+    
+    // Update split ratio based on mouse movement delta
+    /update_split_from_drag/mx when divider_dragging == 1.
+<
+
+#update_split_from_drag(mx) >
+    // Calculate how far mouse moved from drag start
+    delta_x := mx - divider_drag_start_x.
+    
+    // Convert pixel delta to ratio delta (percentage of screen width)
+    delta_ratio := delta_x * 100 / SCREEN_W.
+    
+    // New ratio = starting ratio + delta
+    new_ratio := divider_drag_start_ratio + delta_ratio.
+    
+    // Clamp to min/max
+    new_ratio = split_min_ratio when new_ratio lt split_min_ratio.
+    new_ratio = split_max_ratio when new_ratio gt split_max_ratio.
+    
+    split_ratio = new_ratio.
 <
 
 #update_bot_runner(dt) >
@@ -212,6 +323,13 @@ BUTTON_BAR_HEIGHT := 44.
     /render_background/px/py.
 
     /text_clear/.
+    
+    // Draw the divider between panes
+    /draw_divider/.
+    
+    // Draw tech tree placeholder (bottom of left pane)
+    /draw_tech_tree_placeholder/.
+    
     /render_dungeon/.
     /draw_entities/.
     /draw_player/.
@@ -222,4 +340,91 @@ BUTTON_BAR_HEIGHT := 44.
     
     // Tombstone on top
     /draw_tombstone/ when player_is_dead == 1.
+<
+
+// ============================================================================
+// Divider Rendering
+// ============================================================================
+
+#draw_divider() >
+    dx := divider_x.
+    dy := LAYOUT_PADDING.
+    dw := divider_width.
+    dh := SCREEN_H - LAYOUT_PADDING * 2.
+    
+    // Base color (darker when not hovered)
+    r := 40. g := 45. b := 55.
+    
+    // Highlight when hovered or dragging
+    r = 60 when divider_hovered == 1. g = 70 when divider_hovered == 1. b = 85 when divider_hovered == 1.
+    r = 80 when divider_dragging == 1. g = 100 when divider_dragging == 1. b = 130 when divider_dragging == 1.
+    
+    // Draw divider background
+    /draw_rect/dx/dy/dw/dh/r/g/b/255.
+    
+    // Draw grip icon in center (three horizontal lines)
+    icon_x := dx + dw / 2 - 3.
+    icon_y := SCREEN_H / 2 - 15.
+    grip_r := 100. grip_g := 110. grip_b := 130.
+    grip_r = 140 when divider_hovered == 1. grip_g = 160 when divider_hovered == 1. grip_b = 190 when divider_hovered == 1.
+    grip_r = 180 when divider_dragging == 1. grip_g = 200 when divider_dragging == 1. grip_b = 230 when divider_dragging == 1.
+    
+    /draw_rect/icon_x/icon_y/6/2/grip_r/grip_g/grip_b/255.
+    /draw_rect/icon_x/(icon_y + 6)/6/2/grip_r/grip_g/grip_b/255.
+    /draw_rect/icon_x/(icon_y + 12)/6/2/grip_r/grip_g/grip_b/255.
+    /draw_rect/icon_x/(icon_y + 18)/6/2/grip_r/grip_g/grip_b/255.
+    /draw_rect/icon_x/(icon_y + 24)/6/2/grip_r/grip_g/grip_b/255.
+<
+
+// ============================================================================
+// Tech Tree Placeholder
+// ============================================================================
+
+#draw_tech_tree_placeholder() >
+    tx := tech_tree_x.
+    ty := tech_tree_y.
+    tw := tech_tree_w.
+    th := tech_tree_h.
+    
+    // Background panel
+    /draw_rect/tx/ty/tw/th/25/28/35/220.
+    
+    // Border
+    /draw_rect/tx/ty/tw/2/50/60/75/255.
+    /draw_rect/tx/ty/2/th/50/60/75/255.
+    /draw_rect/tx/(ty + th - 2)/tw/2/50/60/75/255.
+    /draw_rect/(tx + tw - 2)/ty/2/th/50/60/75/255.
+    
+    // Header
+    hx := tx + 10.
+    hy := ty + 8.
+    /text_draw/hx/hy/12/0/200/200/"[UPGRADES & TECH TREE]".
+    
+    // Placeholder content
+    cx := tx + 20.
+    cy := ty + 40.
+    /text_draw/cx/cy/12/100/100/120/"Coming soon...".
+    
+    cy = cy + 24.
+    /text_draw/cx/cy/12/80/80/100/"Unlock abilities by collecting $".
+    
+    // Draw placeholder icons
+    icon_y := ty + th - 40.
+    icon_spacing := 60.
+    
+    for i in 0..5 >
+        icon_x := tx + 30 + i * icon_spacing.
+        /draw_placeholder_upgrade_icon/icon_x/icon_y/i.
+    <
+<
+
+#draw_placeholder_upgrade_icon(x, y, idx) >
+    // Draw a locked upgrade slot
+    /draw_rect/x/y/40/28/35/40/50/255.
+    /draw_rect/(x + 1)/(y + 1)/38/26/45/50/60/255.
+    
+    // Lock symbol or question mark
+    sx := x + 15.
+    sy := y + 6.
+    /text_draw/sx/sy/12/80/80/100/"?".
 <

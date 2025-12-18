@@ -1,10 +1,34 @@
-# nh 🎮
+# nh
 
-A langjam project: a NetHack-inspired programming language for building roguelike bots.
+A roguelike dungeon crawler where you write code to control the `@`.
+
+**nh** is both a programming language with NetHack-inspired syntax and a game built entirely in that language. Write bot scripts in the in-game editor, hit play, and watch your code navigate the dungeon.
+
+## The Game
+
+- **Split-screen interface**: Dungeon view on the left, code editor on the right
+- **Write bot code**: Control player movement, combat, and exploration
+- **Real-time execution**: Watch your bot run with adjustable speed
+- **Vim keybindings**: The editor supports vim-style navigation
+
+The game itself—rendering, UI, editor, dungeon generation, combat, particles—is written in nh and compiles to WebAssembly.
+
+## Quick Start
+
+```bash
+# Install dependencies
+brew install bison flex emscripten   # macOS
+# or: apt install bison flex emscripten  # Linux
+
+# Build and run
+make dev
+```
+
+Then open http://localhost:3000
 
 ## The Language
 
-**nh** uses NetHack-themed syntax:
+nh uses NetHack-themed syntax where `>` and `<` mark scope (like staircases), functions are called with `/wand/` syntax, and statements end with `.`
 
 ```
 #main() >
@@ -19,50 +43,72 @@ A langjam project: a NetHack-inspired programming language for building roguelik
 <
 ```
 
-### Key Features
+### Syntax Highlights
 
-- **`>` `<` for scope** — Like NetHack staircases
-- **`/wand/` syntax** — Function calls are spells
-- **`#command`** — Functions named like extended commands
-- **Word operators** — `lt` `gt` `le` `ge` `and` `or` `not`
-- **Pipes & pattern matching** — Functional programming flow
-- **Trailing conditions** — `attack when ready.`
+| Concept | Syntax |
+|---------|--------|
+| Function | `#name(args) > body <` |
+| Call | `/func/arg1/arg2.` |
+| Return / Break | `<< value.` / `>>.` |
+| Variable | `x := 5.` |
+| Struct | `{ key: value }` |
+| Member | `obj->field` |
+| Loop | `loop > body <` / `for i in 0..10 > <` |
+| Pattern match | `val \| > 0 => a _ => b <` |
+| Pipe | `5 \| /double/ \| /inc/` |
+| Lambda | `\(x) => x * 2` |
+| Conditional | `action when cond.` / `a if cond else b` |
+| Comparison | `lt` `gt` `le` `ge` `==` `!=` |
+| Logic | `and` `or` `not` |
 
-See [LANGUAGE.md](LANGUAGE.md) for full documentation.
+See [LANGUAGE.md](LANGUAGE.md) for the full reference.
 
-## Building
+## Project Structure
 
-### Prerequisites
-
-```bash
-# macOS
-brew install bison flex
-
-# Ubuntu/Debian
-sudo apt install bison flex
+```
+nh/
+├── compiler/          # nh → C compiler (Bison/Flex)
+│   ├── lexer.l        # Tokenizer
+│   ├── parser.y       # Grammar
+│   ├── ast.c/h        # AST nodes
+│   └── codegen.c      # C code generation
+├── runtime/           # C runtime (OpenGL bindings, input, math)
+│   └── runtime.c/h
+├── game/              # The game, written in nh
+│   ├── main.nh        # Entry point, layout, game loop
+│   ├── editor.nh      # Code editor with vim bindings
+│   ├── dungeon.nh     # Procedural dungeon generation
+│   ├── player.nh      # Player state and rendering
+│   ├── entity.nh      # Enemies and NPCs
+│   ├── combat.nh      # Combat system
+│   ├── bot.nh         # Bot execution engine
+│   ├── bot_eval.nh    # Bot code interpreter
+│   ├── render.nh      # Dungeon rendering
+│   ├── particles.nh   # Particle effects
+│   └── bgshader.nh    # Background shader
+├── web/               # Web frontend (Vite + TypeScript)
+│   ├── src/           # TypeScript source
+│   └── public/        # Static assets + compiled WASM
+├── tests/             # Test suite (40 tests)
+└── interpreter/       # Self-hosted interpreter (experimental)
 ```
 
-### Build & Test
+## Build Targets
 
-```bash
-make              # Build compiler
-make test         # Run test suite
-./build/dsc examples/hello.nh # Compile a file
-```
-
-### Test the QAD interpreter
-
-```bash
-make test-interpreter
-```
-
-If you want an example of how to use it, look in the `run_test` function in `interpreter/main.nh`.
+| Command | Description |
+|---------|-------------|
+| `make dev` | Build everything + start dev server |
+| `make` | Build the nh compiler only |
+| `make wasm` | Compile game to WASM |
+| `make dist` | Production build |
+| `make test` | Run test suite |
+| `make clean` | Remove build artifacts |
 
 ## Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                       nh Compiler                            │
+│                        nh Compiler                          │
 │  ┌─────────┐    ┌─────────┐    ┌─────────┐    ┌──────────┐ │
 │  │  Flex   │───▶│  Bison  │───▶│   AST   │───▶│ C Codegen│ │
 │  │ (lexer) │    │(parser) │    │         │    │          │ │
@@ -72,50 +118,28 @@ If you want an example of how to use it, look in the `run_test` function in `int
                               ▼
                          Generated C
                               │
-                              ▼
-                     gcc / emcc → binary / WASM
+              ┌───────────────┴───────────────┐
+              ▼                               ▼
+         Emscripten                         GCC
+              │                               │
+              ▼                               ▼
+      game.wasm + game.js              Native binary
+              │
+              ▼
+    ┌─────────────────────┐
+    │   Browser Runtime   │
+    │  (WebGL2 + Canvas)  │
+    └─────────────────────┘
 ```
 
-## Project Structure
+## Requirements
 
-```
-langjam/
-├── compiler/           # nh compiler (Bison/Flex → C)
-│   ├── lexer.l         # Flex lexer
-│   ├── parser.y        # Bison parser
-│   ├── ast.h/c         # AST node definitions
-│   └── codegen.c       # C code generator
-├── runtime/            # Runtime library
-│   └── runtime.h/c     # Graphics, input, logging
-├── tests/              # Test suite (40 tests)
-│   ├── *.nh            # Test files
-│   └── run_tests.sh    # Test runner
-├── examples/           # Example programs
-│   └── hello.nh
-├── LANGUAGE.md         # Language reference
-└── Makefile
-```
-
-## Quick Syntax Reference
-
-| Concept | Syntax |
-|---------|--------|
-| Function | `#name(args) > body <` |
-| Call | `/func/arg1/arg2.` |
-| Return | `<< value.` |
-| Break | `>>.` |
-| Variable | `x := 5.` |
-| Struct | `{ key: value }` |
-| Member | `obj->field` |
-| Loop | `loop > body <` |
-| For | `for i in 0..10 > body <` |
-| Pattern | `val \| > 0 => a _ => b <` |
-| Pipe | `5 \| /double/ \| /inc/` |
-| Lambda | `\(x) => x * 2` |
-| When | `action when cond.` |
-| Comparison | `lt` `gt` `le` `ge` `==` `!=` |
-| Logic | `and` `or` `not` |
+- **bison** - Parser generator
+- **flex** - Lexer generator  
+- **gcc** - C compiler
+- **emscripten** - WASM toolchain
+- **node/npm** - Web dev server
 
 ---
 
-*Built for Langjam 2025* 🎮
+*Built for Langjam 2025*

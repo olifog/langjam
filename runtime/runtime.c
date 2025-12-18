@@ -10,6 +10,7 @@
 #endif
 #include <math.h>
 #include <stdarg.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -801,6 +802,24 @@ Value input_mouse_just_released(void) {
 }
 
 // ============================================================================
+// Scroll Wheel Input
+// ============================================================================
+
+Value input_scroll_delta(void) {
+#ifdef __EMSCRIPTEN__
+  return VAL_INT(EM_ASM_INT({ return window.scrollDeltaY || 0; }));
+#else
+  return VAL_INT(0);
+#endif
+}
+
+void input_scroll_clear(void) {
+#ifdef __EMSCRIPTEN__
+  EM_ASM({ window.scrollDeltaY = 0; });
+#endif
+}
+
+// ============================================================================
 // Clipboard
 // ============================================================================
 
@@ -1049,19 +1068,40 @@ float math_min(float a, float b) { return a < b ? a : b; }
 float math_max(float a, float b) { return a > b ? a : b; }
 
 // ============================================================================
-// RNG
+// RNG - xorshift32 (better quality than stdlib rand)
 // ============================================================================
 
-void rng_seed(Value seed) { srand((unsigned int)AS_INT(seed)); }
+static uint32_t rng_state = 1;
+
+void rng_seed(Value seed) {
+  rng_state = (uint32_t)AS_INT(seed);
+  if (rng_state == 0) rng_state = 1; // State must be non-zero
+}
 
 Value rng_int(Value max) {
   long mx = AS_INT(max);
-  if (mx <= 0)
-    return VAL_INT(0);
-  return VAL_INT(rand() % mx);
+  if (mx <= 0) return VAL_INT(0);
+  
+  // xorshift32
+  uint32_t x = rng_state;
+  x ^= x << 13;
+  x ^= x >> 17;
+  x ^= x << 5;
+  rng_state = x;
+  
+  return VAL_INT(x % (uint32_t)mx);
 }
 
-float rng_float(void) { return (float)rand() / (float)RAND_MAX; }
+float rng_float(void) {
+  // Generate a random number first
+  uint32_t x = rng_state;
+  x ^= x << 13;
+  x ^= x >> 17;
+  x ^= x << 5;
+  rng_state = x;
+  
+  return (float)x / (float)UINT32_MAX;
+}
 
 // ============================================================================
 // Game Loop Exports

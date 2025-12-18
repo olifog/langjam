@@ -77,6 +77,10 @@ sel_anchor_line := 0.
 sel_anchor_col := 0.
 is_dragging := 0.
 
+// Scrollbar dragging state
+is_scrollbar_dragging := 0.
+scrollbar_drag_offset := 0.  // Offset from mouse to top of thumb when drag started
+
 // Key repeat state
 key_repeat_key := 0 - 1.
 key_repeat_timer := 0.
@@ -150,6 +154,15 @@ ED_INSERT_R := 130.
 ED_INSERT_G := 255.
 ED_INSERT_B := 130.
 
+// Scrollbar colors
+ED_SCROLLBAR_TRACK_R := 30.
+ED_SCROLLBAR_TRACK_G := 35.
+ED_SCROLLBAR_TRACK_B := 45.
+
+ED_SCROLLBAR_THUMB_R := 80.
+ED_SCROLLBAR_THUMB_G := 90.
+ED_SCROLLBAR_THUMB_B := 110.
+
 // ============================================================================
 // Initialization
 // ============================================================================
@@ -157,51 +170,44 @@ ED_INSERT_B := 130.
 #init_editor() >
     /console_log/"Initializing editor...".
     
-    // Left-wall following maze solver
+    // Minimal left-wall follower
     editor_lines[0] = "// Left-Wall Follower".
-    editor_lines[1] = "// First go down to find a wall".
-    editor_lines[2] = "loop >".
-    editor_lines[3] = "    c := /can_walk/0/1.".
-    editor_lines[4] = "    >> when c == 0.".
-    editor_lines[5] = "    /move/0/1.".
-    editor_lines[6] = "<".
-    editor_lines[7] = "".
-    editor_lines[8] = "// dir: 0=N 1=E 2=S 3=W".
-    editor_lines[9] = "// Start facing West (wall below us)".
-    editor_lines[10] = "dir := 3.".
-    editor_lines[11] = "".
+    editor_lines[1] = "// 0=N 1=E 2=S 3=W".
+    editor_lines[2] = "dir := 2.".
+    editor_lines[3] = "".
+    editor_lines[4] = "// Find a wall: go south then west".
+    editor_lines[5] = "loop >".
+    editor_lines[6] = "    >> when /can_walk/0/1 == 0.".
+    editor_lines[7] = "    /move/0/1.".
+    editor_lines[8] = "<".
+    editor_lines[9] = "dir = 3.".
+    editor_lines[10] = "".
+    editor_lines[11] = "// Left-wall following".
     editor_lines[12] = "loop >".
-    editor_lines[13] = "    // Get forward vector".
-    editor_lines[14] = "    fx := 0. fy := 0.".
-    editor_lines[15] = "    fx = 0 when dir == 0. fy = (0-1) when dir == 0.".
-    editor_lines[16] = "    fx = 1 when dir == 1. fy = 0 when dir == 1.".
-    editor_lines[17] = "    fx = 0 when dir == 2. fy = 1 when dir == 2.".
-    editor_lines[18] = "    fx = (0-1) when dir == 3. fy = 0 when dir == 3.".
+    editor_lines[13] = "    // Direction vectors".
+    editor_lines[14] = "    ld := (dir + 3) % 4.".
+    editor_lines[15] = "    fx := dir | > 1=>1 3=>(0-1) _=>0 <.".
+    editor_lines[16] = "    fy := dir | > 0=>(0-1) 2=>1 _=>0 <.".
+    editor_lines[17] = "    lx := ld | > 1=>1 3=>(0-1) _=>0 <.".
+    editor_lines[18] = "    ly := ld | > 0=>(0-1) 2=>1 _=>0 <.".
     editor_lines[19] = "".
-    editor_lines[20] = "    // Get left vector".
-    editor_lines[21] = "    left := dir - 1.".
-    editor_lines[22] = "    left = 3 when left lt 0.".
-    editor_lines[23] = "    lx := 0. ly := 0.".
-    editor_lines[24] = "    lx = 0 when left == 0. ly = (0-1) when left == 0.".
-    editor_lines[25] = "    lx = 1 when left == 1. ly = 0 when left == 1.".
-    editor_lines[26] = "    lx = 0 when left == 2. ly = 1 when left == 2.".
-    editor_lines[27] = "    lx = (0-1) when left == 3. ly = 0 when left == 3.".
-    editor_lines[28] = "".
-    editor_lines[29] = "    can_f := /can_walk/fx/fy.".
-    editor_lines[30] = "    can_l := /can_walk/lx/ly.".
-    editor_lines[31] = "".
-    editor_lines[32] = "    // If can go left, turn left and go".
-    editor_lines[33] = "    dir = left when can_l == 1.".
-    editor_lines[34] = "    /move/lx/ly when can_l == 1.".
-    editor_lines[35] = "".
-    editor_lines[36] = "    // Else if can go forward, go".
-    editor_lines[37] = "    /move/fx/fy when can_l == 0 and can_f == 1.".
-    editor_lines[38] = "".
-    editor_lines[39] = "    // Else turn right".
-    editor_lines[40] = "    dir = dir + 1 when can_l == 0 and can_f == 0.".
-    editor_lines[41] = "    dir = 0 when dir gt 3.".
-    editor_lines[42] = "<".
-    editor_num_lines = 43.
+    editor_lines[20] = "    // Try left".
+    editor_lines[21] = "    >".
+    editor_lines[22] = "        dir = ld.".
+    editor_lines[23] = "        /move/lx/ly.".
+    editor_lines[24] = "        ><.".
+    editor_lines[25] = "    < when /can_walk/lx/ly == 1.".
+    editor_lines[26] = "".
+    editor_lines[27] = "    // Try forward".
+    editor_lines[28] = "    >".
+    editor_lines[29] = "        /move/fx/fy.".
+    editor_lines[30] = "        ><.".
+    editor_lines[31] = "    < when /can_walk/fx/fy == 1.".
+    editor_lines[32] = "".
+    editor_lines[33] = "    // Turn right".
+    editor_lines[34] = "    dir = (dir + 1) % 4.".
+    editor_lines[35] = "<".
+    editor_num_lines = 36.
     
     editor_cursor_line = 2.
     editor_cursor_col = 0.
@@ -762,7 +768,10 @@ ED_INSERT_B := 130.
     mx := /input_mouse_x/.
     my := /input_mouse_y/.
     
-    // Check if in editor bounds
+    // Handle scroll wheel (works regardless of mouse position in editor)
+    /editor_handle_scroll_wheel/.
+    
+    // Check if in editor bounds for click handling
     << 0 when mx lt editor_x.
     << 0 when mx gt editor_x + editor_width.
     << 0 when my lt editor_y.
@@ -772,21 +781,28 @@ ED_INSERT_B := 130.
     mouse_just_pressed := /input_mouse_just_pressed/.
     mouse_just_released := /input_mouse_just_released/.
     
-    // State machine for mouse handling
-    // State 0: idle, State 1: dragging
+    // On release, end any drag
+    /end_scrollbar_drag/ when mouse_just_released == 1 and is_scrollbar_dragging == 1.
+    /end_drag/ when mouse_just_released == 1 and is_dragging == 1.
     
-    // On release, end drag
-    /end_drag/ when mouse_just_released == 1.
+    // Check if click is on scrollbar area
+    scrollbar_width := 8.
+    scrollbar_x := editor_x + editor_width - scrollbar_width - 4.
+    on_scrollbar := 0.
+    on_scrollbar = 1 when mx ge scrollbar_x.
     
-    // On press, start drag
-    /start_drag/mx/my when mouse_just_pressed == 1.
+    // On press, start appropriate drag
+    /start_scrollbar_drag/mx/my when mouse_just_pressed == 1 and on_scrollbar == 1.
+    /start_drag/mx/my when mouse_just_pressed == 1 and on_scrollbar == 0 and is_scrollbar_dragging == 0.
     
-    // While dragging, update selection
-    /continue_drag/mx/my when is_dragging == 1.
+    // While dragging, update appropriately
+    /continue_scrollbar_drag/mx/my when is_scrollbar_dragging == 1.
+    /continue_drag/mx/my when is_dragging == 1 and is_scrollbar_dragging == 0.
 <
 
 #start_drag(mx, my) >
     << 0 when is_dragging == 1.
+    << 0 when is_scrollbar_dragging == 1.
     
     content_y := editor_y + 25.
     line_num_width := 35.
@@ -820,6 +836,8 @@ ED_INSERT_B := 130.
 <
 
 #continue_drag(mx, my) >
+    << 0 when is_scrollbar_dragging == 1.
+    
     content_y := editor_y + 25.
     line_num_width := 35.
     text_x := editor_x + line_num_width + 10.
@@ -862,6 +880,95 @@ ED_INSERT_B := 130.
     is_dragging = 0.
 <
 
+#editor_handle_scroll_wheel() >
+    scroll_delta := /input_scroll_delta/.
+    << 0 when scroll_delta == 0.
+    
+    // Calculate visible lines
+    visible_lines := (editor_height - 40) / EDITOR_LINE_HEIGHT.
+    visible_lines = 1 when visible_lines lt 1.
+    
+    // Apply scroll
+    editor_scroll_y = editor_scroll_y + scroll_delta.
+    
+    // Clamp scroll position
+    max_scroll := editor_num_lines - visible_lines.
+    max_scroll = 0 when max_scroll lt 0.
+    editor_scroll_y = 0 when editor_scroll_y lt 0.
+    editor_scroll_y = max_scroll when editor_scroll_y gt max_scroll.
+    
+    // Clear the scroll delta
+    /input_scroll_clear/.
+<
+
+#start_scrollbar_drag(mx, my) >
+    << 0 when is_scrollbar_dragging == 1.
+    << 0 when is_dragging == 1.
+    
+    // Calculate current thumb position to get offset
+    track_y := editor_y + 25.
+    track_height := editor_height - 35.
+    
+    visible_lines := (editor_height - 40) / EDITOR_LINE_HEIGHT.
+    visible_lines = 1 when visible_lines lt 1.
+    
+    // Calculate thumb dimensions
+    thumb_height := track_height * visible_lines / editor_num_lines.
+    thumb_height = 20 when thumb_height lt 20.
+    
+    max_scroll := editor_num_lines - visible_lines.
+    max_scroll = 1 when max_scroll lt 1.
+    
+    // Current thumb Y position
+    scroll_ratio := editor_scroll_y * 100 / max_scroll.
+    available_space := track_height - thumb_height.
+    thumb_y := track_y + available_space * scroll_ratio / 100.
+    
+    // Store offset from mouse to top of thumb
+    scrollbar_drag_offset = my - thumb_y.
+    
+    is_scrollbar_dragging = 1.
+<
+
+#continue_scrollbar_drag(mx, my) >
+    // Calculate track dimensions
+    track_y := editor_y + 25.
+    track_height := editor_height - 35.
+    
+    visible_lines := (editor_height - 40) / EDITOR_LINE_HEIGHT.
+    visible_lines = 1 when visible_lines lt 1.
+    
+    // Calculate thumb dimensions
+    thumb_height := track_height * visible_lines / editor_num_lines.
+    thumb_height = 20 when thumb_height lt 20.
+    
+    max_scroll := editor_num_lines - visible_lines.
+    max_scroll = 1 when max_scroll lt 1.
+    
+    available_space := track_height - thumb_height.
+    available_space = 1 when available_space lt 1.
+    
+    // Calculate where the thumb top should be (accounting for initial click offset)
+    target_thumb_y := my - scrollbar_drag_offset.
+    
+    // Convert thumb position to scroll position
+    // thumb_y = track_y + available_space * scroll_ratio / 100
+    // scroll_ratio = (thumb_y - track_y) * 100 / available_space
+    // editor_scroll_y = scroll_ratio * max_scroll / 100
+    rel_y := target_thumb_y - track_y.
+    rel_y = 0 when rel_y lt 0.
+    rel_y = available_space when rel_y gt available_space.
+    
+    editor_scroll_y = rel_y * max_scroll / available_space.
+    
+    // Clamp
+    editor_scroll_y = 0 when editor_scroll_y lt 0.
+    editor_scroll_y = max_scroll when editor_scroll_y gt max_scroll.
+<
+
+#end_scrollbar_drag() >
+    is_scrollbar_dragging = 0.
+<
 
 // ============================================================================
 // Input Handling
@@ -1769,6 +1876,7 @@ ED_INSERT_B := 130.
     /draw_editor_selection/ when has_selection == 1.
     /draw_editor_content/.
     /draw_editor_cursor/ when editor_cursor_visible == 1.
+    /draw_editor_scrollbar/.
 <
 
 #draw_editor_header() >
@@ -1807,17 +1915,15 @@ ED_INSERT_B := 130.
     line_num_width := 35.
     text_x := editor_x + line_num_width + 10.
     
-    // Draw selection for each line in the selection range
-    /draw_sel_line/0/content_y/text_x when 0 ge sel_start_line and 0 le sel_end_line and 0 lt editor_num_lines.
-    /draw_sel_line/1/content_y/text_x when 1 ge sel_start_line and 1 le sel_end_line and 1 lt editor_num_lines.
-    /draw_sel_line/2/content_y/text_x when 2 ge sel_start_line and 2 le sel_end_line and 2 lt editor_num_lines.
-    /draw_sel_line/3/content_y/text_x when 3 ge sel_start_line and 3 le sel_end_line and 3 lt editor_num_lines.
-    /draw_sel_line/4/content_y/text_x when 4 ge sel_start_line and 4 le sel_end_line and 4 lt editor_num_lines.
-    /draw_sel_line/5/content_y/text_x when 5 ge sel_start_line and 5 le sel_end_line and 5 lt editor_num_lines.
-    /draw_sel_line/6/content_y/text_x when 6 ge sel_start_line and 6 le sel_end_line and 6 lt editor_num_lines.
-    /draw_sel_line/7/content_y/text_x when 7 ge sel_start_line and 7 le sel_end_line and 7 lt editor_num_lines.
-    /draw_sel_line/8/content_y/text_x when 8 ge sel_start_line and 8 le sel_end_line and 8 lt editor_num_lines.
-    /draw_sel_line/9/content_y/text_x when 9 ge sel_start_line and 9 le sel_end_line and 9 lt editor_num_lines.
+    // Draw selection for each visible line in the selection range
+    visible_lines := (editor_height - 40) / EDITOR_LINE_HEIGHT.
+    visible_lines = 1 when visible_lines lt 1.
+    
+    for i in 0..visible_lines >
+        line_idx := editor_scroll_y + i.
+        >> when line_idx ge editor_num_lines.
+        /draw_sel_line/line_idx/content_y/text_x when line_idx ge sel_start_line and line_idx le sel_end_line.
+    <
 <
 
 #draw_sel_line(line_idx, content_y, text_x) >
@@ -1858,7 +1964,7 @@ ED_INSERT_B := 130.
         
         // Execution indicator - highlight line background when bot is running/stepped
         is_exec_line := (line_idx == bot_current_line).
-        is_active := (bot_is_running == 1 or bot_step_count gt 0).
+        is_active := (bot_is_running == 1 or bot_is_stepping == 1).
         /draw_exec_indicator/(editor_x)/(ly - 2)/(line_num_width + 5) when is_exec_line == 1 and is_active == 1.
         
         // Line number
@@ -1904,4 +2010,37 @@ ED_INSERT_B := 130.
     // Normal mode: block cursor (character width, semi-transparent)
     char_width := EDITOR_CHAR_WIDTH_X10 / 10.
     /draw_rect/cx/cy/char_width/14/ED_CURSOR_R/ED_CURSOR_G/ED_CURSOR_B/180 when vim_mode == VIM_MODE_NORMAL.
+<
+
+#draw_editor_scrollbar() >
+    // Calculate visible lines
+    visible_lines := (editor_height - 40) / EDITOR_LINE_HEIGHT.
+    visible_lines = 1 when visible_lines lt 1.
+    
+    // Only show scrollbar if content overflows
+    << 0 when editor_num_lines le visible_lines.
+    
+    // Scrollbar dimensions
+    scrollbar_width := 8.
+    scrollbar_x := editor_x + editor_width - scrollbar_width - 4.
+    track_y := editor_y + 25.
+    track_height := editor_height - 35.
+    
+    // Draw track background
+    /draw_rect/scrollbar_x/track_y/scrollbar_width/track_height/ED_SCROLLBAR_TRACK_R/ED_SCROLLBAR_TRACK_G/ED_SCROLLBAR_TRACK_B/150.
+    
+    // Calculate thumb size and position
+    // Thumb height is proportional to visible/total ratio
+    thumb_height := track_height * visible_lines / editor_num_lines.
+    thumb_height = 20 when thumb_height lt 20.  // Minimum thumb size
+    
+    // Thumb position based on scroll position
+    max_scroll := editor_num_lines - visible_lines.
+    max_scroll = 1 when max_scroll lt 1.
+    scroll_ratio := editor_scroll_y * 100 / max_scroll.  // 0-100
+    available_space := track_height - thumb_height.
+    thumb_y := track_y + available_space * scroll_ratio / 100.
+    
+    // Draw thumb
+    /draw_rect/scrollbar_x/thumb_y/scrollbar_width/thumb_height/ED_SCROLLBAR_THUMB_R/ED_SCROLLBAR_THUMB_G/ED_SCROLLBAR_THUMB_B/220.
 <

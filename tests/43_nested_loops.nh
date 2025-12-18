@@ -1,0 +1,32 @@
+// Test: Nested Loop Control Flow - Break from Inner Loop
+// EXPECT: 12
+
+#main() >
+    // Break from inner loop, verify outer continues normally
+    // Outer loop runs 3 times (i=0,1,2)
+    // Inner loop breaks at j=2, so runs 3 times per outer (j=0,1,2)
+    
+    result := 0.
+    outer_iterations := 0.
+    
+    for i in 0..3 >
+        outer_iterations = outer_iterations + 1.
+        
+        inner_iterations := 0.
+        for j in 0..10 >
+            inner_iterations = inner_iterations + 1.
+            >> when j == 2.  // Break inner at j=2
+        <
+        
+        // Inner should have run exactly 3 times (j=0,1,2)
+        result = result + inner_iterations.
+    <
+    
+    // outer_iterations = 3
+    // result = 3 + 3 + 3 = 9
+    // Final: result + outer_iterations = 9 + 3 = 12
+    result = result + outer_iterations.
+    
+    /console_log_int/result.
+    << 0.
+<

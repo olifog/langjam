@@ -18,6 +18,7 @@ typedef enum {
   NODE_FOR,
   NODE_RETURN,
   NODE_BREAK,
+  NODE_CONTINUE,
   NODE_WHEN_STMT,
   NODE_EXPR_STMT,
   NODE_BINARY_OP,
@@ -275,6 +276,7 @@ ASTNode *ast_new_loop(ASTNode *condition, ASTNode *body);
 ASTNode *ast_new_for(char *var_name, ASTNode *iterable, ASTNode *body);
 ASTNode *ast_new_return(ASTNode *value);
 ASTNode *ast_new_break(ASTNode *condition);
+ASTNode *ast_new_continue(void);
 ASTNode *ast_new_when_stmt(ASTNode *action, ASTNode *condition, int is_unless);
 ASTNode *ast_new_expr_stmt(ASTNode *expr);
 ASTNode *ast_new_binary(BinaryOp op, ASTNode *left, ASTNode *right);

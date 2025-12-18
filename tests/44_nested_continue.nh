@@ -1,0 +1,28 @@
+// Test: Nested Loop Control Flow - Continue in Inner Loop
+// EXPECT: 6
+
+#main() >
+    // Continue in inner loop should skip rest of that iteration
+    // but not affect outer loop
+    
+    sum := 0.
+    
+    for i in 0..2 >
+        for j in 0..5 >
+            // Skip odd j values
+            remainder := j - ((j / 2) * 2).
+            >< when remainder == 1.
+            
+            // Only count even j values (j=0,2,4)
+            sum = sum + 1.
+        <
+    <
+    
+    // Inner loop: j=0,2,4 counted (3 per outer iteration)
+    // Outer loop: i=0,1 (2 iterations)
+    // Total: 3 * 2 = 6
+    
+    /console_log_int/sum.
+    << 0.
+<
+
