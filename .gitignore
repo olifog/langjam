@@ -2,3 +2,4 @@ build/
 web/public/game.js
 web/public/game.wasm
 .vercel
+web/.vercel

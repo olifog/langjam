@@ -72,10 +72,26 @@ jobs:
           name: web-build
           path: web/dist/
 
+      - name: Pull Vercel Environment
+        working-directory: web
+        run: bunx vercel pull --yes --token="${VERCEL_TOKEN}"
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+      - name: Build for Vercel
+        working-directory: web
+        run: bunx vercel build --prod --token="${VERCEL_TOKEN}"
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
       - name: Deploy to Vercel (Production)
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         working-directory: web
-        run: bunx vercel deploy dist --prod --token="${VERCEL_TOKEN}"
+        run: bunx vercel deploy --prebuilt --prod --token="${VERCEL_TOKEN}"
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
@@ -84,7 +100,7 @@ jobs:
       - name: Deploy to Vercel (Preview)
         if: github.event_name == 'pull_request'
         working-directory: web
-        run: bunx vercel deploy dist --token="${VERCEL_TOKEN}"
+        run: bunx vercel deploy --prebuilt --token="${VERCEL_TOKEN}"
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
