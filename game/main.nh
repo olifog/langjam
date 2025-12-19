@@ -734,6 +734,9 @@ clip_h := 0.
     /draw_tree_conn/(colm + nw / 2)/(row2 + nh + 2)/(col0 + nw / 2)/(row3 - 2)/lr/lg/lb.
     /draw_tree_conn/(colm + nw / 2)/(row2 + nh + 2)/(col2 + nw / 2)/(row3 - 2)/lr/lg/lb.
     
+    // When -> Can Move (side connection at row 3)
+    /draw_tree_conn/(col2 + nw / 2)/(row3 + nh / 2)/(colm + nw + 2)/(row3 + nh / 2)/lr/lg/lb.
+    
     // Row 3 -> Row 4: Loop (merge from Return/When)
     /draw_tree_conn/(col0 + nw / 2)/(row3 + nh + 2)/(colm + nw / 2)/(row4 - 2)/lr/lg/lb.
     /draw_tree_conn/(col2 + nw / 2)/(row3 + nh + 2)/(colm + nw / 2)/(row4 - 2)/lr/lg/lb.
@@ -755,6 +758,7 @@ clip_h := 0.
     /draw_node/colm/row2/UPGRADE_LANG_FUNCTIONS.       // Tier 2: Center (merge)
     /draw_node/col0/row3/UPGRADE_LANG_RETURN.          // Tier 2: Left
     /draw_node/col2/row3/UPGRADE_LANG_WHEN.            // Tier 2: Right
+    /draw_node/colm/row3/UPGRADE_LANG_CANMOVE.         // Tier 2.5: Center (from When)
     /draw_node/colm/row4/UPGRADE_LANG_LOOP.            // Tier 3: Center (merge)
     /draw_node/col0/row5/UPGRADE_LANG_FOR.             // Tier 3: Left
     /draw_node/col2/row5/UPGRADE_LANG_BREAK.           // Tier 3: Right
@@ -775,13 +779,12 @@ clip_h := 0.
     /draw_tree_conn/(col2 + nw / 2)/(row6 + nh + 2)/(colm + nw / 2)/(row7 - 2)/lr/lg/lb.
     /draw_tree_conn/(col2 + nw / 2)/(row6 + nh + 2)/(col2 + nw / 2)/(row7 - 2)/lr/lg/lb.
     
-    // Row 7 -> Row 8: Expert (Pattern, Lambda, Comments)
+    // Row 7 -> Row 8: Expert (Pattern, Lambda) - 2 nodes
     /draw_tree_conn/(col0 + nw / 2)/(row7 + nh + 2)/(col0 + nw / 2)/(row8 - 2)/lr/lg/lb.
-    /draw_tree_conn/(col0 + nw / 2)/(row7 + nh + 2)/(colm + nw / 2)/(row8 - 2)/lr/lg/lb.
+    /draw_tree_conn/(col0 + nw / 2)/(row7 + nh + 2)/(col2 + nw / 2)/(row8 - 2)/lr/lg/lb.
     /draw_tree_conn/(colm + nw / 2)/(row7 + nh + 2)/(col0 + nw / 2)/(row8 - 2)/lr/lg/lb.
-    /draw_tree_conn/(colm + nw / 2)/(row7 + nh + 2)/(colm + nw / 2)/(row8 - 2)/lr/lg/lb.
     /draw_tree_conn/(colm + nw / 2)/(row7 + nh + 2)/(col2 + nw / 2)/(row8 - 2)/lr/lg/lb.
-    /draw_tree_conn/(col2 + nw / 2)/(row7 + nh + 2)/(colm + nw / 2)/(row8 - 2)/lr/lg/lb.
+    /draw_tree_conn/(col2 + nw / 2)/(row7 + nh + 2)/(col0 + nw / 2)/(row8 - 2)/lr/lg/lb.
     /draw_tree_conn/(col2 + nw / 2)/(row7 + nh + 2)/(col2 + nw / 2)/(row8 - 2)/lr/lg/lb.
     
     // Draw Tier 5 & 6 nodes
@@ -789,8 +792,7 @@ clip_h := 0.
     /draw_node/colm/row7/UPGRADE_LANG_PIPES.           // Tier 5: Center
     /draw_node/col2/row7/UPGRADE_LANG_BLOCKWHEN.       // Tier 5: Right
     /draw_node/col0/row8/UPGRADE_LANG_PATTERN.         // Tier 6: Left
-    /draw_node/colm/row8/UPGRADE_LANG_LAMBDA.          // Tier 6: Center
-    /draw_node/col2/row8/UPGRADE_LANG_COMMENTS.        // Tier 6: Right
+    /draw_node/col2/row8/UPGRADE_LANG_LAMBDA.          // Tier 6: Right
 <
 
 // Draw connection line between nodes (top of lower node to bottom of upper node)
@@ -1149,6 +1151,7 @@ clip_h := 0.
     /try_lang_node_click/lcolm/lrow2/UPGRADE_LANG_FUNCTIONS/mx/my.
     /try_lang_node_click/lcol0/lrow3/UPGRADE_LANG_RETURN/mx/my.
     /try_lang_node_click/lcol2/lrow3/UPGRADE_LANG_WHEN/mx/my.
+    /try_lang_node_click/lcolm/lrow3/UPGRADE_LANG_CANMOVE/mx/my.
     // Tier 3
     /try_lang_node_click/lcolm/lrow4/UPGRADE_LANG_LOOP/mx/my.
     /try_lang_node_click/lcol0/lrow5/UPGRADE_LANG_FOR/mx/my.
@@ -1163,8 +1166,7 @@ clip_h := 0.
     /try_lang_node_click/lcol2/lrow7/UPGRADE_LANG_BLOCKWHEN/mx/my.
     // Tier 6: Expert
     /try_lang_node_click/lcol0/lrow8/UPGRADE_LANG_PATTERN/mx/my.
-    /try_lang_node_click/lcolm/lrow8/UPGRADE_LANG_LAMBDA/mx/my.
-    /try_lang_node_click/lcol2/lrow8/UPGRADE_LANG_COMMENTS/mx/my.
+    /try_lang_node_click/lcol2/lrow8/UPGRADE_LANG_LAMBDA/mx/my.
 <
 
 #update_tech_drag() >

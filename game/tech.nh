@@ -63,10 +63,11 @@ UPGRADE_LANG_STRINGS := 51.       // "hello"
 UPGRADE_LANG_IFELSE := 52.        // a if cond else b
 UPGRADE_LANG_PIPES := 53.         // x | /func/
 UPGRADE_LANG_BLOCKWHEN := 54.     // > ... < when cond
+// Tier 2.5: Movement Check (unlocks right after When)
+UPGRADE_LANG_CANMOVE := 58.       // /can_move/dir
 // Tier 6: Expert
 UPGRADE_LANG_PATTERN := 55.       // val | > 0 => ... <
 UPGRADE_LANG_LAMBDA := 56.        // \(x) => expr
-UPGRADE_LANG_COMMENTS := 57.      // // comments
 
 // Total upgrade count
 UPGRADE_COUNT := 40.
@@ -148,6 +149,8 @@ upgrades := [].
     << 30 when id == UPGRADE_LANG_FUNCTIONS.
     << 35 when id == UPGRADE_LANG_RETURN.
     << 35 when id == UPGRADE_LANG_WHEN.
+    // Tier 2.5: Movement Check ($40)
+    << 40 when id == UPGRADE_LANG_CANMOVE.
     // Tier 3: Loops ($60-90)
     << 60 when id == UPGRADE_LANG_LOOP.
     << 70 when id == UPGRADE_LANG_FOR.
@@ -160,10 +163,9 @@ upgrades := [].
     << 150 when id == UPGRADE_LANG_IFELSE.
     << 200 when id == UPGRADE_LANG_PIPES.
     << 180 when id == UPGRADE_LANG_BLOCKWHEN.
-    // Tier 6: Expert ($300-500)
+    // Tier 6: Expert ($300-400)
     << 350 when id == UPGRADE_LANG_PATTERN.
     << 400 when id == UPGRADE_LANG_LAMBDA.
-    << 250 when id == UPGRADE_LANG_COMMENTS.
     
     << 9999. // Unknown upgrade
 <
@@ -322,6 +324,9 @@ upgrades := [].
     // Tier 3: Loop needs Return OR When (merge)
     has_ret := /has_upgrade/UPGRADE_LANG_RETURN.
     has_when := /has_upgrade/UPGRADE_LANG_WHEN.
+    
+    // Tier 2.5: Can Move needs When (check after has_when is defined)
+    << has_when when id == UPGRADE_LANG_CANMOVE.
     has_tier2 := has_ret + has_when.
     << 1 when id == UPGRADE_LANG_LOOP and has_tier2 gt 0.
     
@@ -348,14 +353,13 @@ upgrades := [].
     << 1 when id == UPGRADE_LANG_PIPES and has_tier4 gt 0.
     << 1 when id == UPGRADE_LANG_BLOCKWHEN and has_tier4 gt 0.
     
-    // Tier 6: Expert (Pattern, Lambda, Comments) need ANY of tier 5
+    // Tier 6: Expert (Pattern, Lambda) need ANY of tier 5
     has_ifelse := /has_upgrade/UPGRADE_LANG_IFELSE.
     has_pipes := /has_upgrade/UPGRADE_LANG_PIPES.
     has_blockwhen := /has_upgrade/UPGRADE_LANG_BLOCKWHEN.
     has_tier5 := has_ifelse + has_pipes + has_blockwhen.
     << 1 when id == UPGRADE_LANG_PATTERN and has_tier5 gt 0.
     << 1 when id == UPGRADE_LANG_LAMBDA and has_tier5 gt 0.
-    << 1 when id == UPGRADE_LANG_COMMENTS and has_tier5 gt 0.
     
     << 0. // Unknown
 <
@@ -549,6 +553,8 @@ dng_bonus_from_upgrades := 0.
     << "Functions" when id == UPGRADE_LANG_FUNCTIONS.
     << "Return" when id == UPGRADE_LANG_RETURN.
     << "When" when id == UPGRADE_LANG_WHEN.
+    // LANGUAGE - Tier 2.5 (Movement)
+    << "Can Move" when id == UPGRADE_LANG_CANMOVE.
     // LANGUAGE - Tier 3 (Loops)
     << "Loop" when id == UPGRADE_LANG_LOOP.
     << "For" when id == UPGRADE_LANG_FOR.
@@ -564,7 +570,6 @@ dng_bonus_from_upgrades := 0.
     // LANGUAGE - Tier 6 (Expert)
     << "Match" when id == UPGRADE_LANG_PATTERN.
     << "Lambda" when id == UPGRADE_LANG_LAMBDA.
-    << "Comments" when id == UPGRADE_LANG_COMMENTS.
     
     << "???".
 <
@@ -613,6 +618,8 @@ dng_bonus_from_upgrades := 0.
     << "Reusable code blocks" when id == UPGRADE_LANG_FUNCTIONS.
     << "Output from functions" when id == UPGRADE_LANG_RETURN.
     << "Conditional execution" when id == UPGRADE_LANG_WHEN.
+    // LANGUAGE - Tier 2.5
+    << "Check valid moves" when id == UPGRADE_LANG_CANMOVE.
     // LANGUAGE - Tier 3
     << "Repeat until done" when id == UPGRADE_LANG_LOOP.
     << "Iterate over ranges" when id == UPGRADE_LANG_FOR.
@@ -628,7 +635,6 @@ dng_bonus_from_upgrades := 0.
     // LANGUAGE - Tier 6
     << "Match value patterns" when id == UPGRADE_LANG_PATTERN.
     << "Anonymous functions" when id == UPGRADE_LANG_LAMBDA.
-    << "Document your code" when id == UPGRADE_LANG_COMMENTS.
     
     << "".
 <
@@ -663,6 +669,7 @@ tutorial_tip := "".
     /set_tutorial_functions/ when id == UPGRADE_LANG_FUNCTIONS.
     /set_tutorial_return/ when id == UPGRADE_LANG_RETURN.
     /set_tutorial_when/ when id == UPGRADE_LANG_WHEN.
+    /set_tutorial_canmove/ when id == UPGRADE_LANG_CANMOVE.
     /set_tutorial_loop/ when id == UPGRADE_LANG_LOOP.
     /set_tutorial_for/ when id == UPGRADE_LANG_FOR.
     /set_tutorial_break/ when id == UPGRADE_LANG_BREAK.
@@ -674,7 +681,6 @@ tutorial_tip := "".
     /set_tutorial_blockwhen/ when id == UPGRADE_LANG_BLOCKWHEN.
     /set_tutorial_patterns/ when id == UPGRADE_LANG_PATTERN.
     /set_tutorial_lambdas/ when id == UPGRADE_LANG_LAMBDA.
-    /set_tutorial_comments/ when id == UPGRADE_LANG_COMMENTS.
 <
 
 #set_tutorial_variables() >
@@ -765,6 +771,21 @@ tutorial_tip := "".
     tutorial_code_3 = "x = 0 when reset == 1.".
     tutorial_code_4 = "<< 0 when done.".
     tutorial_tip = "TIP: Great for guard clauses!".
+<
+
+#set_tutorial_canmove() >
+    tutorial_title = "CAN MOVE".
+    tutorial_line_1 = "Check if movement is valid.".
+    tutorial_line_2 = "/can_move/dir returns 1 or 0.".
+    tutorial_line_3 = "Directions: 0=up 1=down 2=left 3=right".
+    tutorial_line_4 = "Returns 1 if tile is walkable.".
+    tutorial_line_5 = "Use to avoid walking into walls!".
+    tutorial_line_6 = "Essential for smart bot movement.".
+    tutorial_code_1 = "can := /can_move/0.  // up?".
+    tutorial_code_2 = "/move/0 when can == 1.".
+    tutorial_code_3 = "// Check before moving".
+    tutorial_code_4 = "dir := 3 when /can_move/3.".
+    tutorial_tip = "TIP: Check before you move!".
 <
 
 #set_tutorial_loop() >
@@ -930,21 +951,6 @@ tutorial_tip := "".
     tutorial_code_3 = "\\(a, b) => a + b.".
     tutorial_code_4 = "".
     tutorial_tip = "TIP: \\ is like a tiny function".
-<
-
-#set_tutorial_comments() >
-    tutorial_title = "COMMENTS".
-    tutorial_line_1 = "Document your code!".
-    tutorial_line_2 = "// starts a single-line comment.".
-    tutorial_line_3 = "Everything after // is ignored.".
-    tutorial_line_4 = "Use to explain complex logic.".
-    tutorial_line_5 = "Also useful for temporarily".
-    tutorial_line_6 = "disabling code while debugging.".
-    tutorial_code_1 = "// This is a comment".
-    tutorial_code_2 = "hp := 100.  // player health".
-    tutorial_code_3 = "// /dangerous_func/.".
-    tutorial_code_4 = "".
-    tutorial_tip = "TIP: Comment your bot's strategy!".
 <
 
 #close_tutorial() >
