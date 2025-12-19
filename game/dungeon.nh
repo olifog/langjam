@@ -530,7 +530,7 @@ expand_used := []. // 1 if this expansion point has been tried
 <
 
 #do_generate_dungeon() >
-    // Recalculate params from tech tree
+    // Recalculate params from tech tree (NOT from dungeon level)
     /recalc_dungeon_params/.
     
     // Clear map
@@ -546,7 +546,7 @@ expand_used := []. // 1 if this expansion point has been tried
     // Phase 1: Create starting room
     /create_starting_room/.
     
-    // Phase 2: Add additional rooms
+    // Phase 2: Add additional rooms (based on tech tree upgrades ONLY)
     target_rooms := dng_max_rooms.
     attempts := 0.
     max_attempts := target_rooms * 20. // Allow many retries

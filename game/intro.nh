@@ -493,6 +493,9 @@ fade_alpha := 0.
     base_y := paper_y + 28.
     line_height := 20.
     
+    // Draw logo in top left corner
+    /draw_letterhead_logo/(paper_x + 45)/(paper_y + 18).
+    
     // Typewriter font: font_id = 2 (Courier)
     font_size := 13.
     font_id := 2.
@@ -593,6 +596,55 @@ fade_alpha := 0.
     brightness = 90 when pulse_mod gt 50.
     
     /text_draw_font/prompt_x/prompt_y/14/brightness/brightness/brightness/2/"[ Click anywhere to continue ]".
+<
+
+// ============================================================================
+// Letterhead Logo - ASCII art geometric design
+// ============================================================================
+
+#draw_letterhead_logo(x, y) >
+    // Dark ink color matching the letter text
+    r := 35. g := 30. b := 40.
+    sz := 12.  // Font size
+    lh := 14.  // Line height
+    cw := 7.   // Character width
+    sz_big := 16.  // Bigger size for parentheses
+    
+    // Center the logo around x
+    cx := x + cw * 4.  // Center point
+    
+    // Underscore X positions (consistent across both rows)
+    u_left := cx - cw * 2.
+    u_mid := cx - cw / 2.
+    u_right := cx + cw.
+    
+    // Row 0: Triangle apex (moved down 5px)
+    //        ^
+    /text_draw_font/(cx - cw / 2)/(y + 5)/sz/r/g/b/2/"^".
+    
+    // Row 1: Triangle upper (tighter)
+    //       /  \
+    /text_draw_font/(cx - cw - 2)/(y + lh)/sz/r/g/b/2/"/".
+    /text_draw_font/(cx + 2)/(y + lh)/sz/r/g/b/2/"\\".
+    
+    // Row 2: Triangle lower (slightly wider but not too much)
+    //      /    \
+    /text_draw_font/(cx - cw * 2)/(y + lh * 2)/sz/r/g/b/2/"/".
+    /text_draw_font/(cx + cw)/(y + lh * 2)/sz/r/g/b/2/"\\".
+    
+    // Row 3: Underscores row (moved up more, middle one lower)
+    //      _   _   _
+    /text_draw_font/u_left/(y + lh * 3 - 10)/sz/r/g/b/2/"_".
+    /text_draw_font/u_mid/(y + lh * 3 - 7)/sz/r/g/b/2/"_".
+    /text_draw_font/u_right/(y + lh * 3 - 10)/sz/r/g/b/2/"_".
+    
+    // Row 4: Parentheses (bigger, centered, wider apart) with underscores
+    //     (  _   _   _  )
+    /text_draw_font/(cx - cw * 3 - 6)/(y + lh * 4 - 13)/sz_big/r/g/b/2/"(".
+    /text_draw_font/u_left/(y + lh * 4 - 10)/sz/r/g/b/2/"_".
+    /text_draw_font/u_mid/(y + lh * 4 - 7)/sz/r/g/b/2/"_".
+    /text_draw_font/u_right/(y + lh * 4 - 10)/sz/r/g/b/2/"_".
+    /text_draw_font/(cx + cw * 2 + 3)/(y + lh * 4 - 13)/sz_big/r/g/b/2/")".
 <
 
 // ============================================================================

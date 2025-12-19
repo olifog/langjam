@@ -1,25 +1,51 @@
-// tech.nh - Tech tree system for progressive dungeon unlocks
+// tech.nh - Tech tree system with 3 independent branches
 // ============================================================================
-// Upgrade IDs (for lookup)
+// BRANCH 1: BUFF (Sword icon) - Player power upgrades
+// BRANCH 2: DIFFICULTY (Grid icon) - Dungeon complexity + bonus rewards
+// BRANCH 3: LANGUAGE (Code icon) - Language feature tutorials
 // ============================================================================
 
-// Room progression (linear chain)
-UPGRADE_STAIRS_RANDOM := 0.
-UPGRADE_ROOM_VARIABLE := 1.
-UPGRADE_ROOM_2 := 2.
-UPGRADE_ROOM_3 := 3.
-UPGRADE_ROOM_4 := 4.
-UPGRADE_ROOM_5PLUS := 5.
+// ============================================================================
+// Upgrade IDs
+// ============================================================================
 
-// Monster branch (requires ROOM_2)
-UPGRADE_MONSTER_1 := 10.
-UPGRADE_MONSTER_MORE := 11.
+// BUFF BRANCH (IDs 0-19)
+UPGRADE_BUFF_START := 0.          // Starting node (Training)
+UPGRADE_BUFF_HP_1 := 1.           // +4 Max HP
+UPGRADE_BUFF_STR_1 := 2.          // +1 Strength
+UPGRADE_BUFF_SPEED_5 := 3.        // Max speed 5x
+UPGRADE_BUFF_GOLD_DROP := 4.      // Enemies drop gold on death
+UPGRADE_BUFF_HP_2 := 5.           // +4 Max HP
+UPGRADE_BUFF_SPEED_10 := 6.       // Max speed 10x
+UPGRADE_BUFF_GOLD_SPAWN := 7.     // Gold piles spawn in dungeon
+UPGRADE_BUFF_SPEED_100 := 8.      // Max speed 100x
+UPGRADE_BUFF_HEAL_STAIRS := 9.    // Heal when descending stairs
+UPGRADE_BUFF_SPEED_1000 := 10.    // Max speed 1000x
 
-// Feature branch (requires ROOM_2)
-UPGRADE_GOLD_SPAWNS := 20.
+// DIFFICULTY BRANCH (IDs 20-39)
+UPGRADE_DIFF_ROOM_2 := 20.        // 2 rooms per floor
+UPGRADE_DIFF_VAR_SIZE := 21.      // Variable room sizes (3-7)
+UPGRADE_DIFF_MONSTER_1 := 22.     // 1 monster per floor
+UPGRADE_DIFF_ROOM_3 := 23.        // 3 rooms per floor
+UPGRADE_DIFF_STAIRS_RANDOM := 24. // Stairs in random position
+UPGRADE_DIFF_MONSTER_2 := 25.     // 2 monsters per floor
+UPGRADE_DIFF_ROOM_4 := 26.        // 4 rooms per floor
+UPGRADE_DIFF_MONSTER_3 := 27.     // 3 monsters per floor
+UPGRADE_DIFF_ROOM_MANY := 28.     // 5+ rooms per floor
+
+// LANGUAGE BRANCH (IDs 40-59)
+UPGRADE_LANG_VARIABLES := 40.     // Variables tutorial
+UPGRADE_LANG_FUNCTIONS := 41.     // Functions tutorial
+UPGRADE_LANG_LOOPS := 42.         // Loops tutorial
+UPGRADE_LANG_CONDITIONS := 43.    // When/Unless tutorial
+UPGRADE_LANG_ARRAYS := 44.        // Arrays tutorial
+UPGRADE_LANG_PIPES := 45.         // Pipes tutorial
+UPGRADE_LANG_STRUCTS := 46.       // Structs tutorial
+UPGRADE_LANG_PATTERN := 47.       // Pattern matching tutorial
+UPGRADE_LANG_LAMBDA := 48.        // Lambda tutorial
 
 // Total upgrade count
-UPGRADE_COUNT := 9.
+UPGRADE_COUNT := 27.
 
 // ============================================================================
 // Upgrade State (0 = locked, 1 = unlocked)
@@ -28,7 +54,7 @@ UPGRADE_COUNT := 9.
 upgrades := [].
 
 #init_upgrades() >
-    for i in 0..30 >
+    for i in 0..60 >
         upgrades[i] = 0.
     <
 <
@@ -40,6 +66,9 @@ upgrades := [].
 #unlock_upgrade(id) >
     upgrades[id] = 1.
     /recalc_dungeon_params/.
+    /apply_buff_upgrades/.
+    // Update bonus display immediately
+    dngn_bonus = /calculate_floor_bonus/.
 <
 
 // ============================================================================
@@ -47,20 +76,40 @@ upgrades := [].
 // ============================================================================
 
 #get_upgrade_cost(id) >
-    // Room branch
-    << 25 when id == UPGRADE_STAIRS_RANDOM.
-    << 50 when id == UPGRADE_ROOM_VARIABLE.
-    << 100 when id == UPGRADE_ROOM_2.
-    << 150 when id == UPGRADE_ROOM_3.
-    << 200 when id == UPGRADE_ROOM_4.
-    << 300 when id == UPGRADE_ROOM_5PLUS.
+    // BUFF BRANCH - relatively cheap, makes player stronger
+    << 15 when id == UPGRADE_BUFF_START.
+    << 30 when id == UPGRADE_BUFF_HP_1.
+    << 30 when id == UPGRADE_BUFF_STR_1.
+    << 25 when id == UPGRADE_BUFF_SPEED_5.
+    << 50 when id == UPGRADE_BUFF_GOLD_DROP.
+    << 60 when id == UPGRADE_BUFF_HP_2.
+    << 75 when id == UPGRADE_BUFF_SPEED_10.
+    << 80 when id == UPGRADE_BUFF_GOLD_SPAWN.
+    << 200 when id == UPGRADE_BUFF_SPEED_100.
+    << 100 when id == UPGRADE_BUFF_HEAL_STAIRS.
+    << 500 when id == UPGRADE_BUFF_SPEED_1000.
     
-    // Monster branch
-    << 75 when id == UPGRADE_MONSTER_1.
-    << 100 when id == UPGRADE_MONSTER_MORE.
+    // DIFFICULTY BRANCH - moderate cost, increases bonus rewards
+    << 25 when id == UPGRADE_DIFF_ROOM_2.
+    << 35 when id == UPGRADE_DIFF_VAR_SIZE.
+    << 50 when id == UPGRADE_DIFF_MONSTER_1.
+    << 75 when id == UPGRADE_DIFF_ROOM_3.
+    << 60 when id == UPGRADE_DIFF_STAIRS_RANDOM.
+    << 100 when id == UPGRADE_DIFF_MONSTER_2.
+    << 125 when id == UPGRADE_DIFF_ROOM_4.
+    << 150 when id == UPGRADE_DIFF_MONSTER_3.
+    << 200 when id == UPGRADE_DIFF_ROOM_MANY.
     
-    // Feature branch
-    << 60 when id == UPGRADE_GOLD_SPAWNS.
+    // LANGUAGE BRANCH - knowledge costs gold
+    << 20 when id == UPGRADE_LANG_VARIABLES.
+    << 30 when id == UPGRADE_LANG_FUNCTIONS.
+    << 40 when id == UPGRADE_LANG_LOOPS.
+    << 40 when id == UPGRADE_LANG_CONDITIONS.
+    << 50 when id == UPGRADE_LANG_ARRAYS.
+    << 60 when id == UPGRADE_LANG_PIPES.
+    << 70 when id == UPGRADE_LANG_STRUCTS.
+    << 80 when id == UPGRADE_LANG_PATTERN.
+    << 90 when id == UPGRADE_LANG_LAMBDA.
     
     << 9999. // Unknown upgrade
 <
@@ -74,39 +123,104 @@ upgrades := [].
     has := /has_upgrade/id.
     << 0 when has == 1.
     
-    // Check prereqs
-    // Tier 1: Random stairs - no prereq
-    << 1 when id == UPGRADE_STAIRS_RANDOM.
+    // BUFF BRANCH - single root that branches into 3 paths
+    // Root: Training (no prereqs)
+    << 1 when id == UPGRADE_BUFF_START.
     
-    // Tier 2: Variable rooms - needs random stairs
-    has_stairs := /has_upgrade/UPGRADE_STAIRS_RANDOM.
-    << has_stairs when id == UPGRADE_ROOM_VARIABLE.
+    // Tier 2: HP1, STR1, Speed5 all need the root
+    has_start := /has_upgrade/UPGRADE_BUFF_START.
+    << has_start when id == UPGRADE_BUFF_HP_1.
+    << has_start when id == UPGRADE_BUFF_STR_1.
+    << has_start when id == UPGRADE_BUFF_SPEED_5.
     
-    // Tier 3: Second room - needs variable rooms
-    has_variable := /has_upgrade/UPGRADE_ROOM_VARIABLE.
-    << has_variable when id == UPGRADE_ROOM_2.
+    // Tier 3: Gold Drop needs HP1 or STR1, Speed10 needs Speed5
+    has_hp1 := /has_upgrade/UPGRADE_BUFF_HP_1.
+    has_str1 := /has_upgrade/UPGRADE_BUFF_STR_1.
+    has_tier2_combat := has_hp1 + has_str1.
+    << 1 when id == UPGRADE_BUFF_GOLD_DROP and has_tier2_combat gt 0.
     
-    // Third room - needs second room
-    has_room2 := /has_upgrade/UPGRADE_ROOM_2.
-    << has_room2 when id == UPGRADE_ROOM_3.
+    has_speed5 := /has_upgrade/UPGRADE_BUFF_SPEED_5.
+    << has_speed5 when id == UPGRADE_BUFF_SPEED_10.
     
-    // Fourth room - needs third room
-    has_room3 := /has_upgrade/UPGRADE_ROOM_3.
-    << has_room3 when id == UPGRADE_ROOM_4.
+    // Tier 4: HP2 needs Gold Drop, Speed100 needs Speed10
+    has_gold_drop := /has_upgrade/UPGRADE_BUFF_GOLD_DROP.
+    << has_gold_drop when id == UPGRADE_BUFF_HP_2.
     
-    // Fifth+ rooms - needs fourth room
-    has_room4 := /has_upgrade/UPGRADE_ROOM_4.
-    << has_room4 when id == UPGRADE_ROOM_5PLUS.
+    has_speed10 := /has_upgrade/UPGRADE_BUFF_SPEED_10.
+    << has_speed10 when id == UPGRADE_BUFF_SPEED_100.
     
-    // Monster branch - needs second room
-    << has_room2 when id == UPGRADE_MONSTER_1.
+    // Tier 5: Gold Spawn needs HP2, Speed1000 needs Speed100
+    has_hp2 := /has_upgrade/UPGRADE_BUFF_HP_2.
+    << has_hp2 when id == UPGRADE_BUFF_GOLD_SPAWN.
     
-    // More monsters - needs first monster
-    has_monster1 := /has_upgrade/UPGRADE_MONSTER_1.
-    << has_monster1 when id == UPGRADE_MONSTER_MORE.
+    has_speed100 := /has_upgrade/UPGRADE_BUFF_SPEED_100.
+    << has_speed100 when id == UPGRADE_BUFF_SPEED_1000.
     
-    // Gold spawns - needs second room
-    << has_room2 when id == UPGRADE_GOLD_SPAWNS.
+    // Tier 6: Heal Stairs needs Gold Spawn
+    has_gold_spawn := /has_upgrade/UPGRADE_BUFF_GOLD_SPAWN.
+    << has_gold_spawn when id == UPGRADE_BUFF_HEAL_STAIRS.
+    
+    // DIFFICULTY BRANCH - branching paths that merge
+    // Tier 1: 2 Rooms (no prereq)
+    << 1 when id == UPGRADE_DIFF_ROOM_2.
+    
+    // Tier 2: Var Size or Monster1 need Room2
+    has_room2 := /has_upgrade/UPGRADE_DIFF_ROOM_2.
+    << has_room2 when id == UPGRADE_DIFF_VAR_SIZE.
+    << has_room2 when id == UPGRADE_DIFF_MONSTER_1.
+    
+    // Tier 3: Room3 needs VarSize, Random Stairs needs Monster1
+    has_var := /has_upgrade/UPGRADE_DIFF_VAR_SIZE.
+    has_mon1 := /has_upgrade/UPGRADE_DIFF_MONSTER_1.
+    << has_var when id == UPGRADE_DIFF_ROOM_3.
+    << has_mon1 when id == UPGRADE_DIFF_STAIRS_RANDOM.
+    
+    // Tier 4: Monster2 needs Room3 or RandomStairs (merge point)
+    has_room3 := /has_upgrade/UPGRADE_DIFF_ROOM_3.
+    has_random := /has_upgrade/UPGRADE_DIFF_STAIRS_RANDOM.
+    has_tier3_diff := has_room3 + has_random.
+    << 1 when id == UPGRADE_DIFF_MONSTER_2 and has_tier3_diff gt 0.
+    
+    // Tier 5: Room4 or Monster3 need Monster2
+    has_mon2 := /has_upgrade/UPGRADE_DIFF_MONSTER_2.
+    << has_mon2 when id == UPGRADE_DIFF_ROOM_4.
+    << has_mon2 when id == UPGRADE_DIFF_MONSTER_3.
+    
+    // Tier 6: Many Rooms needs Room4 or Monster3
+    has_room4 := /has_upgrade/UPGRADE_DIFF_ROOM_4.
+    has_mon3 := /has_upgrade/UPGRADE_DIFF_MONSTER_3.
+    has_tier5_diff := has_room4 + has_mon3.
+    << 1 when id == UPGRADE_DIFF_ROOM_MANY and has_tier5_diff gt 0.
+    
+    // LANGUAGE BRANCH - tutorial prerequisites
+    // Tier 1: Variables (no prereq)
+    << 1 when id == UPGRADE_LANG_VARIABLES.
+    
+    // Tier 2: Functions needs Variables
+    has_vars := /has_upgrade/UPGRADE_LANG_VARIABLES.
+    << has_vars when id == UPGRADE_LANG_FUNCTIONS.
+    
+    // Tier 3: Loops or Conditions need Functions
+    has_funcs := /has_upgrade/UPGRADE_LANG_FUNCTIONS.
+    << has_funcs when id == UPGRADE_LANG_LOOPS.
+    << has_funcs when id == UPGRADE_LANG_CONDITIONS.
+    
+    // Tier 4: Arrays needs Loops, Pipes needs Conditions
+    has_loops := /has_upgrade/UPGRADE_LANG_LOOPS.
+    has_conds := /has_upgrade/UPGRADE_LANG_CONDITIONS.
+    << has_loops when id == UPGRADE_LANG_ARRAYS.
+    << has_conds when id == UPGRADE_LANG_PIPES.
+    
+    // Tier 5: Structs needs Arrays or Pipes (merge point)
+    has_arrays := /has_upgrade/UPGRADE_LANG_ARRAYS.
+    has_pipes := /has_upgrade/UPGRADE_LANG_PIPES.
+    has_tier4_lang := has_arrays + has_pipes.
+    << 1 when id == UPGRADE_LANG_STRUCTS and has_tier4_lang gt 0.
+    
+    // Tier 6: Pattern and Lambda need Structs
+    has_structs := /has_upgrade/UPGRADE_LANG_STRUCTS.
+    << has_structs when id == UPGRADE_LANG_PATTERN.
+    << has_structs when id == UPGRADE_LANG_LAMBDA.
     
     << 0. // Unknown
 <
@@ -124,11 +238,44 @@ upgrades := [].
     player_bank = player_bank - cost.
     /unlock_upgrade/id.
     
+    // If it's a language upgrade, show the tutorial
+    is_lang := 0.
+    is_lang = 1 when id ge 40 and id lt 60.
+    /show_language_tutorial/id when is_lang == 1.
+    
+    // If it's a speed upgrade, recalculate slider position
+    is_speed := 0.
+    is_speed = 1 when id == UPGRADE_BUFF_SPEED_5.
+    is_speed = 1 when id == UPGRADE_BUFF_SPEED_10.
+    is_speed = 1 when id == UPGRADE_BUFF_SPEED_100.
+    is_speed = 1 when id == UPGRADE_BUFF_SPEED_1000.
+    /recalc_slider_for_new_max/ when is_speed == 1.
+    
     << 1.
 <
 
 // ============================================================================
-// Derived Dungeon Parameters (computed from upgrades)
+// Apply Buff Upgrades to Player
+// ============================================================================
+
+#apply_buff_upgrades() >
+    // Calculate total HP bonus
+    hp_bonus := 0.
+    hp_bonus = hp_bonus + 4 when /has_upgrade/UPGRADE_BUFF_HP_1 == 1.
+    hp_bonus = hp_bonus + 4 when /has_upgrade/UPGRADE_BUFF_HP_2 == 1.
+    
+    // Base HP is 16
+    player_max_hp = 16 + hp_bonus.
+    
+    // Strength bonus
+    str_bonus := 0.
+    str_bonus = str_bonus + 1 when /has_upgrade/UPGRADE_BUFF_STR_1 == 1.
+    
+    player_str = 18 + str_bonus.
+<
+
+// ============================================================================
+// Derived Dungeon Parameters (computed from DIFFICULTY upgrades)
 // ============================================================================
 
 // These are read by the dungeon generator
@@ -139,41 +286,67 @@ dng_stairs_random := 0.
 dng_monster_count := 0.
 dng_gold_enabled := 0.
 
+// Bonus from difficulty upgrades (starts at 0, adds linearly)
+dng_bonus_from_upgrades := 0.
+
 #recalc_dungeon_params() >
-    // Room count
+    // Base values
     dng_max_rooms = 1.
-    dng_max_rooms = 2 when /has_upgrade/UPGRADE_ROOM_2 == 1.
-    dng_max_rooms = 3 when /has_upgrade/UPGRADE_ROOM_3 == 1.
-    dng_max_rooms = 4 when /has_upgrade/UPGRADE_ROOM_4 == 1.
-    
-    // 5+ rooms scales with floor
-    has_5plus := /has_upgrade/UPGRADE_ROOM_5PLUS.
-    scaled_rooms := 4 + dungeon_level / 2.
-    scaled_rooms = 8 when scaled_rooms gt 8.
-    dng_max_rooms = scaled_rooms when has_5plus == 1.
-    
-    // Room size
     dng_min_room_size = 3.
     dng_max_room_size = 3.
-    dng_max_room_size = 7 when /has_upgrade/UPGRADE_ROOM_VARIABLE == 1.
+    dng_stairs_random = 0.
+    dng_monster_count = 0.
+    
+    // Calculate bonus from upgrades (linear addition, starts at 0)
+    bonus := 0.
+    
+    // Room count from difficulty upgrades
+    dng_max_rooms = 2 when /has_upgrade/UPGRADE_DIFF_ROOM_2 == 1.
+    bonus = bonus + 1 when /has_upgrade/UPGRADE_DIFF_ROOM_2 == 1.
+    
+    dng_max_rooms = 3 when /has_upgrade/UPGRADE_DIFF_ROOM_3 == 1.
+    bonus = bonus + 1 when /has_upgrade/UPGRADE_DIFF_ROOM_3 == 1.
+    
+    dng_max_rooms = 4 when /has_upgrade/UPGRADE_DIFF_ROOM_4 == 1.
+    bonus = bonus + 1 when /has_upgrade/UPGRADE_DIFF_ROOM_4 == 1.
+    
+    dng_max_rooms = 6 when /has_upgrade/UPGRADE_DIFF_ROOM_MANY == 1.
+    bonus = bonus + 2 when /has_upgrade/UPGRADE_DIFF_ROOM_MANY == 1.
+    
+    // Room size
+    dng_max_room_size = 7 when /has_upgrade/UPGRADE_DIFF_VAR_SIZE == 1.
+    bonus = bonus + 1 when /has_upgrade/UPGRADE_DIFF_VAR_SIZE == 1.
     
     // Stairs placement
-    dng_stairs_random = 0.
-    dng_stairs_random = 1 when /has_upgrade/UPGRADE_STAIRS_RANDOM == 1.
+    dng_stairs_random = 1 when /has_upgrade/UPGRADE_DIFF_STAIRS_RANDOM == 1.
+    bonus = bonus + 1 when /has_upgrade/UPGRADE_DIFF_STAIRS_RANDOM == 1.
     
     // Monster count
-    dng_monster_count = 0.
-    dng_monster_count = 1 when /has_upgrade/UPGRADE_MONSTER_1 == 1.
+    dng_monster_count = 1 when /has_upgrade/UPGRADE_DIFF_MONSTER_1 == 1.
+    bonus = bonus + 2 when /has_upgrade/UPGRADE_DIFF_MONSTER_1 == 1.
     
-    // More monsters scales with rooms
-    has_more := /has_upgrade/UPGRADE_MONSTER_MORE.
-    scaled_monsters := dng_max_rooms - 1.
-    scaled_monsters = 1 when scaled_monsters lt 1.
-    dng_monster_count = scaled_monsters when has_more == 1.
+    dng_monster_count = 2 when /has_upgrade/UPGRADE_DIFF_MONSTER_2 == 1.
+    bonus = bonus + 2 when /has_upgrade/UPGRADE_DIFF_MONSTER_2 == 1.
     
-    // Gold
+    dng_monster_count = 3 when /has_upgrade/UPGRADE_DIFF_MONSTER_3 == 1.
+    bonus = bonus + 2 when /has_upgrade/UPGRADE_DIFF_MONSTER_3 == 1.
+    
+    // Gold spawning (from BUFF branch)
     dng_gold_enabled = 0.
-    dng_gold_enabled = 1 when /has_upgrade/UPGRADE_GOLD_SPAWNS == 1.
+    dng_gold_enabled = 1 when /has_upgrade/UPGRADE_BUFF_GOLD_SPAWN == 1.
+    
+    dng_bonus_from_upgrades = bonus.
+<
+
+// ============================================================================
+// Calculate floor bonus based on difficulty
+// ============================================================================
+
+#calculate_floor_bonus() >
+    // Base bonus of 1 + linear bonus from difficulty upgrades
+    // Starts at 1, increases only with difficulty upgrades
+    bonus := 1 + dng_bonus_from_upgrades.
+    << bonus.
 <
 
 // ============================================================================
@@ -181,15 +354,41 @@ dng_gold_enabled := 0.
 // ============================================================================
 
 #get_upgrade_name(id) >
-    << "Random Stairs" when id == UPGRADE_STAIRS_RANDOM.
-    << "Variable Rooms" when id == UPGRADE_ROOM_VARIABLE.
-    << "Second Room" when id == UPGRADE_ROOM_2.
-    << "Third Room" when id == UPGRADE_ROOM_3.
-    << "Fourth Room" when id == UPGRADE_ROOM_4.
-    << "Many Rooms" when id == UPGRADE_ROOM_5PLUS.
-    << "First Monster" when id == UPGRADE_MONSTER_1.
-    << "More Monsters" when id == UPGRADE_MONSTER_MORE.
-    << "Gold Spawns" when id == UPGRADE_GOLD_SPAWNS.
+    // BUFF
+    << "Training" when id == UPGRADE_BUFF_START.
+    << "More HP I" when id == UPGRADE_BUFF_HP_1.
+    << "Strength" when id == UPGRADE_BUFF_STR_1.
+    << "Speed 5x" when id == UPGRADE_BUFF_SPEED_5.
+    << "Gold Drops" when id == UPGRADE_BUFF_GOLD_DROP.
+    << "More HP II" when id == UPGRADE_BUFF_HP_2.
+    << "Speed 10x" when id == UPGRADE_BUFF_SPEED_10.
+    << "Gold Spawn" when id == UPGRADE_BUFF_GOLD_SPAWN.
+    << "Speed 100x" when id == UPGRADE_BUFF_SPEED_100.
+    << "Stair Heal" when id == UPGRADE_BUFF_HEAL_STAIRS.
+    << "Speed 1000x" when id == UPGRADE_BUFF_SPEED_1000.
+    
+    // DIFFICULTY
+    << "2 Rooms" when id == UPGRADE_DIFF_ROOM_2.
+    << "Var Size" when id == UPGRADE_DIFF_VAR_SIZE.
+    << "1 Monster" when id == UPGRADE_DIFF_MONSTER_1.
+    << "3 Rooms" when id == UPGRADE_DIFF_ROOM_3.
+    << "Rnd Stairs" when id == UPGRADE_DIFF_STAIRS_RANDOM.
+    << "2 Monsters" when id == UPGRADE_DIFF_MONSTER_2.
+    << "4 Rooms" when id == UPGRADE_DIFF_ROOM_4.
+    << "3 Monsters" when id == UPGRADE_DIFF_MONSTER_3.
+    << "Many Rooms" when id == UPGRADE_DIFF_ROOM_MANY.
+    
+    // LANGUAGE
+    << "Variables" when id == UPGRADE_LANG_VARIABLES.
+    << "Functions" when id == UPGRADE_LANG_FUNCTIONS.
+    << "Loops" when id == UPGRADE_LANG_LOOPS.
+    << "Conditions" when id == UPGRADE_LANG_CONDITIONS.
+    << "Arrays" when id == UPGRADE_LANG_ARRAYS.
+    << "Pipes" when id == UPGRADE_LANG_PIPES.
+    << "Structs" when id == UPGRADE_LANG_STRUCTS.
+    << "Patterns" when id == UPGRADE_LANG_PATTERN.
+    << "Lambdas" when id == UPGRADE_LANG_LAMBDA.
+    
     << "???".
 <
 
@@ -198,15 +397,222 @@ dng_gold_enabled := 0.
 // ============================================================================
 
 #get_upgrade_desc(id) >
-    << "Stairs spawn randomly" when id == UPGRADE_STAIRS_RANDOM.
-    << "Room size varies 3-7" when id == UPGRADE_ROOM_VARIABLE.
-    << "Dungeons have 2 rooms" when id == UPGRADE_ROOM_2.
-    << "Dungeons have 3 rooms" when id == UPGRADE_ROOM_3.
-    << "Dungeons have 4 rooms" when id == UPGRADE_ROOM_4.
-    << "Rooms scale with depth" when id == UPGRADE_ROOM_5PLUS.
-    << "1 monster per floor" when id == UPGRADE_MONSTER_1.
-    << "Monsters scale w/ rooms" when id == UPGRADE_MONSTER_MORE.
-    << "Gold piles spawn" when id == UPGRADE_GOLD_SPAWNS.
+    // BUFF
+    << "Begin your training" when id == UPGRADE_BUFF_START.
+    << "+4 Maximum HP" when id == UPGRADE_BUFF_HP_1.
+    << "+1 Strength" when id == UPGRADE_BUFF_STR_1.
+    << "Max bot speed: 5x" when id == UPGRADE_BUFF_SPEED_5.
+    << "Enemies drop gold" when id == UPGRADE_BUFF_GOLD_DROP.
+    << "+4 Maximum HP" when id == UPGRADE_BUFF_HP_2.
+    << "Max bot speed: 10x" when id == UPGRADE_BUFF_SPEED_10.
+    << "Gold piles spawn" when id == UPGRADE_BUFF_GOLD_SPAWN.
+    << "Max bot speed: 100x" when id == UPGRADE_BUFF_SPEED_100.
+    << "Heal on stairs" when id == UPGRADE_BUFF_HEAL_STAIRS.
+    << "Max bot speed: 1000x" when id == UPGRADE_BUFF_SPEED_1000.
+    
+    // DIFFICULTY
+    << "Floors have 2 rooms (+$1)" when id == UPGRADE_DIFF_ROOM_2.
+    << "Room size varies 3-7 (+$1)" when id == UPGRADE_DIFF_VAR_SIZE.
+    << "1 monster per floor (+$2)" when id == UPGRADE_DIFF_MONSTER_1.
+    << "Floors have 3 rooms (+$1)" when id == UPGRADE_DIFF_ROOM_3.
+    << "Stairs in random spot (+$1)" when id == UPGRADE_DIFF_STAIRS_RANDOM.
+    << "2 monsters per floor (+$2)" when id == UPGRADE_DIFF_MONSTER_2.
+    << "Floors have 4 rooms (+$1)" when id == UPGRADE_DIFF_ROOM_4.
+    << "3 monsters per floor (+$2)" when id == UPGRADE_DIFF_MONSTER_3.
+    << "Floors have 5+ rooms (+$2)" when id == UPGRADE_DIFF_ROOM_MANY.
+    
+    // LANGUAGE
+    << "Learn x := value." when id == UPGRADE_LANG_VARIABLES.
+    << "Learn #func() > < syntax" when id == UPGRADE_LANG_FUNCTIONS.
+    << "Learn for and loop" when id == UPGRADE_LANG_LOOPS.
+    << "Learn when and unless" when id == UPGRADE_LANG_CONDITIONS.
+    << "Learn arr := []" when id == UPGRADE_LANG_ARRAYS.
+    << "Learn value | /func/" when id == UPGRADE_LANG_PIPES.
+    << "Learn { x: 1, y: 2 }" when id == UPGRADE_LANG_STRUCTS.
+    << "Learn value | > _ => <" when id == UPGRADE_LANG_PATTERN.
+    << "Learn \\(x) => expr" when id == UPGRADE_LANG_LAMBDA.
+    
     << "".
+<
+
+// ============================================================================
+// Language Tutorial System
+// ============================================================================
+
+tutorial_active := 0.
+tutorial_upgrade_id := 0.
+tutorial_line_1 := "".
+tutorial_line_2 := "".
+tutorial_line_3 := "".
+tutorial_line_4 := "".
+tutorial_code_1 := "".
+tutorial_code_2 := "".
+tutorial_code_3 := "".
+
+#show_language_tutorial(id) >
+    tutorial_active = 1.
+    tutorial_upgrade_id = id.
+    
+    // Set tutorial content based on upgrade
+    /set_tutorial_variables/ when id == UPGRADE_LANG_VARIABLES.
+    /set_tutorial_functions/ when id == UPGRADE_LANG_FUNCTIONS.
+    /set_tutorial_loops/ when id == UPGRADE_LANG_LOOPS.
+    /set_tutorial_conditions/ when id == UPGRADE_LANG_CONDITIONS.
+    /set_tutorial_arrays/ when id == UPGRADE_LANG_ARRAYS.
+    /set_tutorial_pipes/ when id == UPGRADE_LANG_PIPES.
+    /set_tutorial_structs/ when id == UPGRADE_LANG_STRUCTS.
+    /set_tutorial_patterns/ when id == UPGRADE_LANG_PATTERN.
+    /set_tutorial_lambdas/ when id == UPGRADE_LANG_LAMBDA.
+<
+
+#set_tutorial_variables() >
+    tutorial_line_1 = "VARIABLES".
+    tutorial_line_2 = "Use := to declare a new variable.".
+    tutorial_line_3 = "Use = to assign to existing variable.".
+    tutorial_line_4 = "All statements end with a period.".
+    tutorial_code_1 = "hp := 100.".
+    tutorial_code_2 = "name := \"hero\".".
+    tutorial_code_3 = "hp = hp - 10.".
+<
+
+#set_tutorial_functions() >
+    tutorial_line_1 = "FUNCTIONS".
+    tutorial_line_2 = "Define with #name() > body <".
+    tutorial_line_3 = "Call with /name/arg1/arg2.".
+    tutorial_line_4 = "Return values with << expr.".
+    tutorial_code_1 = "#add(a, b) > << a + b. <".
+    tutorial_code_2 = "result := /add/5/3.".
+    tutorial_code_3 = "".
+<
+
+#set_tutorial_loops() >
+    tutorial_line_1 = "LOOPS".
+    tutorial_line_2 = "for i in start..end > body <".
+    tutorial_line_3 = "loop > body < runs forever.".
+    tutorial_line_4 = "Use >> to break, >< to continue.".
+    tutorial_code_1 = "for i in 0..10 > /print/i. <".
+    tutorial_code_2 = "loop when running > /tick/. <".
+    tutorial_code_3 = ">> when done.".
+<
+
+#set_tutorial_conditions() >
+    tutorial_line_1 = "CONDITIONS".
+    tutorial_line_2 = "Actions come before conditions!".
+    tutorial_line_3 = "Use 'when' for positive checks.".
+    tutorial_line_4 = "Use 'unless' for negation.".
+    tutorial_code_1 = "/attack/ when hp gt 50.".
+    tutorial_code_2 = "/flee/ unless cornered.".
+    tutorial_code_3 = "x = 10 when flag == 1.".
+<
+
+#set_tutorial_arrays() >
+    tutorial_line_1 = "ARRAYS".
+    tutorial_line_2 = "Create empty array with [].".
+    tutorial_line_3 = "Access elements with arr[i].".
+    tutorial_line_4 = "Arrays grow automatically.".
+    tutorial_code_1 = "arr := [1, 2, 3].".
+    tutorial_code_2 = "arr[0] = 10.".
+    tutorial_code_3 = "x := arr[2].".
+<
+
+#set_tutorial_pipes() >
+    tutorial_line_1 = "PIPES".
+    tutorial_line_2 = "Chain operations with |".
+    tutorial_line_3 = "Value flows left to right.".
+    tutorial_line_4 = "Becomes first argument.".
+    tutorial_code_1 = "5 | /double/.".
+    tutorial_code_2 = "x | /add/10/ | /print/.".
+    tutorial_code_3 = "".
+<
+
+#set_tutorial_structs() >
+    tutorial_line_1 = "STRUCTS".
+    tutorial_line_2 = "Create with { key: value }.".
+    tutorial_line_3 = "Access fields with ->".
+    tutorial_line_4 = "Assign fields same way.".
+    tutorial_code_1 = "hero := { hp: 100, x: 5 }.".
+    tutorial_code_2 = "current := hero->hp.".
+    tutorial_code_3 = "hero->hp = 80.".
+<
+
+#set_tutorial_patterns() >
+    tutorial_line_1 = "PATTERN MATCHING".
+    tutorial_line_2 = "Match value against patterns.".
+    tutorial_line_3 = "Use _ as wildcard.".
+    tutorial_line_4 = "_ refers to matched value.".
+    tutorial_code_1 = "value | > 0 => \"zero\"".
+    tutorial_code_2 = "        1 => \"one\"".
+    tutorial_code_3 = "        _ => \"other\" <.".
+<
+
+#set_tutorial_lambdas() >
+    tutorial_line_1 = "LAMBDAS".
+    tutorial_line_2 = "Anonymous functions!".
+    tutorial_line_3 = "Great for piping.".
+    tutorial_line_4 = "Can have block body too.".
+    tutorial_code_1 = "\\(x) => x * 2.".
+    tutorial_code_2 = "5 | \\(x) => x * x.".
+    tutorial_code_3 = "\\(a, b) => a + b.".
+<
+
+#close_tutorial() >
+    tutorial_active = 0.
+<
+
+// ============================================================================
+// Upgrade Branch Helpers
+// ============================================================================
+
+#get_upgrade_branch(id) >
+    << 0 when id lt 20.   // BUFF
+    << 1 when id lt 40.   // DIFFICULTY
+    << 2 when id lt 60.   // LANGUAGE
+    << -1.                // Unknown
+<
+
+#get_branch_name(branch) >
+    << "BUFFS" when branch == 0.
+    << "DIFFICULTY" when branch == 1.
+    << "LANGUAGE" when branch == 2.
+    << "???".
+<
+
+// ============================================================================
+// Heal on Stairs (called when descending)
+// ============================================================================
+
+#apply_stair_heal() >
+    << 0 when /has_upgrade/UPGRADE_BUFF_HEAL_STAIRS == 0.
+    player_hp = player_max_hp.
+    << 1.
+<
+
+// ============================================================================
+// Gold Drop on Kill (called when enemy dies)
+// ============================================================================
+
+#apply_gold_drop(x, y) >
+    << 0 when /has_upgrade/UPGRADE_BUFF_GOLD_DROP == 0.
+    drop := /rng_int/5 + 1.
+    player_gold = player_gold + drop.
+    /spawn_gold_particles/x/y.
+    << drop.
+<
+
+// ============================================================================
+// Max Speed (based on upgrades) - Used by slider
+// ============================================================================
+
+#get_max_speed() >
+    // Base max speed is 3
+    max := 3.
+    
+    // Each upgrade increases max speed
+    max = 5 when /has_upgrade/UPGRADE_BUFF_SPEED_5 == 1.
+    max = 10 when /has_upgrade/UPGRADE_BUFF_SPEED_10 == 1.
+    max = 100 when /has_upgrade/UPGRADE_BUFF_SPEED_100 == 1.
+    max = 1000 when /has_upgrade/UPGRADE_BUFF_SPEED_1000 == 1.
+    
+    << max.
 <
 

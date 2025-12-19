@@ -256,6 +256,11 @@ void gl_disable(Value cap);
 // Blend function
 void gl_blend_func(Value sfactor, Value dfactor);
 
+// Scissor test for clipping
+void gl_scissor(Value x, Value y, Value width, Value height);
+void set_clip_rect(Value x, Value y, Value w, Value h);
+void clear_clip_rect(void);
+
 // Draw arrays
 void gl_draw_arrays(Value mode, Value first, Value count);
 
@@ -373,6 +378,9 @@ void text_draw_font(Value x, Value y, Value size, Value r, Value g, Value b,
 // Draw text right-aligned to x position (text ends at x)
 void text_draw_font_right(Value x, Value y, Value size, Value r, Value g,
                           Value b, Value font_id, Value text_val);
+
+// Measure text width in pixels (uses monospace font)
+Value text_measure(Value text_val, Value font_size);
 
 // Draw a filled rectangle
 void draw_rect(Value x, Value y, Value w, Value h, Value r, Value g, Value b,

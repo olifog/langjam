@@ -49,12 +49,12 @@ dungeon_y := 0.
 dungeon_w := 0.
 dungeon_h := 0.
 
-// Tech tree placeholder bounds (bottom of left pane)
+// Tech tree bounds (bottom of left pane)
 tech_tree_x := 0.
 tech_tree_y := 0.
 tech_tree_w := 0.
 tech_tree_h := 0.
-TECH_TREE_HEIGHT := 280.  // Height for tech tree panel
+TECH_TREE_HEIGHT := 380.  // Height for tech tree panel (needs more room for 3 branches)
 
 // Right pane / Editor bounds
 panel_editor_x := 0.
@@ -137,21 +137,19 @@ LAYOUT_PADDING := 16.
     dungeon_y = top_half_y + top_half_h - dungeon_pix_h when dungeon_pix_h lt top_half_h.
     dungeon_y = top_half_y when dungeon_y lt top_half_y.  // Clamp to half
     
-    // ===== BOTTOM HALF: Tech tree (centered within shared pane width) =====
+    // ===== BOTTOM HALF: Tech tree (uses full left pane width for 3 branches) =====
     bottom_half_y := left_pane_y + half_height + LAYOUT_PADDING.
     bottom_half_h := half_height.
     
-    // Tech tree has a max width, centered within the shared pane
-    tech_tree_max_w := 600.
-    tech_tree_w = tech_tree_max_w.
-    tech_tree_w = shared_pane_w when shared_pane_w lt tech_tree_max_w.
-    tech_tree_h = TECH_TREE_HEIGHT.
+    // Tech tree uses full left pane width (need room for 3 branches)
+    tech_tree_w = left_pane_w.
+    tech_tree_h = bottom_half_h.
+    tech_tree_h = TECH_TREE_HEIGHT when bottom_half_h gt TECH_TREE_HEIGHT.
     
-    // Center horizontally within the shared pane area
-    tech_tree_x = shared_pane_x + (shared_pane_w - tech_tree_w) / 2.
-    tech_tree_x = shared_pane_x when tech_tree_x lt shared_pane_x.
+    // Position at left edge
+    tech_tree_x = left_pane_x.
     
-    // Vertically center within bottom half
+    // Vertically position within bottom half
     tech_tree_y = bottom_half_y + (bottom_half_h - tech_tree_h) / 2.
     tech_tree_y = bottom_half_y when tech_tree_y lt bottom_half_y.  // Clamp
     
@@ -399,17 +397,38 @@ LAYOUT_PADDING := 16.
 <
 
 // ============================================================================
-// Tech Tree UI
+// Tech Tree UI - Clean Implementation with Clipping
 // ============================================================================
 
-// Upgrade node dimensions
-UPGRADE_NODE_W := 80.
-UPGRADE_NODE_H := 50.
-UPGRADE_NODE_SPACING_X := 100.
-UPGRADE_NODE_SPACING_Y := 65.
+// Layout constants - increased sizes for better readability
+TREE_PADDING := 24.
+TREE_HEADER_H := 36.
+NODE_PAD_X := 10.
+NODE_PAD_Y := 8.
+NODE_W := 110.     // Wide enough for all text with padding
+NODE_H := 42.
+NODE_GAP_X := 10.
+NODE_GAP_Y := 14.
+BRANCH_GAP := 35.
 
-// Hovered upgrade
-tech_hovered_upgrade := -1.
+// Scroll state
+tech_scroll_x := 0.
+tech_scroll_y := 0.
+tech_dragging := 0.
+tech_drag_start_x := 0.
+tech_drag_start_y := 0.
+tech_drag_scroll_x := 0.
+tech_drag_scroll_y := 0.
+
+// Interaction state
+tech_hovered := -1.
+tech_clicked := -1.
+
+// Clipping bounds (set during draw)
+clip_x := 0.
+clip_y := 0.
+clip_w := 0.
+clip_h := 0.
 
 #draw_tech_tree() >
     tx := tech_tree_x.
@@ -417,259 +436,617 @@ tech_hovered_upgrade := -1.
     tw := tech_tree_w.
     th := tech_tree_h.
     
-    // Background panel
-    /draw_rect/tx/ty/tw/th/20/22/28/240.
+    // Reset hover state
+    tech_hovered = -1.
     
-    // Border
-    /draw_rect/tx/ty/tw/2/40/50/65/255.
-    /draw_rect/tx/ty/2/th/40/50/65/255.
-    /draw_rect/tx/(ty + th - 2)/tw/2/40/50/65/255.
-    /draw_rect/(tx + tw - 2)/ty/2/th/40/50/65/255.
+    // ===== BACKGROUND & BORDER =====
+    /draw_rect/tx/ty/tw/th/12/14/18/255.
+    /draw_panel_border/tx/ty/tw/th.
     
-    // Header
-    hx := tx + 12.
-    hy := ty + 10.
-    /text_draw/hx/hy/12/200/180/100/"[UPGRADES]".
+    // ===== HEADER =====
+    /draw_rect/tx/ty/tw/TREE_HEADER_H/20/22/28/255.
+    /draw_rect/tx/(ty + TREE_HEADER_H - 1)/tw/1/35/40/50/255.
     
-    // Bank display
-    bank_x := tx + tw - 100.
-    /text_draw/bank_x/hy/12/100/200/100/"Bank: $".
-    /text_draw_int/(bank_x + 60)/hy/12/100/200/100/player_bank.
+    /text_draw/(tx + TREE_PADDING)/(ty + 12)/13/180/160/100/"UPGRADES".
     
-    // Calculate tree layout starting position
-    tree_x := tx + 20.
-    tree_y := ty + 35.
+    // Bank (right side)
+    /text_draw/(tx + tw - 100)/(ty + 12)/12/80/180/80/"Bank: $".
+    /text_draw_int/(tx + tw - 40)/(ty + 12)/12/100/220/100/player_bank.
     
-    // Draw connection lines first (behind nodes)
-    /draw_tech_lines/tree_x/tree_y.
+    // Center button
+    /draw_center_btn/(tx + tw / 2 - 30)/(ty + 8).
     
-    // Draw upgrade nodes
-    // Row 0: Random Stairs (tier 1 - first unlock)
-    /draw_upgrade_node/(tree_x)/(tree_y)/UPGRADE_STAIRS_RANDOM.
+    // ===== CONTENT AREA (clipped) =====
+    clip_x = tx + 2.
+    clip_y = ty + TREE_HEADER_H.
+    clip_w = tw - 4.
+    clip_h = th - TREE_HEADER_H - 2.
     
-    // Row 1: Variable Rooms
-    /draw_upgrade_node/(tree_x + UPGRADE_NODE_SPACING_X)/(tree_y)/UPGRADE_ROOM_VARIABLE.
+    /set_clip_rect/clip_x/clip_y/clip_w/clip_h.
     
-    // Row 2: Second Room (unlocks branches)
-    /draw_upgrade_node/(tree_x + UPGRADE_NODE_SPACING_X * 2)/(tree_y)/UPGRADE_ROOM_2.
+    // Base position for tree (scrollable)
+    bx := clip_x + TREE_PADDING + tech_scroll_x.
+    by := clip_y + clip_h - TREE_PADDING + tech_scroll_y.
     
-    // Row 3: Branches split here
-    // Room branch (top)
-    /draw_upgrade_node/(tree_x + UPGRADE_NODE_SPACING_X * 3)/(tree_y - UPGRADE_NODE_SPACING_Y)/UPGRADE_ROOM_3.
-    /draw_upgrade_node/(tree_x + UPGRADE_NODE_SPACING_X * 4)/(tree_y - UPGRADE_NODE_SPACING_Y)/UPGRADE_ROOM_4.
-    /draw_upgrade_node/(tree_x + UPGRADE_NODE_SPACING_X * 5)/(tree_y - UPGRADE_NODE_SPACING_Y)/UPGRADE_ROOM_5PLUS.
+    // Calculate branch widths
+    branch_w := NODE_W * 3 + NODE_GAP_X * 2.
     
-    // Monster branch (middle)
-    /draw_upgrade_node/(tree_x + UPGRADE_NODE_SPACING_X * 3)/(tree_y)/UPGRADE_MONSTER_1.
-    /draw_upgrade_node/(tree_x + UPGRADE_NODE_SPACING_X * 4)/(tree_y)/UPGRADE_MONSTER_MORE.
+    // ===== DRAW BRANCHES =====
+    // Each branch: draw lines first, then nodes
     
-    // Feature branch (bottom)
-    /draw_upgrade_node/(tree_x + UPGRADE_NODE_SPACING_X * 3)/(tree_y + UPGRADE_NODE_SPACING_Y)/UPGRADE_GOLD_SPAWNS.
+    // BUFF branch
+    /draw_buff_tree/bx/by.
     
-    // Draw tooltip for hovered upgrade
-    /draw_upgrade_tooltip/ when tech_hovered_upgrade != -1.
+    // DIFFICULTY branch
+    diff_x := bx + branch_w + BRANCH_GAP.
+    /draw_diff_tree/diff_x/by.
+    
+    // LANGUAGE branch
+    lang_x := diff_x + branch_w + BRANCH_GAP.
+    /draw_lang_tree/lang_x/by.
+    
+    /clear_clip_rect/.
+    
+    // ===== TOOLTIP (drawn on top, outside clip) =====
+    /draw_node_tooltip/ when tech_hovered != -1.
+    
+    // ===== TUTORIAL POPUP =====
+    /draw_tutorial_popup/ when tutorial_active == 1.
 <
 
-#draw_tech_lines(tree_x, tree_y) >
-    // Draw connection lines between nodes
-    // Line color
-    lr := 50. lg := 60. lb := 80.
-    
-    // Stairs -> Variable
-    x1 := tree_x + UPGRADE_NODE_W.
-    y1 := tree_y + UPGRADE_NODE_H / 2.
-    x2 := tree_x + UPGRADE_NODE_SPACING_X.
-    y2 := y1.
-    /draw_rect/x1/y1/20/2/lr/lg/lb/255.
-    
-    // Variable -> Room2
-    x1 = tree_x + UPGRADE_NODE_SPACING_X + UPGRADE_NODE_W.
-    x2 = tree_x + UPGRADE_NODE_SPACING_X * 2.
-    /draw_rect/x1/y1/20/2/lr/lg/lb/255.
-    
-    // Room2 -> Branches (vertical connector)
-    x1 = tree_x + UPGRADE_NODE_SPACING_X * 2 + UPGRADE_NODE_W.
-    y1 = tree_y + UPGRADE_NODE_H / 2.
-    /draw_rect/x1/y1/10/2/lr/lg/lb/255.
-    
-    // Vertical line for branches
-    vx := tree_x + UPGRADE_NODE_SPACING_X * 2 + UPGRADE_NODE_W + 10.
-    vy_top := tree_y - UPGRADE_NODE_SPACING_Y + UPGRADE_NODE_H / 2.
-    vy_bot := tree_y + UPGRADE_NODE_SPACING_Y + UPGRADE_NODE_H / 2.
-    vh := vy_bot - vy_top.
-    /draw_rect/vx/vy_top/2/vh/lr/lg/lb/255.
-    
-    // Horizontal lines to each branch
-    // Top (rooms)
-    /draw_rect/vx/(tree_y - UPGRADE_NODE_SPACING_Y + UPGRADE_NODE_H / 2)/8/2/lr/lg/lb/255.
-    // Middle (monsters)
-    /draw_rect/vx/(tree_y + UPGRADE_NODE_H / 2)/8/2/lr/lg/lb/255.
-    // Bottom (features)
-    /draw_rect/vx/(tree_y + UPGRADE_NODE_SPACING_Y + UPGRADE_NODE_H / 2)/8/2/lr/lg/lb/255.
-    
-    // Room chain: Room3 -> Room4 -> Room5+
-    x1 = tree_x + UPGRADE_NODE_SPACING_X * 3 + UPGRADE_NODE_W.
-    y1 = tree_y - UPGRADE_NODE_SPACING_Y + UPGRADE_NODE_H / 2.
-    /draw_rect/x1/y1/20/2/lr/lg/lb/255.
-    
-    x1 = tree_x + UPGRADE_NODE_SPACING_X * 4 + UPGRADE_NODE_W.
-    /draw_rect/x1/y1/20/2/lr/lg/lb/255.
-    
-    // Monster chain: Monster1 -> MonsterMore
-    x1 = tree_x + UPGRADE_NODE_SPACING_X * 3 + UPGRADE_NODE_W.
-    y1 = tree_y + UPGRADE_NODE_H / 2.
-    /draw_rect/x1/y1/20/2/lr/lg/lb/255.
+// ============================================================================
+// Panel Border Helper
+// ============================================================================
+
+#draw_panel_border(x, y, w, h) >
+    /draw_rect/x/y/w/2/35/40/50/255.
+    /draw_rect/x/(y + h - 2)/w/2/25/28/35/255.
+    /draw_rect/x/y/2/h/35/40/50/255.
+    /draw_rect/(x + w - 2)/y/2/h/25/28/35/255.
 <
 
-#draw_upgrade_node(x, y, upgrade_id) >
-    // Determine node state
+// ============================================================================
+// Center Button
+// ============================================================================
+
+#draw_center_btn(x, y) >
+    bw := 60.
+    bh := 20.
+    
+    mx := /input_mouse_x/.
+    my := /input_mouse_y/.
+    hovered := mx ge x and mx lt x + bw and my ge y and my lt y + bh.
+    
+    bg := 25.
+    bg = 40 when hovered == 1.
+    /draw_rect/x/y/bw/bh/bg/(bg + 5)/(bg + 10)/255.
+    
+    br := 50.
+    br = 80 when hovered == 1.
+    /draw_rect/x/y/bw/1/br/(br + 10)/(br + 20)/255.
+    /draw_rect/x/(y + bh - 1)/bw/1/(br - 10)/br/(br + 5)/255.
+    
+    tc := 120.
+    tc = 180 when hovered == 1.
+    /text_draw/(x + 10)/(y + 4)/10/tc/tc/(tc + 20)/"Center".
+    
+    // Handle click
+    just_clicked := /input_mouse_just_pressed/.
+    >
+        tech_scroll_x = 0.
+        tech_scroll_y = 0.
+    < when just_clicked == 1 and hovered == 1.
+<
+
+// ============================================================================
+// Tree Drawing - Simplified Data-Driven Approach
+// ============================================================================
+
+// Each tree is drawn as a grid of nodes with explicit connections
+// Using draw_line for proper bezier-like connections
+
+#draw_buff_tree(bx, by) >
+    // Grid positions: col 0-2, row 0-5 (bottom to top)
+    nw := NODE_W.
+    nh := NODE_H.
+    gx := NODE_GAP_X.
+    gy := NODE_GAP_Y + 8.
+    
+    // Calculate node positions
+    row0 := by - nh.
+    row1 := row0 - nh - gy.
+    row2 := row1 - nh - gy.
+    row3 := row2 - nh - gy.
+    row4 := row3 - nh - gy.
+    row5 := row4 - nh - gy.
+    
+    col0 := bx.
+    col1 := bx + nw + gx.
+    col2 := bx + (nw + gx) * 2.
+    
+    // Draw connections first (behind nodes)
+    lr := 45. lg := 55. lb := 70.
+    
+    // Row 0 -> Row 1 (1->3)
+    /draw_tree_conn/(col1 + nw / 2)/(row0 - 2)/(col0 + nw / 2)/(row1 + nh + 2)/lr/lg/lb.
+    /draw_tree_conn/(col1 + nw / 2)/(row0 - 2)/(col1 + nw / 2)/(row1 + nh + 2)/lr/lg/lb.
+    /draw_tree_conn/(col1 + nw / 2)/(row0 - 2)/(col2 + nw / 2)/(row1 + nh + 2)/lr/lg/lb.
+    
+    // Row 1 col 0,1 -> Row 2 col 0 (Gold Drop)
+    /draw_tree_conn/(col0 + nw / 2)/(row1 - 2)/(col0 + nw / 2)/(row2 + nh + 2)/lr/lg/lb.
+    /draw_tree_conn/(col1 + nw / 2)/(row1 - 2)/(col0 + nw / 2)/(row2 + nh + 2)/lr/lg/lb.
+    
+    // Row 1 col 2 -> Row 2 col 2 (speed)
+    /draw_tree_conn/(col2 + nw / 2)/(row1 - 2)/(col2 + nw / 2)/(row2 + nh + 2)/lr/lg/lb.
+    
+    // Vertical chains
+    /draw_tree_conn/(col0 + nw / 2)/(row2 - 2)/(col0 + nw / 2)/(row3 + nh + 2)/lr/lg/lb.
+    /draw_tree_conn/(col0 + nw / 2)/(row3 - 2)/(col0 + nw / 2)/(row4 + nh + 2)/lr/lg/lb.
+    /draw_tree_conn/(col0 + nw / 2)/(row4 - 2)/(col0 + nw / 2)/(row5 + nh + 2)/lr/lg/lb.
+    /draw_tree_conn/(col2 + nw / 2)/(row2 - 2)/(col2 + nw / 2)/(row3 + nh + 2)/lr/lg/lb.
+    /draw_tree_conn/(col2 + nw / 2)/(row3 - 2)/(col2 + nw / 2)/(row4 + nh + 2)/lr/lg/lb.
+    
+    // Draw nodes
+    /draw_node/col1/row0/UPGRADE_BUFF_START.
+    /draw_node/col0/row1/UPGRADE_BUFF_HP_1.
+    /draw_node/col1/row1/UPGRADE_BUFF_STR_1.
+    /draw_node/col2/row1/UPGRADE_BUFF_SPEED_5.
+    /draw_node/col0/row2/UPGRADE_BUFF_GOLD_DROP.
+    /draw_node/col2/row2/UPGRADE_BUFF_SPEED_10.
+    /draw_node/col0/row3/UPGRADE_BUFF_HP_2.
+    /draw_node/col2/row3/UPGRADE_BUFF_SPEED_100.
+    /draw_node/col0/row4/UPGRADE_BUFF_GOLD_SPAWN.
+    /draw_node/col2/row4/UPGRADE_BUFF_SPEED_1000.
+    /draw_node/col0/row5/UPGRADE_BUFF_HEAL_STAIRS.
+<
+
+#draw_diff_tree(bx, by) >
+    nw := NODE_W.
+    nh := NODE_H.
+    gx := NODE_GAP_X.
+    gy := NODE_GAP_Y + 8.
+    
+    row0 := by - nh.
+    row1 := row0 - nh - gy.
+    row2 := row1 - nh - gy.
+    row3 := row2 - nh - gy.
+    row4 := row3 - nh - gy.
+    row5 := row4 - nh - gy.
+    
+    col0 := bx.
+    col1 := bx + nw + gx.
+    colm := bx + (nw + gx) / 2.
+    
+    lr := 45. lg := 55. lb := 70.
+    
+    // Root -> split
+    /draw_tree_conn/(colm + nw / 2)/(row0 - 2)/(col0 + nw / 2)/(row1 + nh + 2)/lr/lg/lb.
+    /draw_tree_conn/(colm + nw / 2)/(row0 - 2)/(col1 + nw / 2)/(row1 + nh + 2)/lr/lg/lb.
+    
+    // Parallel chains
+    /draw_tree_conn/(col0 + nw / 2)/(row1 - 2)/(col0 + nw / 2)/(row2 + nh + 2)/lr/lg/lb.
+    /draw_tree_conn/(col1 + nw / 2)/(row1 - 2)/(col1 + nw / 2)/(row2 + nh + 2)/lr/lg/lb.
+    
+    // Merge to center
+    /draw_tree_conn/(col0 + nw / 2)/(row2 - 2)/(colm + nw / 2)/(row3 + nh + 2)/lr/lg/lb.
+    /draw_tree_conn/(col1 + nw / 2)/(row2 - 2)/(colm + nw / 2)/(row3 + nh + 2)/lr/lg/lb.
+    
+    // Split again
+    /draw_tree_conn/(colm + nw / 2)/(row3 - 2)/(col0 + nw / 2)/(row4 + nh + 2)/lr/lg/lb.
+    /draw_tree_conn/(colm + nw / 2)/(row3 - 2)/(col1 + nw / 2)/(row4 + nh + 2)/lr/lg/lb.
+    
+    // Final merge
+    /draw_tree_conn/(col0 + nw / 2)/(row4 - 2)/(colm + nw / 2)/(row5 + nh + 2)/lr/lg/lb.
+    /draw_tree_conn/(col1 + nw / 2)/(row4 - 2)/(colm + nw / 2)/(row5 + nh + 2)/lr/lg/lb.
+    
+    // Draw nodes
+    /draw_node/colm/row0/UPGRADE_DIFF_ROOM_2.
+    /draw_node/col0/row1/UPGRADE_DIFF_VAR_SIZE.
+    /draw_node/col1/row1/UPGRADE_DIFF_MONSTER_1.
+    /draw_node/col0/row2/UPGRADE_DIFF_ROOM_3.
+    /draw_node/col1/row2/UPGRADE_DIFF_STAIRS_RANDOM.
+    /draw_node/colm/row3/UPGRADE_DIFF_MONSTER_2.
+    /draw_node/col0/row4/UPGRADE_DIFF_ROOM_4.
+    /draw_node/col1/row4/UPGRADE_DIFF_MONSTER_3.
+    /draw_node/colm/row5/UPGRADE_DIFF_ROOM_MANY.
+<
+
+#draw_lang_tree(bx, by) >
+    nw := NODE_W.
+    nh := NODE_H.
+    gx := NODE_GAP_X.
+    gy := NODE_GAP_Y + 8.
+    
+    row0 := by - nh.
+    row1 := row0 - nh - gy.
+    row2 := row1 - nh - gy.
+    row3 := row2 - nh - gy.
+    row4 := row3 - nh - gy.
+    row5 := row4 - nh - gy.
+    
+    col0 := bx.
+    col1 := bx + nw + gx.
+    colm := bx + (nw + gx) / 2.
+    
+    lr := 45. lg := 55. lb := 70.
+    
+    // Straight down
+    /draw_tree_conn/(colm + nw / 2)/(row0 - 2)/(colm + nw / 2)/(row1 + nh + 2)/lr/lg/lb.
+    
+    // Split
+    /draw_tree_conn/(colm + nw / 2)/(row1 - 2)/(col0 + nw / 2)/(row2 + nh + 2)/lr/lg/lb.
+    /draw_tree_conn/(colm + nw / 2)/(row1 - 2)/(col1 + nw / 2)/(row2 + nh + 2)/lr/lg/lb.
+    
+    // Parallel
+    /draw_tree_conn/(col0 + nw / 2)/(row2 - 2)/(col0 + nw / 2)/(row3 + nh + 2)/lr/lg/lb.
+    /draw_tree_conn/(col1 + nw / 2)/(row2 - 2)/(col1 + nw / 2)/(row3 + nh + 2)/lr/lg/lb.
+    
+    // Merge
+    /draw_tree_conn/(col0 + nw / 2)/(row3 - 2)/(colm + nw / 2)/(row4 + nh + 2)/lr/lg/lb.
+    /draw_tree_conn/(col1 + nw / 2)/(row3 - 2)/(colm + nw / 2)/(row4 + nh + 2)/lr/lg/lb.
+    
+    // Split
+    /draw_tree_conn/(colm + nw / 2)/(row4 - 2)/(col0 + nw / 2)/(row5 + nh + 2)/lr/lg/lb.
+    /draw_tree_conn/(colm + nw / 2)/(row4 - 2)/(col1 + nw / 2)/(row5 + nh + 2)/lr/lg/lb.
+    
+    // Draw nodes
+    /draw_node/colm/row0/UPGRADE_LANG_VARIABLES.
+    /draw_node/colm/row1/UPGRADE_LANG_FUNCTIONS.
+    /draw_node/col0/row2/UPGRADE_LANG_LOOPS.
+    /draw_node/col1/row2/UPGRADE_LANG_CONDITIONS.
+    /draw_node/col0/row3/UPGRADE_LANG_ARRAYS.
+    /draw_node/col1/row3/UPGRADE_LANG_PIPES.
+    /draw_node/colm/row4/UPGRADE_LANG_STRUCTS.
+    /draw_node/col0/row5/UPGRADE_LANG_PATTERN.
+    /draw_node/col1/row5/UPGRADE_LANG_LAMBDA.
+<
+
+// Draw connection line between nodes (top of lower node to bottom of upper node)
+#draw_tree_conn(x1, y1, x2, y2, r, g, b) >
+    // Check if line is at all visible in clip region
+    min_x := x1.
+    min_x = x2 when x2 lt x1.
+    max_x := x1.
+    max_x = x2 when x2 gt x1.
+    min_y := y1.
+    min_y = y2 when y2 lt y1.
+    max_y := y1.
+    max_y = y2 when y2 gt y1.
+    
+    // Skip if completely outside clip
+    << 0 when max_x lt clip_x.
+    << 0 when min_x gt clip_x + clip_w.
+    << 0 when max_y lt clip_y.
+    << 0 when min_y gt clip_y + clip_h.
+    
+    // Use runtime draw_line for proper anti-aliased line
+    /draw_line/x1/y1/x2/y2/2/r/g/b/200.
+<
+
+// ============================================================================
+// Node Drawing - Fixed width for consistent layout
+// ============================================================================
+
+#draw_node(x, y, upgrade_id) >
+    nw := NODE_W.
+    nh := NODE_H.
+    
+    // Clip check
+    << 0 when x + nw lt clip_x.
+    << 0 when x gt clip_x + clip_w.
+    << 0 when y + nh lt clip_y.
+    << 0 when y gt clip_y + clip_h.
+    
+    // State
     has := /has_upgrade/upgrade_id.
     can := /can_unlock_upgrade/upgrade_id.
     cost := /get_upgrade_cost/upgrade_id.
-    can_afford := 0.
-    can_afford = 1 when player_bank ge cost.
+    affordable := player_bank ge cost.
+    available := can * affordable.
+    branch := /get_upgrade_branch/upgrade_id.
     
-    // Available = can unlock AND can afford
-    available := can * can_afford.
-    
-    // Check hover
+    // Check hover (only if mouse in content area)
     mx := /input_mouse_x/.
     my := /input_mouse_y/.
-    in_x := mx ge x and mx lt x + UPGRADE_NODE_W.
-    in_y := my ge y and my lt y + UPGRADE_NODE_H.
-    hovered := in_x * in_y.
+    in_node := mx ge x and mx lt x + nw and my ge y and my lt y + nh.
+    in_clip := mx ge clip_x and mx lt clip_x + clip_w and my ge clip_y and my lt clip_y + clip_h.
+    hovered := in_node * in_clip.
+    tech_hovered = upgrade_id when hovered == 1.
     
-    // Update global hovered
-    tech_hovered_upgrade = upgrade_id when hovered == 1.
+    // Base colors by branch
+    // 0 = buff (warm), 1 = diff (green), 2 = lang (blue)
+    bg_r := 28. bg_g := 30. bg_b := 35.
+    br_r := 50. br_g := 55. br_b := 65.
     
-    // Colors based on state
-    bg_r := 35. bg_g := 40. bg_b := 50.    // Locked (dark)
-    br_r := 60. br_g := 70. br_b := 85.    // Border
+    // Tint by branch when locked
+    br_r = 90 when branch == 0 and has == 0. br_g = 55 when branch == 0 and has == 0. br_b = 45 when branch == 0 and has == 0.
+    br_r = 55 when branch == 1 and has == 0. br_g = 75 when branch == 1 and has == 0. br_b = 55 when branch == 1 and has == 0.
+    br_r = 45 when branch == 2 and has == 0. br_g = 65 when branch == 2 and has == 0. br_b = 90 when branch == 2 and has == 0.
     
-    // Available (can buy)
-    bg_r = 40 when available == 1. bg_g = 55 when available == 1. bg_b = 45 when available == 1.
-    br_r = 80 when available == 1. br_g = 140 when available == 1. br_b = 100 when available == 1.
+    // Available = brighter border
+    br_r = 170 when available == 1 and branch == 0. br_g = 110 when available == 1 and branch == 0. br_b = 70 when available == 1 and branch == 0.
+    br_r = 100 when available == 1 and branch == 1. br_g = 150 when available == 1 and branch == 1. br_b = 100 when available == 1 and branch == 1.
+    br_r = 70 when available == 1 and branch == 2. br_g = 140 when available == 1 and branch == 2. br_b = 190 when available == 1 and branch == 2.
+    bg_r = 38 when available == 1. bg_g = 42 when available == 1. bg_b = 48 when available == 1.
     
-    // Can unlock but can't afford
-    just_can := can * (1 - can_afford).
-    bg_r = 50 when just_can == 1. bg_g = 45 when just_can == 1. bg_b = 40 when just_can == 1.
-    br_r = 120 when just_can == 1. br_g = 100 when just_can == 1. br_b = 60 when just_can == 1.
+    // Can unlock but can't afford = dimmer
+    just_can := can * (1 - affordable).
+    br_r = 120 when just_can == 1. br_g = 80 when just_can == 1. br_b = 50 when just_can == 1.
     
-    // Unlocked
-    bg_r = 30 when has == 1. bg_g = 50 when has == 1. bg_b = 70 when has == 1.
-    br_r = 80 when has == 1. br_g = 130 when has == 1. br_b = 180 when has == 1.
+    // Owned = filled with branch color
+    bg_r = 55 when has == 1 and branch == 0. bg_g = 40 when has == 1 and branch == 0. bg_b = 35 when has == 1 and branch == 0.
+    br_r = 200 when has == 1 and branch == 0. br_g = 150 when has == 1 and branch == 0. br_b = 100 when has == 1 and branch == 0.
+    bg_r = 35 when has == 1 and branch == 1. bg_g = 50 when has == 1 and branch == 1. bg_b = 35 when has == 1 and branch == 1.
+    br_r = 100 when has == 1 and branch == 1. br_g = 180 when has == 1 and branch == 1. br_b = 100 when has == 1 and branch == 1.
+    bg_r = 35 when has == 1 and branch == 2. bg_g = 45 when has == 1 and branch == 2. bg_b = 60 when has == 1 and branch == 2.
+    br_r = 90 when has == 1 and branch == 2. br_g = 160 when has == 1 and branch == 2. br_b = 220 when has == 1 and branch == 2.
     
-    // Hover highlight
+    // Hover boost
     bg_r = bg_r + 15 when hovered == 1.
     bg_g = bg_g + 15 when hovered == 1.
     bg_b = bg_b + 15 when hovered == 1.
     
-    // Draw background
-    /draw_rect/x/y/UPGRADE_NODE_W/UPGRADE_NODE_H/bg_r/bg_g/bg_b/255.
+    // Draw node
+    /draw_rect/x/y/nw/nh/bg_r/bg_g/bg_b/255.
     
-    // Draw border
-    /draw_rect/x/y/UPGRADE_NODE_W/2/br_r/br_g/br_b/255.
-    /draw_rect/x/y/2/UPGRADE_NODE_H/br_r/br_g/br_b/255.
-    /draw_rect/x/(y + UPGRADE_NODE_H - 2)/UPGRADE_NODE_W/2/br_r/br_g/br_b/255.
-    /draw_rect/(x + UPGRADE_NODE_W - 2)/y/2/UPGRADE_NODE_H/br_r/br_g/br_b/255.
+    // Border - consistent 2px on all sides
+    /draw_rect/x/y/nw/2/br_r/br_g/br_b/255.
+    /draw_rect/x/(y + nh - 2)/nw/2/(br_r * 7 / 10)/(br_g * 7 / 10)/(br_b * 7 / 10)/255.
+    /draw_rect/x/y/2/nh/br_r/br_g/br_b/255.
+    /draw_rect/(x + nw - 2)/y/2/nh/(br_r * 7 / 10)/(br_g * 7 / 10)/(br_b * 7 / 10)/255.
     
-    // Draw name (shortened)
+    // Text - upgrade name
     name := /get_upgrade_name/upgrade_id.
-    tx := x + 4.
-    ty := y + 6.
+    tx := x + NODE_PAD_X.
+    ty := y + 8.
     
-    text_r := 150. text_g := 150. text_b := 160.
-    text_r = 180 when available == 1. text_g = 220 when available == 1. text_b = 180 when available == 1.
-    text_r = 140 when has == 1. text_g = 180 when has == 1. text_b = 220 when has == 1.
+    tr := 130. tg := 135. tb := 145.
+    tr = 220 when available == 1. tg = 200 when available == 1. tb = 150 when available == 1.
+    tr = 190 when has == 1. tg = 210 when has == 1. tb = 220 when has == 1.
     
-    /text_draw/tx/ty/10/text_r/text_g/text_b/name.
+    /text_draw/tx/ty/10/tr/tg/tb/name.
     
-    // Draw cost or checkmark
-    cost_y := y + 28.
-    
-    // If unlocked, show checkmark
-    /text_draw/(x + 30)/cost_y/14/100/180/100/"OK" when has == 1.
-    
-    // If locked, show cost
-    cost_r := 100. cost_g := 100. cost_b := 110.
-    cost_r = 100 when available == 1. cost_g = 200 when available == 1. cost_b = 100 when available == 1.
-    cost_r = 200 when just_can == 1. cost_g = 150 when just_can == 1. cost_b = 80 when just_can == 1.
-    /text_draw/(x + 20)/cost_y/12/cost_r/cost_g/cost_b/"$" when has == 0.
-    /text_draw_int/(x + 32)/cost_y/12/cost_r/cost_g/cost_b/cost when has == 0.
+    // Cost or status - on second line
+    cy := y + 26.
+    >
+        /text_draw/(x + nw / 2 - 12)/cy/11/100/180/100/"OK".
+    < when has == 1.
+    >
+        cr := 95. cg := 100. cb := 110.
+        cr = 100 when available == 1. cg = 190 when available == 1. cb = 100 when available == 1.
+        cr = 190 when just_can == 1. cg = 140 when just_can == 1. cb = 80 when just_can == 1.
+        /text_draw/(x + NODE_PAD_X)/cy/10/cr/cg/cb/"$".
+        /text_draw_int/(x + NODE_PAD_X + 12)/cy/10/cr/cg/cb/cost.
+    < when has == 0.
 <
 
-#draw_upgrade_tooltip() >
-    // Draw tooltip for hovered upgrade
-    upgrade_id := tech_hovered_upgrade.
+#draw_node_tooltip() >
+    upgrade_id := tech_hovered.
     
     mx := /input_mouse_x/.
     my := /input_mouse_y/.
     
-    // Tooltip position (offset from mouse)
-    tx := mx + 15.
-    ty := my - 50.
-    tw := 160.
-    th := 45.
+    // Get text
+    name := /get_upgrade_name/upgrade_id.
+    desc := /get_upgrade_desc/upgrade_id.
+    
+    // Fixed width - large enough for longest description
+    // "Floors have 5+ rooms (+$2)" = 26 chars
+    tw := 240.
+    th := 55.
+    
+    // Position offset from mouse
+    tx := mx + 18.
+    ty := my - 60.
     
     // Keep on screen
     tx = tech_tree_x + tech_tree_w - tw - 10 when tx + tw gt tech_tree_x + tech_tree_w.
-    ty = tech_tree_y + 5 when ty lt tech_tree_y.
+    ty = tech_tree_y + TREE_HEADER_H + 5 when ty lt tech_tree_y + TREE_HEADER_H.
     
     // Background
-    /draw_rect/tx/ty/tw/th/30/35/45/250.
-    /draw_rect/tx/ty/tw/1/80/90/110/255.
+    /draw_rect/tx/ty/tw/th/22/25/32/245.
+    
+    // Border - consistent 2px
+    /draw_rect/tx/ty/tw/2/70/80/100/255.
+    /draw_rect/tx/(ty + th - 2)/tw/2/35/40/50/255.
+    /draw_rect/tx/ty/2/th/60/70/90/255.
+    /draw_rect/(tx + tw - 2)/ty/2/th/35/40/50/255.
     
     // Name
-    name := /get_upgrade_name/upgrade_id.
-    /text_draw/(tx + 5)/(ty + 5)/11/220/220/180/name.
+    /text_draw/(tx + 10)/(ty + 10)/11/220/210/170/name.
     
     // Description
-    desc := /get_upgrade_desc/upgrade_id.
-    /text_draw/(tx + 5)/(ty + 22)/9/160/160/170/desc.
+    /text_draw/(tx + 10)/(ty + 30)/9/155/160/175/desc.
+<
+
+#draw_tutorial_popup() >
+    // Draw centered tutorial popup
+    cx := tech_tree_x + tech_tree_w / 2.
+    cy := tech_tree_y + tech_tree_h / 2.
+    
+    pw := 280.
+    ph := 200.
+    px := cx - pw / 2.
+    py := cy - ph / 2.
+    
+    // Background with border
+    /draw_rect/px/py/pw/ph/20/25/35/250.
+    /draw_rect/px/py/pw/2/80/160/200/255.
+    /draw_rect/px/(py + ph - 2)/pw/2/40/80/100/255.
+    /draw_rect/px/py/2/ph/60/120/160/255.
+    /draw_rect/(px + pw - 2)/py/2/ph/60/120/160/255.
+    
+    // Title
+    /text_draw/(px + 10)/(py + 10)/14/100/200/255/tutorial_line_1.
+    
+    // Tutorial text
+    /text_draw/(px + 10)/(py + 35)/10/200/200/210/tutorial_line_2.
+    /text_draw/(px + 10)/(py + 50)/10/200/200/210/tutorial_line_3.
+    /text_draw/(px + 10)/(py + 65)/10/200/200/210/tutorial_line_4.
+    
+    // Code examples
+    /text_draw/(px + 10)/(py + 90)/10/255/220/100/tutorial_code_1.
+    /text_draw/(px + 10)/(py + 105)/10/255/220/100/tutorial_code_2.
+    /text_draw/(px + 10)/(py + 120)/10/255/220/100/tutorial_code_3.
+    
+    // Close button
+    btn_x := px + pw / 2 - 40.
+    btn_y := py + ph - 35.
+    btn_w := 80.
+    btn_h := 25.
+    
+    mx := /input_mouse_x/.
+    my := /input_mouse_y/.
+    btn_hover := mx ge btn_x and mx lt btn_x + btn_w and my ge btn_y and my lt btn_y + btn_h.
+    
+    bg_r := 40. bg_g := 80. bg_b := 100.
+    bg_r = 60 when btn_hover == 1. bg_g = 120 when btn_hover == 1. bg_b = 150 when btn_hover == 1.
+    
+    /draw_rect/btn_x/btn_y/btn_w/btn_h/bg_r/bg_g/bg_b/255.
+    /draw_rect/btn_x/btn_y/btn_w/1/100/180/220/255.
+    
+    /text_draw/(btn_x + 22)/(btn_y + 6)/12/220/240/255/"GOT IT".
+    
+    // Handle click
+    just_clicked := /input_mouse_just_pressed/.
+    /close_tutorial/ when just_clicked == 1 and btn_hover == 1.
 <
 
 #update_tech_tree() >
-    // Reset hovered
-    tech_hovered_upgrade = -1.
+    // Skip if tutorial is active
+    << 0 when tutorial_active == 1.
     
-    // Check for clicks
+    // Handle drag scrolling
+    /update_tech_drag/.
+    
+    // Check for click (only if not dragging)
     just_clicked := /input_mouse_just_pressed/.
     << 0 when just_clicked == 0.
+    
+    // Skip if we were dragging
+    drag_dx := /input_mouse_x/ - tech_drag_start_x.
+    drag_dy := /input_mouse_y/ - tech_drag_start_y.
+    drag_dx = 0 - drag_dx when drag_dx lt 0.
+    drag_dy = 0 - drag_dy when drag_dy lt 0.
+    << 0 when drag_dx gt 5 or drag_dy gt 5.
     
     mx := /input_mouse_x/.
     my := /input_mouse_y/.
     
-    // Check if in tech tree bounds
-    in_bounds := mx ge tech_tree_x and mx lt tech_tree_x + tech_tree_w.
-    in_bounds = in_bounds * (my ge tech_tree_y and my lt tech_tree_y + tech_tree_h).
-    << 0 when in_bounds == 0.
+    // Check if in content area
+    in_x := mx ge clip_x and mx lt clip_x + clip_w.
+    in_y := my ge clip_y and my lt clip_y + clip_h.
+    << 0 when in_x * in_y == 0.
     
-    // Check each upgrade node for click
-    tree_x := tech_tree_x + 20.
-    tree_y := tech_tree_y + 35.
+    // Calculate positions (must match draw_*_tree)
+    nw := NODE_W.
+    nh := NODE_H.
+    gx := NODE_GAP_X.
+    gy := NODE_GAP_Y + 8.
+    branch_w := NODE_W * 3 + NODE_GAP_X * 2.
     
-    // Check clicks on each node
-    /check_upgrade_click/(tree_x)/(tree_y)/UPGRADE_STAIRS_RANDOM/mx/my.
-    /check_upgrade_click/(tree_x + UPGRADE_NODE_SPACING_X)/(tree_y)/UPGRADE_ROOM_VARIABLE/mx/my.
-    /check_upgrade_click/(tree_x + UPGRADE_NODE_SPACING_X * 2)/(tree_y)/UPGRADE_ROOM_2/mx/my.
-    /check_upgrade_click/(tree_x + UPGRADE_NODE_SPACING_X * 3)/(tree_y - UPGRADE_NODE_SPACING_Y)/UPGRADE_ROOM_3/mx/my.
-    /check_upgrade_click/(tree_x + UPGRADE_NODE_SPACING_X * 4)/(tree_y - UPGRADE_NODE_SPACING_Y)/UPGRADE_ROOM_4/mx/my.
-    /check_upgrade_click/(tree_x + UPGRADE_NODE_SPACING_X * 5)/(tree_y - UPGRADE_NODE_SPACING_Y)/UPGRADE_ROOM_5PLUS/mx/my.
-    /check_upgrade_click/(tree_x + UPGRADE_NODE_SPACING_X * 3)/(tree_y)/UPGRADE_MONSTER_1/mx/my.
-    /check_upgrade_click/(tree_x + UPGRADE_NODE_SPACING_X * 4)/(tree_y)/UPGRADE_MONSTER_MORE/mx/my.
-    /check_upgrade_click/(tree_x + UPGRADE_NODE_SPACING_X * 3)/(tree_y + UPGRADE_NODE_SPACING_Y)/UPGRADE_GOLD_SPAWNS/mx/my.
+    bx := clip_x + TREE_PADDING + tech_scroll_x.
+    by := clip_y + clip_h - TREE_PADDING + tech_scroll_y.
+    
+    // Row positions
+    row0 := by - nh.
+    row1 := row0 - nh - gy.
+    row2 := row1 - nh - gy.
+    row3 := row2 - nh - gy.
+    row4 := row3 - nh - gy.
+    row5 := row4 - nh - gy.
+    
+    // BUFF tree columns
+    col0 := bx.
+    col1 := bx + nw + gx.
+    col2 := bx + (nw + gx) * 2.
+    
+    /try_node_click/col1/row0/UPGRADE_BUFF_START/mx/my.
+    /try_node_click/col0/row1/UPGRADE_BUFF_HP_1/mx/my.
+    /try_node_click/col1/row1/UPGRADE_BUFF_STR_1/mx/my.
+    /try_node_click/col2/row1/UPGRADE_BUFF_SPEED_5/mx/my.
+    /try_node_click/col0/row2/UPGRADE_BUFF_GOLD_DROP/mx/my.
+    /try_node_click/col2/row2/UPGRADE_BUFF_SPEED_10/mx/my.
+    /try_node_click/col0/row3/UPGRADE_BUFF_HP_2/mx/my.
+    /try_node_click/col2/row3/UPGRADE_BUFF_SPEED_100/mx/my.
+    /try_node_click/col0/row4/UPGRADE_BUFF_GOLD_SPAWN/mx/my.
+    /try_node_click/col2/row4/UPGRADE_BUFF_SPEED_1000/mx/my.
+    /try_node_click/col0/row5/UPGRADE_BUFF_HEAL_STAIRS/mx/my.
+    
+    // DIFF tree
+    diff_x := bx + branch_w + BRANCH_GAP.
+    dcol0 := diff_x.
+    dcol1 := diff_x + nw + gx.
+    dcolm := diff_x + (nw + gx) / 2.
+    
+    /try_node_click/dcolm/row0/UPGRADE_DIFF_ROOM_2/mx/my.
+    /try_node_click/dcol0/row1/UPGRADE_DIFF_VAR_SIZE/mx/my.
+    /try_node_click/dcol1/row1/UPGRADE_DIFF_MONSTER_1/mx/my.
+    /try_node_click/dcol0/row2/UPGRADE_DIFF_ROOM_3/mx/my.
+    /try_node_click/dcol1/row2/UPGRADE_DIFF_STAIRS_RANDOM/mx/my.
+    /try_node_click/dcolm/row3/UPGRADE_DIFF_MONSTER_2/mx/my.
+    /try_node_click/dcol0/row4/UPGRADE_DIFF_ROOM_4/mx/my.
+    /try_node_click/dcol1/row4/UPGRADE_DIFF_MONSTER_3/mx/my.
+    /try_node_click/dcolm/row5/UPGRADE_DIFF_ROOM_MANY/mx/my.
+    
+    // LANG tree
+    lang_x := diff_x + branch_w + BRANCH_GAP.
+    lcol0 := lang_x.
+    lcol1 := lang_x + nw + gx.
+    lcolm := lang_x + (nw + gx) / 2.
+    
+    /try_node_click/lcolm/row0/UPGRADE_LANG_VARIABLES/mx/my.
+    /try_node_click/lcolm/row1/UPGRADE_LANG_FUNCTIONS/mx/my.
+    /try_node_click/lcol0/row2/UPGRADE_LANG_LOOPS/mx/my.
+    /try_node_click/lcol1/row2/UPGRADE_LANG_CONDITIONS/mx/my.
+    /try_node_click/lcol0/row3/UPGRADE_LANG_ARRAYS/mx/my.
+    /try_node_click/lcol1/row3/UPGRADE_LANG_PIPES/mx/my.
+    /try_node_click/lcolm/row4/UPGRADE_LANG_STRUCTS/mx/my.
+    /try_node_click/lcol0/row5/UPGRADE_LANG_PATTERN/mx/my.
+    /try_node_click/lcol1/row5/UPGRADE_LANG_LAMBDA/mx/my.
 <
 
-#check_upgrade_click(x, y, upgrade_id, mx, my) >
-    in_x := mx ge x and mx lt x + UPGRADE_NODE_W.
-    in_y := my ge y and my lt y + UPGRADE_NODE_H.
-    clicked := in_x * in_y.
+#update_tech_drag() >
+    mx := /input_mouse_x/.
+    my := /input_mouse_y/.
+    down := /input_mouse_down/.
+    just := /input_mouse_just_pressed/.
     
-    << 0 when clicked == 0.
+    // In content area?
+    in_x := mx ge clip_x and mx lt clip_x + clip_w.
+    in_y := my ge clip_y and my lt clip_y + clip_h.
+    in_content := in_x * in_y.
     
-    // Try to purchase
+    // Start drag
+    >
+        tech_drag_start_x = mx.
+        tech_drag_start_y = my.
+        tech_drag_scroll_x = tech_scroll_x.
+        tech_drag_scroll_y = tech_scroll_y.
+        tech_dragging = 1.
+    < when just == 1 and in_content == 1.
+    
+    // Stop drag
+    tech_dragging = 0 when down == 0.
+    
+    // Update scroll while dragging
+    >
+        tech_scroll_x = tech_drag_scroll_x + (mx - tech_drag_start_x).
+        tech_scroll_y = tech_drag_scroll_y + (my - tech_drag_start_y).
+    < when tech_dragging == 1.
+<
+
+#try_node_click(x, y, upgrade_id, mx, my) >
+    nw := NODE_W.
+    nh := NODE_H.
+    in_x := mx ge x and mx lt x + nw.
+    in_y := my ge y and my lt y + nh.
+    << 0 when in_x * in_y == 0.
+    
     result := /try_purchase_upgrade/upgrade_id.
-    
-    // Regenerate dungeon if purchased (to apply new params)
-    /generate_dungeon/ when result == 1.
+    // Restart bot and regenerate dungeon when purchased
+    >
+        /generate_dungeon/.
+        /bot_reset_on_change/.
+    < when result == 1.
 <

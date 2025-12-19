@@ -1180,6 +1180,46 @@ void gl_blend_func(Value sfactor, Value dfactor) {
   glBlendFunc((GLenum)AS_INT(sfactor), (GLenum)AS_INT(dfactor));
 }
 
+// Scissor functions for clipping
+void gl_scissor(Value x, Value y, Value width, Value height) {
+#ifdef __EMSCRIPTEN__
+  glScissor(AS_INT(x), AS_INT(y), AS_INT(width), AS_INT(height));
+#endif
+}
+
+// Canvas 2D clipping - save context and set clip rect
+void set_clip_rect(Value x, Value y, Value w, Value h) {
+#ifdef __EMSCRIPTEN__
+  EM_ASM(
+      {
+        if (window.textCtx) {
+          window.textCtx.save();
+          window.textCtx.beginPath();
+          window.textCtx.rect($0, $1, $2, $3);
+          window.textCtx.clip();
+        }
+      },
+      AS_INT(x), AS_INT(y), AS_INT(w), AS_INT(h));
+#else
+  (void)x;
+  (void)y;
+  (void)w;
+  (void)h;
+#endif
+}
+
+// Canvas 2D clipping - restore context
+void clear_clip_rect(void) {
+#ifdef __EMSCRIPTEN__
+  EM_ASM(
+      {
+        if (window.textCtx) {
+          window.textCtx.restore();
+        }
+      });
+#endif
+}
+
 void gl_draw_arrays(Value mode, Value first, Value count) {
   ensure_gl_context();
   glDrawArrays((GLenum)AS_INT(mode), (GLint)AS_INT(first),
@@ -1779,6 +1819,16 @@ void text_draw_font_right(Value x, Value y, Value size, Value r, Value g,
 #else
   text_draw(x, y, size, r, g, b, text_val);
 #endif
+}
+
+// Measure text width in pixels (for monospace Berkeley Mono font)
+Value text_measure(Value text_val, Value font_size) {
+  const char *text = (const char *)AS_OBJ(text_val);
+  int sz = (int)AS_INT(font_size);
+  // For monospace fonts, character width is approximately 0.6 * font_size
+  int len = (int)strlen(text);
+  int width = (len * sz * 6) / 10;
+  return VAL_INT(width);
 }
 
 void draw_rect(Value x, Value y, Value w, Value h, Value r, Value g, Value b,

@@ -154,10 +154,23 @@ last_message_buffer := "".
     new_depth := dungeon_level + delta.
     dungeon_level = new_depth.
     
-    // Regenerate
+    // Calculate and award bonus for completing the floor
+    bonus := /calculate_floor_bonus/.
+    player_bank = player_bank + bonus + player_gold.
+    dngn_bonus = bonus.
+    
+    // Reset floor gold (it's been banked)
+    player_gold = 0.
+    
+    // Apply stair heal if unlocked
+    healed := /apply_stair_heal/.
+    
+    // Regenerate dungeon (uses tech tree params, NOT depth)
     /generate_dungeon/.
     
-    last_message = "You descend deeper...".
+    msg := "You descend deeper...".
+    msg = "You descend. Healed to full!" when healed == 1.
+    last_message = msg.
     << 1.
 <
 

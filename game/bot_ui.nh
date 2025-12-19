@@ -197,14 +197,39 @@ speed_multiplier := 1.  // Computed from slider_pos
     pos = 100 when pos gt 100.
     slider_pos = pos.
     
-    // Calculate speed multiplier (logarithmic: 1x to 1000x)
-    // pos=0 -> 1x, pos=50 -> ~32x, pos=100 -> 1000x
-    // Using: speed = 10^(pos * 3 / 100) = 1 to 1000
-    // Approximate with cubic: speed = 1 + (pos^3 * 999) / 1000000
-    speed_multiplier = 1 + (pos * pos * pos * 999) / 1000000.
+    // Get max speed from upgrades (starts at 3, can be upgraded to 1000)
+    max_speed := /get_max_speed/.
+    
+    // Calculate speed multiplier (linear scale from 1 to max_speed)
+    // pos=0 -> 1x, pos=100 -> max_speed
+    speed_multiplier = 1 + (pos * (max_speed - 1)) / 100.
+    
+    // Clamp to max speed
+    speed_multiplier = max_speed when speed_multiplier gt max_speed.
     
     // Update bot step delay: base delay / speed
     // Base delay is 500ms at 1x
+    bot_step_delay = 500 / speed_multiplier.
+    bot_step_delay = 1 when bot_step_delay lt 1.
+<
+
+// Recalculate slider position when max_speed changes to keep same actual speed
+// Call this after purchasing a speed upgrade
+#recalc_slider_for_new_max() >
+    max_speed := /get_max_speed/.
+    
+    // If current speed is higher than max, cap it
+    speed_multiplier = max_speed when speed_multiplier gt max_speed.
+    
+    // Recalculate slider position to match current speed
+    // speed = 1 + (pos * (max - 1)) / 100
+    // pos = (speed - 1) * 100 / (max - 1)
+    new_pos := (speed_multiplier - 1) * 100 / (max_speed - 1).
+    new_pos = 0 when new_pos lt 0.
+    new_pos = 100 when new_pos gt 100.
+    slider_pos = new_pos.
+    
+    // Update bot step delay
     bot_step_delay = 500 / speed_multiplier.
     bot_step_delay = 1 when bot_step_delay lt 1.
 <
@@ -219,6 +244,9 @@ speed_multiplier := 1.  // Computed from slider_pos
     sw := slider_width.
     sh := slider_height.
     
+    // Get max speed from upgrades
+    max_speed := /get_max_speed/.
+    
     // Background track
     /draw_rect/sx/sy/sw/sh/40/45/50/255.
     
@@ -231,9 +259,10 @@ speed_multiplier := 1.  // Computed from slider_pos
     handle_x = sx when handle_x lt sx.
     /draw_rect/handle_x/(sy - 2)/ 8/(sh + 4)/200/200/220/255.
     
-    // Labels: 1x, 1000x
+    // Labels: 1x, max_speed x
     /text_draw/(sx - 15)/(sy + 4)/10/150/150/150/"1x".
-    /text_draw/(sx + sw + 5)/(sy + 4)/10/150/150/150/"1000x".
+    /text_draw_int/(sx + sw + 5)/(sy + 4)/10/150/150/150/max_speed.
+    /text_draw/(sx + sw + 30)/(sy + 4)/10/150/150/150/"x".
     
     // Current speed indicator
     /text_draw_int/(sx + sw / 2 - 10)/(sy - 15)/12/255/220/80/speed_multiplier.

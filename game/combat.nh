@@ -167,6 +167,12 @@
     // Add XP?
     player_xp_points = player_xp_points + entity_level[entity_idx] * 5 when killed == 1.
     
+    // Gold drop from buff upgrade
+    gold_dropped := 0.
+    gold_dropped = /apply_gold_drop/ex/ey when killed == 1.
+    gold_msg := " (+$ gold)".
+    msg = /ds_string_concat/msg/gold_msg when killed == 1 and gold_dropped gt 0.
+    
     /append_message/msg.
 <
 

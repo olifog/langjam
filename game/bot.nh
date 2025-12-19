@@ -517,20 +517,20 @@ bot_message := "".
 #bot_handle_stairs() >
     last_message = "You found the stairs! Banking gold...".
     
-    // Dungeon completion bonus (scales with level)
-    // Base 10 + level bonus makes early progression viable
-    dngn_bonus = 10 + dungeon_level * 2.
+    // Calculate bonus based on difficulty upgrades (NOT dungeon level)
+    bonus := /calculate_floor_bonus/.
+    dngn_bonus = bonus.
     
     // Add current gold + bonus to bank
-    player_bank = player_bank + player_gold + dngn_bonus.
+    player_bank = player_bank + player_gold + bonus.
     
     // Reset current gold for new floor
     player_gold = 0.
     
-    // Reset health to full
-    player_hp = player_max_hp.
+    // Apply stair heal if unlocked
+    /apply_stair_heal/.
     
-    // Advance to next floor
+    // Advance to next floor (dungeon_level tracks progress but doesn't affect difficulty)
     dungeon_level = dungeon_level + 1.
     /generate_dungeon/.
     last_message = "Welcome to the next level!".
