@@ -48,17 +48,32 @@ jobs:
         with:
           version: 'latest'
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: web/package-lock.json
+
       - name: Build compiler
         run: make compiler
 
       - name: Build WASM
         run: make wasm
 
+      - name: Install npm dependencies
+        run: npm ci
+        working-directory: web
+
+      - name: Build Vite project
+        run: npm run build
+        working-directory: web
+
       - name: Upload web artifacts
         uses: actions/upload-artifact@v4
         with:
           name: web-build
-          path: web/
+          path: web/dist/
 
   deploy:
     runs-on: ubuntu-latest
@@ -78,7 +93,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: web-build
-          path: web/
+          path: dist/
 
       - name: Setup Pages
         uses: actions/configure-pages@v4
@@ -86,7 +101,7 @@ jobs:
       - name: Upload to Pages
         uses: actions/upload-pages-artifact@v3
         with:
-          path: web/
+          path: dist/
 
       - name: Deploy to GitHub Pages
         id: deployment
