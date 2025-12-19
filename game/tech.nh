@@ -10,42 +10,66 @@
 // ============================================================================
 
 // BUFF BRANCH (IDs 0-19)
-UPGRADE_BUFF_START := 0.          // Starting node (Training)
-UPGRADE_BUFF_HP_1 := 1.           // +4 Max HP
-UPGRADE_BUFF_STR_1 := 2.          // +1 Strength
-UPGRADE_BUFF_SPEED_5 := 3.        // Max speed 5x
-UPGRADE_BUFF_GOLD_DROP := 4.      // Enemies drop gold on death
-UPGRADE_BUFF_HP_2 := 5.           // +4 Max HP
-UPGRADE_BUFF_SPEED_10 := 6.       // Max speed 10x
-UPGRADE_BUFF_GOLD_SPAWN := 7.     // Gold piles spawn in dungeon
-UPGRADE_BUFF_SPEED_100 := 8.      // Max speed 100x
-UPGRADE_BUFF_HEAL_STAIRS := 9.    // Heal when descending stairs
-UPGRADE_BUFF_SPEED_1000 := 10.    // Max speed 1000x
+// Main branch (interspersed stats + gold)
+UPGRADE_BUFF_HP_1 := 0.           // +4 Max HP (Starting node)
+UPGRADE_BUFF_STR_1 := 1.          // +1 Strength
+UPGRADE_BUFF_GOLD_SPAWN := 2.     // Gold piles spawn in dungeon
+UPGRADE_BUFF_AC_1 := 3.           // +1 AC
+UPGRADE_BUFF_HP_2 := 4.           // +4 Max HP
+UPGRADE_BUFF_GOLD_SPAWN_2 := 5.   // +Gold pile value
+UPGRADE_BUFF_STR_2 := 6.          // +1 Strength
+UPGRADE_BUFF_GOLD_DROP := 7.      // Enemies drop gold on death
+UPGRADE_BUFF_AC_2 := 8.           // +1 AC
+UPGRADE_BUFF_HP_3 := 9.           // +4 Max HP
+UPGRADE_BUFF_GOLD_DROP_2 := 10.   // +Gold drop value
+UPGRADE_BUFF_STR_3 := 11.         // +1 Strength
+// Speed branch (separate)
+UPGRADE_BUFF_SPEED_5 := 12.       // Max speed 5x
+UPGRADE_BUFF_SPEED_10 := 13.      // Max speed 10x
+UPGRADE_BUFF_SPEED_100 := 14.     // Max speed 100x
+UPGRADE_BUFF_SPEED_1000 := 15.    // Max speed 1000x
 
 // DIFFICULTY BRANCH (IDs 20-39)
-UPGRADE_DIFF_ROOM_2 := 20.        // 2 rooms per floor
-UPGRADE_DIFF_VAR_SIZE := 21.      // Variable room sizes (3-7)
-UPGRADE_DIFF_MONSTER_1 := 22.     // 1 monster per floor
-UPGRADE_DIFF_ROOM_3 := 23.        // 3 rooms per floor
-UPGRADE_DIFF_STAIRS_RANDOM := 24. // Stairs in random position
-UPGRADE_DIFF_MONSTER_2 := 25.     // 2 monsters per floor
-UPGRADE_DIFF_ROOM_4 := 26.        // 4 rooms per floor
-UPGRADE_DIFF_MONSTER_3 := 27.     // 3 monsters per floor
-UPGRADE_DIFF_ROOM_MANY := 28.     // 5+ rooms per floor
+// Branching tree with player choice!
+UPGRADE_DIFF_STAIRS_RANDOM := 20. // Stairs in random position (START)
+UPGRADE_DIFF_ROOM_2 := 21.        // 2 rooms per floor
+UPGRADE_DIFF_VAR_SIZE := 22.      // Variable room sizes (left path)
+UPGRADE_DIFF_KOBOLDS := 23.       // Enable kobold spawning (right path)
+UPGRADE_DIFF_ROOM_3 := 24.        // 3 rooms per floor
+UPGRADE_DIFF_GOBLINS := 25.       // Enable goblin spawning
+UPGRADE_DIFF_MONSTER_2 := 26.     // 2 monsters per floor (merge)
+UPGRADE_DIFF_ROOM_4 := 27.        // 4 rooms per floor
+UPGRADE_DIFF_MONSTER_3 := 28.     // 3 monsters per floor
+UPGRADE_DIFF_ROOM_MANY := 29.     // 5+ rooms per floor
 
-// LANGUAGE BRANCH (IDs 40-59)
-UPGRADE_LANG_VARIABLES := 40.     // Variables tutorial
-UPGRADE_LANG_FUNCTIONS := 41.     // Functions tutorial
-UPGRADE_LANG_LOOPS := 42.         // Loops tutorial
-UPGRADE_LANG_CONDITIONS := 43.    // When/Unless tutorial
-UPGRADE_LANG_ARRAYS := 44.        // Arrays tutorial
-UPGRADE_LANG_PIPES := 45.         // Pipes tutorial
-UPGRADE_LANG_STRUCTS := 46.       // Structs tutorial
-UPGRADE_LANG_PATTERN := 47.       // Pattern matching tutorial
-UPGRADE_LANG_LAMBDA := 48.        // Lambda tutorial
+// LANGUAGE BRANCH (IDs 40-69)
+// Tier 1: Basics
+UPGRADE_LANG_VARIABLES := 40.     // x := value, x = value
+UPGRADE_LANG_ARITHMETIC := 41.    // + - * / %
+UPGRADE_LANG_COMPARISON := 42.    // lt gt le ge == !=
+// Tier 2: Functions & Control
+UPGRADE_LANG_FUNCTIONS := 43.     // #name() > < and /call/
+UPGRADE_LANG_RETURN := 44.        // << return
+UPGRADE_LANG_WHEN := 45.          // when / unless
+// Tier 3: Loops
+UPGRADE_LANG_LOOP := 46.          // loop > <
+UPGRADE_LANG_FOR := 47.           // for i in 0..10 > <
+UPGRADE_LANG_BREAK := 48.         // >> and ><
+// Tier 4: Data Structures
+UPGRADE_LANG_ARRAYS := 49.        // [1, 2, 3], arr[i]
+UPGRADE_LANG_STRUCTS := 50.       // { x: 1 }, obj->field
+UPGRADE_LANG_STRINGS := 51.       // "hello"
+// Tier 5: Advanced
+UPGRADE_LANG_IFELSE := 52.        // a if cond else b
+UPGRADE_LANG_PIPES := 53.         // x | /func/
+UPGRADE_LANG_BLOCKWHEN := 54.     // > ... < when cond
+// Tier 6: Expert
+UPGRADE_LANG_PATTERN := 55.       // val | > 0 => ... <
+UPGRADE_LANG_LAMBDA := 56.        // \(x) => expr
+UPGRADE_LANG_COMMENTS := 57.      // // comments
 
 // Total upgrade count
-UPGRADE_COUNT := 27.
+UPGRADE_COUNT := 40.
 
 // ============================================================================
 // Upgrade State (0 = locked, 1 = unlocked)
@@ -76,40 +100,70 @@ upgrades := [].
 // ============================================================================
 
 #get_upgrade_cost(id) >
-    // BUFF BRANCH - relatively cheap, makes player stronger
-    << 15 when id == UPGRADE_BUFF_START.
+    // BUFF BRANCH - exponentially scaling costs
+    // Costs are consistent within each row tier
+    // Row 0: Starting node
     << 30 when id == UPGRADE_BUFF_HP_1.
-    << 30 when id == UPGRADE_BUFF_STR_1.
-    << 25 when id == UPGRADE_BUFF_SPEED_5.
-    << 50 when id == UPGRADE_BUFF_GOLD_DROP.
-    << 60 when id == UPGRADE_BUFF_HP_2.
-    << 75 when id == UPGRADE_BUFF_SPEED_10.
-    << 80 when id == UPGRADE_BUFF_GOLD_SPAWN.
-    << 200 when id == UPGRADE_BUFF_SPEED_100.
-    << 100 when id == UPGRADE_BUFF_HEAL_STAIRS.
-    << 500 when id == UPGRADE_BUFF_SPEED_1000.
+    // Row 1: First tier choices ($100)
+    << 100 when id == UPGRADE_BUFF_STR_1.
+    << 100 when id == UPGRADE_BUFF_GOLD_SPAWN.
+    << 100 when id == UPGRADE_BUFF_SPEED_5.
+    // Row 2: Second tier ($400)
+    << 400 when id == UPGRADE_BUFF_AC_1.
+    << 400 when id == UPGRADE_BUFF_GOLD_SPAWN_2.
+    << 400 when id == UPGRADE_BUFF_SPEED_10.
+    // Row 3: Third tier ($1,500 main, $10k speed)
+    << 1500 when id == UPGRADE_BUFF_HP_2.
+    << 10000 when id == UPGRADE_BUFF_SPEED_100.
+    // Row 4: Fourth tier ($5,000 main, $100k speed)
+    << 5000 when id == UPGRADE_BUFF_STR_2.
+    << 5000 when id == UPGRADE_BUFF_GOLD_DROP.
+    << 100000 when id == UPGRADE_BUFF_SPEED_1000.
+    // Row 5: Fifth tier ($20,000)
+    << 20000 when id == UPGRADE_BUFF_AC_2.
+    << 20000 when id == UPGRADE_BUFF_GOLD_DROP_2.
+    // Row 6: Sixth tier ($75,000)
+    << 75000 when id == UPGRADE_BUFF_HP_3.
+    // Row 7: Final tier ($250,000)
+    << 250000 when id == UPGRADE_BUFF_STR_3.
     
-    // DIFFICULTY BRANCH - moderate cost, increases bonus rewards
-    << 25 when id == UPGRADE_DIFF_ROOM_2.
-    << 35 when id == UPGRADE_DIFF_VAR_SIZE.
-    << 50 when id == UPGRADE_DIFF_MONSTER_1.
-    << 75 when id == UPGRADE_DIFF_ROOM_3.
-    << 60 when id == UPGRADE_DIFF_STAIRS_RANDOM.
-    << 100 when id == UPGRADE_DIFF_MONSTER_2.
-    << 125 when id == UPGRADE_DIFF_ROOM_4.
-    << 150 when id == UPGRADE_DIFF_MONSTER_3.
-    << 200 when id == UPGRADE_DIFF_ROOM_MANY.
+    // DIFFICULTY BRANCH - exponential cost scaling
+    << 25 when id == UPGRADE_DIFF_STAIRS_RANDOM.   // Row 0 - Start
+    << 60 when id == UPGRADE_DIFF_ROOM_2.          // Row 1
+    << 150 when id == UPGRADE_DIFF_VAR_SIZE.       // Row 2 left
+    << 150 when id == UPGRADE_DIFF_KOBOLDS.        // Row 2 right
+    << 400 when id == UPGRADE_DIFF_ROOM_3.         // Row 3 left
+    << 400 when id == UPGRADE_DIFF_GOBLINS.        // Row 3 right
+    << 1000 when id == UPGRADE_DIFF_MONSTER_2.     // Row 4 merge
+    << 2500 when id == UPGRADE_DIFF_ROOM_4.        // Row 5 left
+    << 2500 when id == UPGRADE_DIFF_MONSTER_3.     // Row 5 right
+    << 6000 when id == UPGRADE_DIFF_ROOM_MANY.     // Row 6 merge
     
-    // LANGUAGE BRANCH - knowledge costs gold
-    << 20 when id == UPGRADE_LANG_VARIABLES.
+    // LANGUAGE BRANCH - knowledge costs gold (gentle scaling)
+    // Tier 1: Basics ($10-25)
+    << 10 when id == UPGRADE_LANG_VARIABLES.
+    << 15 when id == UPGRADE_LANG_ARITHMETIC.
+    << 15 when id == UPGRADE_LANG_COMPARISON.
+    // Tier 2: Functions & Control ($30-50)
     << 30 when id == UPGRADE_LANG_FUNCTIONS.
-    << 40 when id == UPGRADE_LANG_LOOPS.
-    << 40 when id == UPGRADE_LANG_CONDITIONS.
-    << 50 when id == UPGRADE_LANG_ARRAYS.
-    << 60 when id == UPGRADE_LANG_PIPES.
-    << 70 when id == UPGRADE_LANG_STRUCTS.
-    << 80 when id == UPGRADE_LANG_PATTERN.
-    << 90 when id == UPGRADE_LANG_LAMBDA.
+    << 35 when id == UPGRADE_LANG_RETURN.
+    << 35 when id == UPGRADE_LANG_WHEN.
+    // Tier 3: Loops ($60-90)
+    << 60 when id == UPGRADE_LANG_LOOP.
+    << 70 when id == UPGRADE_LANG_FOR.
+    << 70 when id == UPGRADE_LANG_BREAK.
+    // Tier 4: Data ($100-150)
+    << 100 when id == UPGRADE_LANG_ARRAYS.
+    << 120 when id == UPGRADE_LANG_STRUCTS.
+    << 80 when id == UPGRADE_LANG_STRINGS.
+    // Tier 5: Advanced ($150-250)
+    << 150 when id == UPGRADE_LANG_IFELSE.
+    << 200 when id == UPGRADE_LANG_PIPES.
+    << 180 when id == UPGRADE_LANG_BLOCKWHEN.
+    // Tier 6: Expert ($300-500)
+    << 350 when id == UPGRADE_LANG_PATTERN.
+    << 400 when id == UPGRADE_LANG_LAMBDA.
+    << 250 when id == UPGRADE_LANG_COMMENTS.
     
     << 9999. // Unknown upgrade
 <
@@ -123,104 +177,185 @@ upgrades := [].
     has := /has_upgrade/id.
     << 0 when has == 1.
     
-    // BUFF BRANCH - single root that branches into 3 paths
-    // Root: Training (no prereqs)
-    << 1 when id == UPGRADE_BUFF_START.
+    // BUFF BRANCH - branching tree with choices!
+    // Layout:
+    //                  HP I (start)
+    //                 /    \          \
+    //            STR I    Gold Spawn   Speed 5x
+    //              |         |            |
+    //            AC I    Gold Spawn+   Speed 10x
+    //               \      /              |
+    //                HP II            Speed 100x
+    //               /    \                |
+    //          STR II   Gold Drops    Speed 1000x
+    //             |         |
+    //          AC II    Gold Drops+
+    //              \      /
+    //               HP III
+    //                 |
+    //              STR III
     
-    // Tier 2: HP1, STR1, Speed5 all need the root
-    has_start := /has_upgrade/UPGRADE_BUFF_START.
-    << has_start when id == UPGRADE_BUFF_HP_1.
-    << has_start when id == UPGRADE_BUFF_STR_1.
-    << has_start when id == UPGRADE_BUFF_SPEED_5.
+    // Row 0: HP I is the starting node (no prereqs)
+    << 1 when id == UPGRADE_BUFF_HP_1.
     
-    // Tier 3: Gold Drop needs HP1 or STR1, Speed10 needs Speed5
+    // Row 1: Three choices branch from HP I
     has_hp1 := /has_upgrade/UPGRADE_BUFF_HP_1.
+    << has_hp1 when id == UPGRADE_BUFF_STR_1.
+    << has_hp1 when id == UPGRADE_BUFF_GOLD_SPAWN.
+    << has_hp1 when id == UPGRADE_BUFF_SPEED_5.
+    
+    // Row 2: Stats path continues, Gold path continues, Speed continues
     has_str1 := /has_upgrade/UPGRADE_BUFF_STR_1.
-    has_tier2_combat := has_hp1 + has_str1.
-    << 1 when id == UPGRADE_BUFF_GOLD_DROP and has_tier2_combat gt 0.
+    << has_str1 when id == UPGRADE_BUFF_AC_1.
+    
+    has_gold_spawn := /has_upgrade/UPGRADE_BUFF_GOLD_SPAWN.
+    << has_gold_spawn when id == UPGRADE_BUFF_GOLD_SPAWN_2.
     
     has_speed5 := /has_upgrade/UPGRADE_BUFF_SPEED_5.
     << has_speed5 when id == UPGRADE_BUFF_SPEED_10.
     
-    // Tier 4: HP2 needs Gold Drop, Speed100 needs Speed10
-    has_gold_drop := /has_upgrade/UPGRADE_BUFF_GOLD_DROP.
-    << has_gold_drop when id == UPGRADE_BUFF_HP_2.
+    // Row 3: HP II requires EITHER AC I OR Gold Spawn+ (merge point)
+    has_ac1 := /has_upgrade/UPGRADE_BUFF_AC_1.
+    has_gold_spawn2 := /has_upgrade/UPGRADE_BUFF_GOLD_SPAWN_2.
+    has_tier2_choice := has_ac1 + has_gold_spawn2.
+    << 1 when id == UPGRADE_BUFF_HP_2 and has_tier2_choice gt 0.
     
     has_speed10 := /has_upgrade/UPGRADE_BUFF_SPEED_10.
     << has_speed10 when id == UPGRADE_BUFF_SPEED_100.
     
-    // Tier 5: Gold Spawn needs HP2, Speed1000 needs Speed100
+    // Row 4: Two choices branch from HP II
     has_hp2 := /has_upgrade/UPGRADE_BUFF_HP_2.
-    << has_hp2 when id == UPGRADE_BUFF_GOLD_SPAWN.
+    << has_hp2 when id == UPGRADE_BUFF_STR_2.
+    << has_hp2 when id == UPGRADE_BUFF_GOLD_DROP.
     
     has_speed100 := /has_upgrade/UPGRADE_BUFF_SPEED_100.
     << has_speed100 when id == UPGRADE_BUFF_SPEED_1000.
     
-    // Tier 6: Heal Stairs needs Gold Spawn
-    has_gold_spawn := /has_upgrade/UPGRADE_BUFF_GOLD_SPAWN.
-    << has_gold_spawn when id == UPGRADE_BUFF_HEAL_STAIRS.
+    // Row 5: Stats path continues, Gold path continues
+    has_str2 := /has_upgrade/UPGRADE_BUFF_STR_2.
+    << has_str2 when id == UPGRADE_BUFF_AC_2.
     
-    // DIFFICULTY BRANCH - branching paths that merge
-    // Tier 1: 2 Rooms (no prereq)
-    << 1 when id == UPGRADE_DIFF_ROOM_2.
+    has_gold_drop := /has_upgrade/UPGRADE_BUFF_GOLD_DROP.
+    << has_gold_drop when id == UPGRADE_BUFF_GOLD_DROP_2.
     
-    // Tier 2: Var Size or Monster1 need Room2
+    // Row 6: HP III requires EITHER AC II OR Gold Drops+ (merge point)
+    has_ac2 := /has_upgrade/UPGRADE_BUFF_AC_2.
+    has_gold_drop2 := /has_upgrade/UPGRADE_BUFF_GOLD_DROP_2.
+    has_tier3_choice := has_ac2 + has_gold_drop2.
+    << 1 when id == UPGRADE_BUFF_HP_3 and has_tier3_choice gt 0.
+    
+    // Row 7: STR III needs HP III
+    has_hp3 := /has_upgrade/UPGRADE_BUFF_HP_3.
+    << has_hp3 when id == UPGRADE_BUFF_STR_3.
+    
+    // DIFFICULTY BRANCH - branching tree with choices
+    // Layout:
+    //         Rnd Stairs (start)
+    //              |
+    //          2 Rooms
+    //           /    \
+    //     Var Size   Kobolds
+    //        |          |
+    //     3 Rooms    Goblins
+    //         \       /
+    //        2 Monsters (merge)
+    //          /     \
+    //     4 Rooms   3 Monsters
+    //         \       /
+    //        Many Rooms (merge)
+    
+    // Row 0: Random Stairs is the starting node (no prereqs)
+    << 1 when id == UPGRADE_DIFF_STAIRS_RANDOM.
+    
+    // Row 1: 2 Rooms needs Random Stairs
+    has_stairs := /has_upgrade/UPGRADE_DIFF_STAIRS_RANDOM.
+    << has_stairs when id == UPGRADE_DIFF_ROOM_2.
+    
+    // Row 2: Var Size (left) or Kobolds (right) need 2 Rooms
     has_room2 := /has_upgrade/UPGRADE_DIFF_ROOM_2.
     << has_room2 when id == UPGRADE_DIFF_VAR_SIZE.
-    << has_room2 when id == UPGRADE_DIFF_MONSTER_1.
+    << has_room2 when id == UPGRADE_DIFF_KOBOLDS.
     
-    // Tier 3: Room3 needs VarSize, Random Stairs needs Monster1
+    // Row 3: 3 Rooms needs Var Size, Goblins needs Kobolds
     has_var := /has_upgrade/UPGRADE_DIFF_VAR_SIZE.
-    has_mon1 := /has_upgrade/UPGRADE_DIFF_MONSTER_1.
+    has_kobolds := /has_upgrade/UPGRADE_DIFF_KOBOLDS.
     << has_var when id == UPGRADE_DIFF_ROOM_3.
-    << has_mon1 when id == UPGRADE_DIFF_STAIRS_RANDOM.
+    << has_kobolds when id == UPGRADE_DIFF_GOBLINS.
     
-    // Tier 4: Monster2 needs Room3 or RandomStairs (merge point)
+    // Row 4: 2 Monsters needs EITHER 3 Rooms OR Goblins (merge point)
     has_room3 := /has_upgrade/UPGRADE_DIFF_ROOM_3.
-    has_random := /has_upgrade/UPGRADE_DIFF_STAIRS_RANDOM.
-    has_tier3_diff := has_room3 + has_random.
+    has_goblins := /has_upgrade/UPGRADE_DIFF_GOBLINS.
+    has_tier3_diff := has_room3 + has_goblins.
     << 1 when id == UPGRADE_DIFF_MONSTER_2 and has_tier3_diff gt 0.
     
-    // Tier 5: Room4 or Monster3 need Monster2
+    // Row 5: 4 Rooms or 3 Monsters need 2 Monsters
     has_mon2 := /has_upgrade/UPGRADE_DIFF_MONSTER_2.
     << has_mon2 when id == UPGRADE_DIFF_ROOM_4.
     << has_mon2 when id == UPGRADE_DIFF_MONSTER_3.
     
-    // Tier 6: Many Rooms needs Room4 or Monster3
+    // Row 6: Many Rooms needs EITHER 4 Rooms OR 3 Monsters (merge point)
     has_room4 := /has_upgrade/UPGRADE_DIFF_ROOM_4.
     has_mon3 := /has_upgrade/UPGRADE_DIFF_MONSTER_3.
     has_tier5_diff := has_room4 + has_mon3.
     << 1 when id == UPGRADE_DIFF_ROOM_MANY and has_tier5_diff gt 0.
     
-    // LANGUAGE BRANCH - tutorial prerequisites
-    // Tier 1: Variables (no prereq)
+    // LANGUAGE BRANCH - tutorial prerequisites (broad tree structure)
+    // Tier 1: Variables (no prereq - starting node)
     << 1 when id == UPGRADE_LANG_VARIABLES.
     
-    // Tier 2: Functions needs Variables
+    // Tier 1 branches: Arithmetic and Comparison both need Variables
     has_vars := /has_upgrade/UPGRADE_LANG_VARIABLES.
-    << has_vars when id == UPGRADE_LANG_FUNCTIONS.
+    << has_vars when id == UPGRADE_LANG_ARITHMETIC.
+    << has_vars when id == UPGRADE_LANG_COMPARISON.
     
-    // Tier 3: Loops or Conditions need Functions
+    // Tier 2: Functions needs Arithmetic OR Comparison (merge)
+    has_arith := /has_upgrade/UPGRADE_LANG_ARITHMETIC.
+    has_comp := /has_upgrade/UPGRADE_LANG_COMPARISON.
+    has_tier1 := has_arith + has_comp.
+    << 1 when id == UPGRADE_LANG_FUNCTIONS and has_tier1 gt 0.
+    
+    // Tier 2 branches: Return and When both need Functions
     has_funcs := /has_upgrade/UPGRADE_LANG_FUNCTIONS.
-    << has_funcs when id == UPGRADE_LANG_LOOPS.
-    << has_funcs when id == UPGRADE_LANG_CONDITIONS.
+    << has_funcs when id == UPGRADE_LANG_RETURN.
+    << has_funcs when id == UPGRADE_LANG_WHEN.
     
-    // Tier 4: Arrays needs Loops, Pipes needs Conditions
-    has_loops := /has_upgrade/UPGRADE_LANG_LOOPS.
-    has_conds := /has_upgrade/UPGRADE_LANG_CONDITIONS.
-    << has_loops when id == UPGRADE_LANG_ARRAYS.
-    << has_conds when id == UPGRADE_LANG_PIPES.
+    // Tier 3: Loop needs Return OR When (merge)
+    has_ret := /has_upgrade/UPGRADE_LANG_RETURN.
+    has_when := /has_upgrade/UPGRADE_LANG_WHEN.
+    has_tier2 := has_ret + has_when.
+    << 1 when id == UPGRADE_LANG_LOOP and has_tier2 gt 0.
     
-    // Tier 5: Structs needs Arrays or Pipes (merge point)
+    // Tier 3 branches: For and Break both need Loop
+    has_loop := /has_upgrade/UPGRADE_LANG_LOOP.
+    << has_loop when id == UPGRADE_LANG_FOR.
+    << has_loop when id == UPGRADE_LANG_BREAK.
+    
+    // Tier 4: Three branches (Arrays, Structs, Strings)
+    // Arrays needs For OR Break
+    has_for := /has_upgrade/UPGRADE_LANG_FOR.
+    has_break := /has_upgrade/UPGRADE_LANG_BREAK.
+    has_tier3 := has_for + has_break.
+    << 1 when id == UPGRADE_LANG_ARRAYS and has_tier3 gt 0.
+    << 1 when id == UPGRADE_LANG_STRUCTS and has_tier3 gt 0.
+    << 1 when id == UPGRADE_LANG_STRINGS and has_tier3 gt 0.
+    
+    // Tier 5: Advanced (If-else, Pipes, Block-when) need ANY of tier 4
     has_arrays := /has_upgrade/UPGRADE_LANG_ARRAYS.
-    has_pipes := /has_upgrade/UPGRADE_LANG_PIPES.
-    has_tier4_lang := has_arrays + has_pipes.
-    << 1 when id == UPGRADE_LANG_STRUCTS and has_tier4_lang gt 0.
-    
-    // Tier 6: Pattern and Lambda need Structs
     has_structs := /has_upgrade/UPGRADE_LANG_STRUCTS.
-    << has_structs when id == UPGRADE_LANG_PATTERN.
-    << has_structs when id == UPGRADE_LANG_LAMBDA.
+    has_strings := /has_upgrade/UPGRADE_LANG_STRINGS.
+    has_tier4 := has_arrays + has_structs + has_strings.
+    << 1 when id == UPGRADE_LANG_IFELSE and has_tier4 gt 0.
+    << 1 when id == UPGRADE_LANG_PIPES and has_tier4 gt 0.
+    << 1 when id == UPGRADE_LANG_BLOCKWHEN and has_tier4 gt 0.
+    
+    // Tier 6: Expert (Pattern, Lambda, Comments) need ANY of tier 5
+    has_ifelse := /has_upgrade/UPGRADE_LANG_IFELSE.
+    has_pipes := /has_upgrade/UPGRADE_LANG_PIPES.
+    has_blockwhen := /has_upgrade/UPGRADE_LANG_BLOCKWHEN.
+    has_tier5 := has_ifelse + has_pipes + has_blockwhen.
+    << 1 when id == UPGRADE_LANG_PATTERN and has_tier5 gt 0.
+    << 1 when id == UPGRADE_LANG_LAMBDA and has_tier5 gt 0.
+    << 1 when id == UPGRADE_LANG_COMMENTS and has_tier5 gt 0.
     
     << 0. // Unknown
 <
@@ -259,19 +394,30 @@ upgrades := [].
 // ============================================================================
 
 #apply_buff_upgrades() >
-    // Calculate total HP bonus
+    // Calculate total HP bonus (+4 per tier)
     hp_bonus := 0.
     hp_bonus = hp_bonus + 4 when /has_upgrade/UPGRADE_BUFF_HP_1 == 1.
     hp_bonus = hp_bonus + 4 when /has_upgrade/UPGRADE_BUFF_HP_2 == 1.
+    hp_bonus = hp_bonus + 4 when /has_upgrade/UPGRADE_BUFF_HP_3 == 1.
     
     // Base HP is 16
     player_max_hp = 16 + hp_bonus.
     
-    // Strength bonus
+    // Strength bonus (+1 per tier)
     str_bonus := 0.
     str_bonus = str_bonus + 1 when /has_upgrade/UPGRADE_BUFF_STR_1 == 1.
+    str_bonus = str_bonus + 1 when /has_upgrade/UPGRADE_BUFF_STR_2 == 1.
+    str_bonus = str_bonus + 1 when /has_upgrade/UPGRADE_BUFF_STR_3 == 1.
     
     player_str = 18 + str_bonus.
+    
+    // AC bonus (+1 per tier, lower AC is better in Nethack-style)
+    ac_bonus := 0.
+    ac_bonus = ac_bonus - 1 when /has_upgrade/UPGRADE_BUFF_AC_1 == 1.
+    ac_bonus = ac_bonus - 1 when /has_upgrade/UPGRADE_BUFF_AC_2 == 1.
+    
+    // Base AC is 4
+    player_ac = 4 + ac_bonus.
 <
 
 // ============================================================================
@@ -285,6 +431,9 @@ dng_max_room_size := 3.
 dng_stairs_random := 0.
 dng_monster_count := 0.
 dng_gold_enabled := 0.
+// Monster types enabled
+dng_kobolds_enabled := 0.
+dng_goblins_enabled := 0.
 
 // Bonus from difficulty upgrades (starts at 0, adds linearly)
 dng_bonus_from_upgrades := 0.
@@ -296,9 +445,15 @@ dng_bonus_from_upgrades := 0.
     dng_max_room_size = 3.
     dng_stairs_random = 0.
     dng_monster_count = 0.
+    dng_kobolds_enabled = 0.
+    dng_goblins_enabled = 0.
     
     // Calculate bonus from upgrades (linear addition, starts at 0)
     bonus := 0.
+    
+    // Stairs placement (first upgrade)
+    dng_stairs_random = 1 when /has_upgrade/UPGRADE_DIFF_STAIRS_RANDOM == 1.
+    bonus = bonus + 1 when /has_upgrade/UPGRADE_DIFF_STAIRS_RANDOM == 1.
     
     // Room count from difficulty upgrades
     dng_max_rooms = 2 when /has_upgrade/UPGRADE_DIFF_ROOM_2 == 1.
@@ -317,14 +472,15 @@ dng_bonus_from_upgrades := 0.
     dng_max_room_size = 7 when /has_upgrade/UPGRADE_DIFF_VAR_SIZE == 1.
     bonus = bonus + 1 when /has_upgrade/UPGRADE_DIFF_VAR_SIZE == 1.
     
-    // Stairs placement
-    dng_stairs_random = 1 when /has_upgrade/UPGRADE_DIFF_STAIRS_RANDOM == 1.
-    bonus = bonus + 1 when /has_upgrade/UPGRADE_DIFF_STAIRS_RANDOM == 1.
+    // Monster types (Kobolds enables 1 monster, Goblins adds variety)
+    dng_kobolds_enabled = 1 when /has_upgrade/UPGRADE_DIFF_KOBOLDS == 1.
+    dng_monster_count = 1 when /has_upgrade/UPGRADE_DIFF_KOBOLDS == 1.
+    bonus = bonus + 2 when /has_upgrade/UPGRADE_DIFF_KOBOLDS == 1.
     
-    // Monster count
-    dng_monster_count = 1 when /has_upgrade/UPGRADE_DIFF_MONSTER_1 == 1.
-    bonus = bonus + 2 when /has_upgrade/UPGRADE_DIFF_MONSTER_1 == 1.
+    dng_goblins_enabled = 1 when /has_upgrade/UPGRADE_DIFF_GOBLINS == 1.
+    bonus = bonus + 2 when /has_upgrade/UPGRADE_DIFF_GOBLINS == 1.
     
+    // Monster count upgrades
     dng_monster_count = 2 when /has_upgrade/UPGRADE_DIFF_MONSTER_2 == 1.
     bonus = bonus + 2 when /has_upgrade/UPGRADE_DIFF_MONSTER_2 == 1.
     
@@ -354,40 +510,61 @@ dng_bonus_from_upgrades := 0.
 // ============================================================================
 
 #get_upgrade_name(id) >
-    // BUFF
-    << "Training" when id == UPGRADE_BUFF_START.
+    // BUFF - Main branch
     << "More HP I" when id == UPGRADE_BUFF_HP_1.
-    << "Strength" when id == UPGRADE_BUFF_STR_1.
-    << "Speed 5x" when id == UPGRADE_BUFF_SPEED_5.
-    << "Gold Drops" when id == UPGRADE_BUFF_GOLD_DROP.
-    << "More HP II" when id == UPGRADE_BUFF_HP_2.
-    << "Speed 10x" when id == UPGRADE_BUFF_SPEED_10.
+    << "Strength I" when id == UPGRADE_BUFF_STR_1.
     << "Gold Spawn" when id == UPGRADE_BUFF_GOLD_SPAWN.
+    << "Armor I" when id == UPGRADE_BUFF_AC_1.
+    << "More HP II" when id == UPGRADE_BUFF_HP_2.
+    << "Gold Spawn+" when id == UPGRADE_BUFF_GOLD_SPAWN_2.
+    << "Strength II" when id == UPGRADE_BUFF_STR_2.
+    << "Gold Drops" when id == UPGRADE_BUFF_GOLD_DROP.
+    << "Armor II" when id == UPGRADE_BUFF_AC_2.
+    << "More HP III" when id == UPGRADE_BUFF_HP_3.
+    << "Gold Drops+" when id == UPGRADE_BUFF_GOLD_DROP_2.
+    << "Strength III" when id == UPGRADE_BUFF_STR_3.
+    // BUFF - Speed branch
+    << "Speed 5x" when id == UPGRADE_BUFF_SPEED_5.
+    << "Speed 10x" when id == UPGRADE_BUFF_SPEED_10.
     << "Speed 100x" when id == UPGRADE_BUFF_SPEED_100.
-    << "Stair Heal" when id == UPGRADE_BUFF_HEAL_STAIRS.
     << "Speed 1000x" when id == UPGRADE_BUFF_SPEED_1000.
     
     // DIFFICULTY
+    << "Rnd Stairs" when id == UPGRADE_DIFF_STAIRS_RANDOM.
     << "2 Rooms" when id == UPGRADE_DIFF_ROOM_2.
     << "Var Size" when id == UPGRADE_DIFF_VAR_SIZE.
-    << "1 Monster" when id == UPGRADE_DIFF_MONSTER_1.
+    << "Kobolds" when id == UPGRADE_DIFF_KOBOLDS.
     << "3 Rooms" when id == UPGRADE_DIFF_ROOM_3.
-    << "Rnd Stairs" when id == UPGRADE_DIFF_STAIRS_RANDOM.
+    << "Goblins" when id == UPGRADE_DIFF_GOBLINS.
     << "2 Monsters" when id == UPGRADE_DIFF_MONSTER_2.
     << "4 Rooms" when id == UPGRADE_DIFF_ROOM_4.
     << "3 Monsters" when id == UPGRADE_DIFF_MONSTER_3.
     << "Many Rooms" when id == UPGRADE_DIFF_ROOM_MANY.
     
-    // LANGUAGE
+    // LANGUAGE - Tier 1 (Basics)
     << "Variables" when id == UPGRADE_LANG_VARIABLES.
+    << "Math" when id == UPGRADE_LANG_ARITHMETIC.
+    << "Compare" when id == UPGRADE_LANG_COMPARISON.
+    // LANGUAGE - Tier 2 (Functions & Control)
     << "Functions" when id == UPGRADE_LANG_FUNCTIONS.
-    << "Loops" when id == UPGRADE_LANG_LOOPS.
-    << "Conditions" when id == UPGRADE_LANG_CONDITIONS.
+    << "Return" when id == UPGRADE_LANG_RETURN.
+    << "When" when id == UPGRADE_LANG_WHEN.
+    // LANGUAGE - Tier 3 (Loops)
+    << "Loop" when id == UPGRADE_LANG_LOOP.
+    << "For" when id == UPGRADE_LANG_FOR.
+    << "Break" when id == UPGRADE_LANG_BREAK.
+    // LANGUAGE - Tier 4 (Data)
     << "Arrays" when id == UPGRADE_LANG_ARRAYS.
-    << "Pipes" when id == UPGRADE_LANG_PIPES.
     << "Structs" when id == UPGRADE_LANG_STRUCTS.
-    << "Patterns" when id == UPGRADE_LANG_PATTERN.
-    << "Lambdas" when id == UPGRADE_LANG_LAMBDA.
+    << "Strings" when id == UPGRADE_LANG_STRINGS.
+    // LANGUAGE - Tier 5 (Advanced)
+    << "If-Else" when id == UPGRADE_LANG_IFELSE.
+    << "Pipes" when id == UPGRADE_LANG_PIPES.
+    << "Block ?" when id == UPGRADE_LANG_BLOCKWHEN.
+    // LANGUAGE - Tier 6 (Expert)
+    << "Match" when id == UPGRADE_LANG_PATTERN.
+    << "Lambda" when id == UPGRADE_LANG_LAMBDA.
+    << "Comments" when id == UPGRADE_LANG_COMMENTS.
     
     << "???".
 <
@@ -397,57 +574,83 @@ dng_bonus_from_upgrades := 0.
 // ============================================================================
 
 #get_upgrade_desc(id) >
-    // BUFF
-    << "Begin your training" when id == UPGRADE_BUFF_START.
+    // BUFF - Main branch
     << "+4 Maximum HP" when id == UPGRADE_BUFF_HP_1.
     << "+1 Strength" when id == UPGRADE_BUFF_STR_1.
-    << "Max bot speed: 5x" when id == UPGRADE_BUFF_SPEED_5.
-    << "Enemies drop gold" when id == UPGRADE_BUFF_GOLD_DROP.
-    << "+4 Maximum HP" when id == UPGRADE_BUFF_HP_2.
-    << "Max bot speed: 10x" when id == UPGRADE_BUFF_SPEED_10.
     << "Gold piles spawn" when id == UPGRADE_BUFF_GOLD_SPAWN.
+    << "-1 AC (better)" when id == UPGRADE_BUFF_AC_1.
+    << "+4 Maximum HP" when id == UPGRADE_BUFF_HP_2.
+    << "2x gold pile value" when id == UPGRADE_BUFF_GOLD_SPAWN_2.
+    << "+1 Strength" when id == UPGRADE_BUFF_STR_2.
+    << "Enemies drop gold" when id == UPGRADE_BUFF_GOLD_DROP.
+    << "-1 AC (better)" when id == UPGRADE_BUFF_AC_2.
+    << "+4 Maximum HP" when id == UPGRADE_BUFF_HP_3.
+    << "2x gold drop value" when id == UPGRADE_BUFF_GOLD_DROP_2.
+    << "+1 Strength" when id == UPGRADE_BUFF_STR_3.
+    // BUFF - Speed branch
+    << "Max bot speed: 5x" when id == UPGRADE_BUFF_SPEED_5.
+    << "Max bot speed: 10x" when id == UPGRADE_BUFF_SPEED_10.
     << "Max bot speed: 100x" when id == UPGRADE_BUFF_SPEED_100.
-    << "Heal on stairs" when id == UPGRADE_BUFF_HEAL_STAIRS.
     << "Max bot speed: 1000x" when id == UPGRADE_BUFF_SPEED_1000.
     
     // DIFFICULTY
+    << "Stairs in random spot (+$1)" when id == UPGRADE_DIFF_STAIRS_RANDOM.
     << "Floors have 2 rooms (+$1)" when id == UPGRADE_DIFF_ROOM_2.
     << "Room size varies 3-7 (+$1)" when id == UPGRADE_DIFF_VAR_SIZE.
-    << "1 monster per floor (+$2)" when id == UPGRADE_DIFF_MONSTER_1.
+    << "Kobolds spawn (+$2)" when id == UPGRADE_DIFF_KOBOLDS.
     << "Floors have 3 rooms (+$1)" when id == UPGRADE_DIFF_ROOM_3.
-    << "Stairs in random spot (+$1)" when id == UPGRADE_DIFF_STAIRS_RANDOM.
+    << "Goblins spawn (+$2)" when id == UPGRADE_DIFF_GOBLINS.
     << "2 monsters per floor (+$2)" when id == UPGRADE_DIFF_MONSTER_2.
     << "Floors have 4 rooms (+$1)" when id == UPGRADE_DIFF_ROOM_4.
     << "3 monsters per floor (+$2)" when id == UPGRADE_DIFF_MONSTER_3.
     << "Floors have 5+ rooms (+$2)" when id == UPGRADE_DIFF_ROOM_MANY.
     
-    // LANGUAGE
-    << "Learn x := value." when id == UPGRADE_LANG_VARIABLES.
-    << "Learn #func() > < syntax" when id == UPGRADE_LANG_FUNCTIONS.
-    << "Learn for and loop" when id == UPGRADE_LANG_LOOPS.
-    << "Learn when and unless" when id == UPGRADE_LANG_CONDITIONS.
-    << "Learn arr := []" when id == UPGRADE_LANG_ARRAYS.
-    << "Learn value | /func/" when id == UPGRADE_LANG_PIPES.
-    << "Learn { x: 1, y: 2 }" when id == UPGRADE_LANG_STRUCTS.
-    << "Learn value | > _ => <" when id == UPGRADE_LANG_PATTERN.
-    << "Learn \\(x) => expr" when id == UPGRADE_LANG_LAMBDA.
+    // LANGUAGE - Tier 1 (describe purpose, not syntax!)
+    << "Store values for later" when id == UPGRADE_LANG_VARIABLES.
+    << "Do math calculations" when id == UPGRADE_LANG_ARITHMETIC.
+    << "Compare values" when id == UPGRADE_LANG_COMPARISON.
+    // LANGUAGE - Tier 2
+    << "Reusable code blocks" when id == UPGRADE_LANG_FUNCTIONS.
+    << "Output from functions" when id == UPGRADE_LANG_RETURN.
+    << "Conditional execution" when id == UPGRADE_LANG_WHEN.
+    // LANGUAGE - Tier 3
+    << "Repeat until done" when id == UPGRADE_LANG_LOOP.
+    << "Iterate over ranges" when id == UPGRADE_LANG_FOR.
+    << "Control loop flow" when id == UPGRADE_LANG_BREAK.
+    // LANGUAGE - Tier 4
+    << "Ordered collections" when id == UPGRADE_LANG_ARRAYS.
+    << "Group related data" when id == UPGRADE_LANG_STRUCTS.
+    << "Text and messages" when id == UPGRADE_LANG_STRINGS.
+    // LANGUAGE - Tier 5
+    << "Inline conditionals" when id == UPGRADE_LANG_IFELSE.
+    << "Chain operations" when id == UPGRADE_LANG_PIPES.
+    << "Multi-line conditions" when id == UPGRADE_LANG_BLOCKWHEN.
+    // LANGUAGE - Tier 6
+    << "Match value patterns" when id == UPGRADE_LANG_PATTERN.
+    << "Anonymous functions" when id == UPGRADE_LANG_LAMBDA.
+    << "Document your code" when id == UPGRADE_LANG_COMMENTS.
     
     << "".
 <
 
 // ============================================================================
-// Language Tutorial System
+// Language Tutorial System (Expanded with more content)
 // ============================================================================
 
 tutorial_active := 0.
 tutorial_upgrade_id := 0.
+tutorial_title := "".
 tutorial_line_1 := "".
 tutorial_line_2 := "".
 tutorial_line_3 := "".
 tutorial_line_4 := "".
+tutorial_line_5 := "".
+tutorial_line_6 := "".
 tutorial_code_1 := "".
 tutorial_code_2 := "".
 tutorial_code_3 := "".
+tutorial_code_4 := "".
+tutorial_tip := "".
 
 #show_language_tutorial(id) >
     tutorial_active = 1.
@@ -455,108 +658,298 @@ tutorial_code_3 := "".
     
     // Set tutorial content based on upgrade
     /set_tutorial_variables/ when id == UPGRADE_LANG_VARIABLES.
+    /set_tutorial_arithmetic/ when id == UPGRADE_LANG_ARITHMETIC.
+    /set_tutorial_comparison/ when id == UPGRADE_LANG_COMPARISON.
     /set_tutorial_functions/ when id == UPGRADE_LANG_FUNCTIONS.
-    /set_tutorial_loops/ when id == UPGRADE_LANG_LOOPS.
-    /set_tutorial_conditions/ when id == UPGRADE_LANG_CONDITIONS.
+    /set_tutorial_return/ when id == UPGRADE_LANG_RETURN.
+    /set_tutorial_when/ when id == UPGRADE_LANG_WHEN.
+    /set_tutorial_loop/ when id == UPGRADE_LANG_LOOP.
+    /set_tutorial_for/ when id == UPGRADE_LANG_FOR.
+    /set_tutorial_break/ when id == UPGRADE_LANG_BREAK.
     /set_tutorial_arrays/ when id == UPGRADE_LANG_ARRAYS.
-    /set_tutorial_pipes/ when id == UPGRADE_LANG_PIPES.
     /set_tutorial_structs/ when id == UPGRADE_LANG_STRUCTS.
+    /set_tutorial_strings/ when id == UPGRADE_LANG_STRINGS.
+    /set_tutorial_ifelse/ when id == UPGRADE_LANG_IFELSE.
+    /set_tutorial_pipes/ when id == UPGRADE_LANG_PIPES.
+    /set_tutorial_blockwhen/ when id == UPGRADE_LANG_BLOCKWHEN.
     /set_tutorial_patterns/ when id == UPGRADE_LANG_PATTERN.
     /set_tutorial_lambdas/ when id == UPGRADE_LANG_LAMBDA.
+    /set_tutorial_comments/ when id == UPGRADE_LANG_COMMENTS.
 <
 
 #set_tutorial_variables() >
-    tutorial_line_1 = "VARIABLES".
-    tutorial_line_2 = "Use := to declare a new variable.".
-    tutorial_line_3 = "Use = to assign to existing variable.".
-    tutorial_line_4 = "All statements end with a period.".
-    tutorial_code_1 = "hp := 100.".
-    tutorial_code_2 = "name := \"hero\".".
-    tutorial_code_3 = "hp = hp - 10.".
+    tutorial_title = "VARIABLES".
+    tutorial_line_1 = "Variables store values for later use.".
+    tutorial_line_2 = "Use := to declare a NEW variable.".
+    tutorial_line_3 = "Use = to assign to EXISTING variable.".
+    tutorial_line_4 = "All statements end with a period (.)".
+    tutorial_line_5 = "Variable names can use letters, numbers,".
+    tutorial_line_6 = "and underscores. Start with letter.".
+    tutorial_code_1 = "hp := 100.        // declare".
+    tutorial_code_2 = "hp = hp - 10.     // assign".
+    tutorial_code_3 = "player_x := 5.".
+    tutorial_code_4 = "MAX_HP := 100.    // constants".
+    tutorial_tip = "TIP: Use UPPERCASE for constants".
+<
+
+#set_tutorial_arithmetic() >
+    tutorial_title = "ARITHMETIC".
+    tutorial_line_1 = "Standard math operators work as expected.".
+    tutorial_line_2 = "+ addition    - subtraction".
+    tutorial_line_3 = "* multiply    / division".
+    tutorial_line_4 = "% modulo (remainder after division)".
+    tutorial_line_5 = "Use parentheses to control order.".
+    tutorial_line_6 = "Floats use 'f' suffix: 3.14f".
+    tutorial_code_1 = "sum := 5 + 3.     // 8".
+    tutorial_code_2 = "diff := 10 - 4.   // 6".
+    tutorial_code_3 = "prod := 6 * 7.    // 42".
+    tutorial_code_4 = "rem := 17 % 5.    // 2".
+    tutorial_tip = "TIP: Use () for complex expressions".
+<
+
+#set_tutorial_comparison() >
+    tutorial_title = "COMPARISON".
+    tutorial_line_1 = "Compare values using WORD operators.".
+    tutorial_line_2 = "lt = less than    gt = greater than".
+    tutorial_line_3 = "le = less or eq   ge = greater or eq".
+    tutorial_line_4 = "== equals         != not equals".
+    tutorial_line_5 = "Logic: and, or, not".
+    tutorial_line_6 = "Returns 1 for true, 0 for false.".
+    tutorial_code_1 = "is_low := hp lt 30.".
+    tutorial_code_2 = "can_go := x gt 0 and x lt 10.".
+    tutorial_code_3 = "alive := hp gt 0.".
+    tutorial_code_4 = "same := a == b.".
+    tutorial_tip = "TIP: 'not' negates: not (x == 0)".
 <
 
 #set_tutorial_functions() >
-    tutorial_line_1 = "FUNCTIONS".
-    tutorial_line_2 = "Define with #name() > body <".
-    tutorial_line_3 = "Call with /name/arg1/arg2.".
-    tutorial_line_4 = "Return values with << expr.".
-    tutorial_code_1 = "#add(a, b) > << a + b. <".
-    tutorial_code_2 = "result := /add/5/3.".
-    tutorial_code_3 = "".
+    tutorial_title = "FUNCTIONS".
+    tutorial_line_1 = "Functions are defined with # prefix.".
+    tutorial_line_2 = "Use > to enter the function body.".
+    tutorial_line_3 = "Use < to exit the function body.".
+    tutorial_line_4 = "Call functions with /name/args/".
+    tutorial_line_5 = "Arguments are separated by /".
+    tutorial_line_6 = "Like NetHack's extended commands!".
+    tutorial_code_1 = "#greet(name) >".
+    tutorial_code_2 = "    /print/name.".
+    tutorial_code_3 = "<".
+    tutorial_code_4 = "/greet/\"hero\".".
+    tutorial_tip = "TIP: Think of / as wand casting!".
 <
 
-#set_tutorial_loops() >
-    tutorial_line_1 = "LOOPS".
-    tutorial_line_2 = "for i in start..end > body <".
-    tutorial_line_3 = "loop > body < runs forever.".
-    tutorial_line_4 = "Use >> to break, >< to continue.".
-    tutorial_code_1 = "for i in 0..10 > /print/i. <".
-    tutorial_code_2 = "loop when running > /tick/. <".
-    tutorial_code_3 = ">> when done.".
+#set_tutorial_return() >
+    tutorial_title = "RETURN".
+    tutorial_line_1 = "Return a value from a function.".
+    tutorial_line_2 = "Use << (like going up stairs!)".
+    tutorial_line_3 = "Exits the function immediately.".
+    tutorial_line_4 = "The value becomes the call result.".
+    tutorial_line_5 = "Can have multiple return points.".
+    tutorial_line_6 = "Early returns are great for guards!".
+    tutorial_code_1 = "#double(x) > << x * 2. <".
+    tutorial_code_2 = "#max(a, b) >".
+    tutorial_code_3 = "    << a when a gt b.".
+    tutorial_code_4 = "    << b. <".
+    tutorial_tip = "TIP: << is like climbing stairs UP".
 <
 
-#set_tutorial_conditions() >
-    tutorial_line_1 = "CONDITIONS".
-    tutorial_line_2 = "Actions come before conditions!".
-    tutorial_line_3 = "Use 'when' for positive checks.".
-    tutorial_line_4 = "Use 'unless' for negation.".
+#set_tutorial_when() >
+    tutorial_title = "WHEN / UNLESS".
+    tutorial_line_1 = "Conditional execution, nh-style!".
+    tutorial_line_2 = "Action comes FIRST, then condition.".
+    tutorial_line_3 = "'when' runs if condition is true.".
+    tutorial_line_4 = "'unless' runs if condition is false.".
+    tutorial_line_5 = "Reads naturally: 'attack when ready'".
+    tutorial_line_6 = "Works with any statement.".
     tutorial_code_1 = "/attack/ when hp gt 50.".
     tutorial_code_2 = "/flee/ unless cornered.".
-    tutorial_code_3 = "x = 10 when flag == 1.".
+    tutorial_code_3 = "x = 0 when reset == 1.".
+    tutorial_code_4 = "<< 0 when done.".
+    tutorial_tip = "TIP: Great for guard clauses!".
+<
+
+#set_tutorial_loop() >
+    tutorial_title = "LOOP".
+    tutorial_line_1 = "Repeat code until you break out.".
+    tutorial_line_2 = "loop > body < runs forever.".
+    tutorial_line_3 = "Use >> to break out of the loop.".
+    tutorial_line_4 = "Often combined with 'when'.".
+    tutorial_line_5 = "Can also do: loop when cond > <".
+    tutorial_line_6 = "This checks condition each iteration.".
+    tutorial_code_1 = "loop >".
+    tutorial_code_2 = "    /tick/.".
+    tutorial_code_3 = "    >> when done.".
+    tutorial_code_4 = "<".
+    tutorial_tip = "TIP: >> is like bursting out!".
+<
+
+#set_tutorial_for() >
+    tutorial_title = "FOR LOOPS".
+    tutorial_line_1 = "Iterate over a range of numbers.".
+    tutorial_line_2 = "for var in start..end > body <".
+    tutorial_line_3 = "Range is [start, end) - end excluded!".
+    tutorial_line_4 = "Variable is scoped to the loop.".
+    tutorial_line_5 = "Start and end can be expressions.".
+    tutorial_line_6 = "Great for array iteration.".
+    tutorial_code_1 = "for i in 0..10 >".
+    tutorial_code_2 = "    /print/i.".
+    tutorial_code_3 = "<".
+    tutorial_code_4 = "for j in 0..len > <".
+    tutorial_tip = "TIP: 0..10 gives 0,1,2...9".
+<
+
+#set_tutorial_break() >
+    tutorial_title = "BREAK & CONTINUE".
+    tutorial_line_1 = "Control loop flow.".
+    tutorial_line_2 = ">> breaks out of the loop entirely.".
+    tutorial_line_3 = ">< continues to next iteration.".
+    tutorial_line_4 = "Often combined with 'when'.".
+    tutorial_line_5 = "Works in both loop and for.".
+    tutorial_line_6 = "Think: >> exits, >< skips.".
+    tutorial_code_1 = ">> when found == 1.".
+    tutorial_code_2 = ">< when skip == 1.".
+    tutorial_code_3 = "loop > >> when i gt 100. <".
+    tutorial_code_4 = "".
+    tutorial_tip = "TIP: >> out, >< around".
 <
 
 #set_tutorial_arrays() >
-    tutorial_line_1 = "ARRAYS".
-    tutorial_line_2 = "Create empty array with [].".
-    tutorial_line_3 = "Access elements with arr[i].".
-    tutorial_line_4 = "Arrays grow automatically.".
-    tutorial_code_1 = "arr := [1, 2, 3].".
-    tutorial_code_2 = "arr[0] = 10.".
-    tutorial_code_3 = "x := arr[2].".
-<
-
-#set_tutorial_pipes() >
-    tutorial_line_1 = "PIPES".
-    tutorial_line_2 = "Chain operations with |".
-    tutorial_line_3 = "Value flows left to right.".
-    tutorial_line_4 = "Becomes first argument.".
-    tutorial_code_1 = "5 | /double/.".
-    tutorial_code_2 = "x | /add/10/ | /print/.".
-    tutorial_code_3 = "".
+    tutorial_title = "ARRAYS".
+    tutorial_line_1 = "Ordered collections of values.".
+    tutorial_line_2 = "Create with [elem, elem, ...].".
+    tutorial_line_3 = "Access with arr[index].".
+    tutorial_line_4 = "Indices start at 0.".
+    tutorial_line_5 = "Arrays can hold any values.".
+    tutorial_line_6 = "Use for-in to iterate.".
+    tutorial_code_1 = "nums := [1, 2, 3].".
+    tutorial_code_2 = "first := nums[0].".
+    tutorial_code_3 = "nums[1] = 99.".
+    tutorial_code_4 = "empty := [].".
+    tutorial_tip = "TIP: Great for pathfinding!".
 <
 
 #set_tutorial_structs() >
-    tutorial_line_1 = "STRUCTS".
-    tutorial_line_2 = "Create with { key: value }.".
-    tutorial_line_3 = "Access fields with ->".
-    tutorial_line_4 = "Assign fields same way.".
+    tutorial_title = "STRUCTS".
+    tutorial_line_1 = "Group related data together.".
+    tutorial_line_2 = "Create with { key: value, ... }.".
+    tutorial_line_3 = "Access fields with -> operator.".
+    tutorial_line_4 = "Assign fields the same way.".
+    tutorial_line_5 = "Fields can be any type.".
+    tutorial_line_6 = "Perfect for game entities.".
     tutorial_code_1 = "hero := { hp: 100, x: 5 }.".
     tutorial_code_2 = "current := hero->hp.".
-    tutorial_code_3 = "hero->hp = 80.".
+    tutorial_code_3 = "hero->hp = hero->hp - 10.".
+    tutorial_code_4 = "hero->y = 3.".
+    tutorial_tip = "TIP: Great for player/enemy state".
+<
+
+#set_tutorial_strings() >
+    tutorial_title = "STRINGS".
+    tutorial_line_1 = "Text values in double quotes.".
+    tutorial_line_2 = "Used for messages and names.".
+    tutorial_line_3 = "Can be stored in variables.".
+    tutorial_line_4 = "Useful for debugging output.".
+    tutorial_line_5 = "Escape with backslash.".
+    tutorial_line_6 = "Works with /console_log/.".
+    tutorial_code_1 = "msg := \"Hello!\".".
+    tutorial_code_2 = "/console_log/msg.".
+    tutorial_code_3 = "name := \"hero\".".
+    tutorial_code_4 = "".
+    tutorial_tip = "TIP: Use for debug messages".
+<
+
+#set_tutorial_ifelse() >
+    tutorial_title = "IF-ELSE EXPRESSIONS".
+    tutorial_line_1 = "Choose between two values inline.".
+    tutorial_line_2 = "Syntax: value if cond else other".
+    tutorial_line_3 = "This is an EXPRESSION, not statement!".
+    tutorial_line_4 = "Returns one value or the other.".
+    tutorial_line_5 = "Great for conditional assignment.".
+    tutorial_line_6 = "Can be used anywhere values go.".
+    tutorial_code_1 = "max := a if a gt b else b.".
+    tutorial_code_2 = "bonus := 2 if crit else 1.".
+    tutorial_code_3 = "dir := 1 if up else -1.".
+    tutorial_code_4 = "".
+    tutorial_tip = "TIP: value if cond else default".
+<
+
+#set_tutorial_pipes() >
+    tutorial_title = "PIPES".
+    tutorial_line_1 = "Chain operations elegantly.".
+    tutorial_line_2 = "Value flows left to right with |".
+    tutorial_line_3 = "Piped value becomes first argument.".
+    tutorial_line_4 = "Can chain multiple operations.".
+    tutorial_line_5 = "Makes data transformation readable.".
+    tutorial_line_6 = "Works with functions and lambdas.".
+    tutorial_code_1 = "5 | /double/.       // 10".
+    tutorial_code_2 = "x | /add/1/ | /mul/2/.".
+    tutorial_code_3 = "hp | /clamp/0/100/.".
+    tutorial_code_4 = "".
+    tutorial_tip = "TIP: Read left-to-right like Unix".
+<
+
+#set_tutorial_blockwhen() >
+    tutorial_title = "BLOCK WHEN".
+    tutorial_line_1 = "Apply condition to entire block.".
+    tutorial_line_2 = "Wrap statements in > ... <".
+    tutorial_line_3 = "Then add when condition after.".
+    tutorial_line_4 = "All statements run or none.".
+    tutorial_line_5 = "Cleaner than repeating condition.".
+    tutorial_line_6 = "Great for multi-step actions.".
+    tutorial_code_1 = ">".
+    tutorial_code_2 = "    x = x + 1.".
+    tutorial_code_3 = "    /update/.".
+    tutorial_code_4 = "< when can_move == 1.".
+    tutorial_tip = "TIP: Groups related actions".
 <
 
 #set_tutorial_patterns() >
-    tutorial_line_1 = "PATTERN MATCHING".
-    tutorial_line_2 = "Match value against patterns.".
-    tutorial_line_3 = "Use _ as wildcard.".
-    tutorial_line_4 = "_ refers to matched value.".
-    tutorial_code_1 = "value | > 0 => \"zero\"".
-    tutorial_code_2 = "        1 => \"one\"".
-    tutorial_code_3 = "        _ => \"other\" <.".
+    tutorial_title = "PATTERN MATCHING".
+    tutorial_line_1 = "Match value against patterns.".
+    tutorial_line_2 = "value | > pattern => result <".
+    tutorial_line_3 = "Patterns are checked in order.".
+    tutorial_line_4 = "_ is wildcard, matches anything.".
+    tutorial_line_5 = "Inside _ => body, _ is the value!".
+    tutorial_line_6 = "Like a switch on steroids.".
+    tutorial_code_1 = "dir | >".
+    tutorial_code_2 = "    0 => \"up\"".
+    tutorial_code_3 = "    1 => \"down\"".
+    tutorial_code_4 = "    _ => \"unknown\" <.".
+    tutorial_tip = "TIP: Always end with _ catch-all".
 <
 
 #set_tutorial_lambdas() >
-    tutorial_line_1 = "LAMBDAS".
-    tutorial_line_2 = "Anonymous functions!".
-    tutorial_line_3 = "Great for piping.".
-    tutorial_line_4 = "Can have block body too.".
+    tutorial_title = "LAMBDAS".
+    tutorial_line_1 = "Anonymous inline functions.".
+    tutorial_line_2 = "\\(params) => expression".
+    tutorial_line_3 = "Perfect for piping operations.".
+    tutorial_line_4 = "Can take multiple parameters.".
+    tutorial_line_5 = "Can also have block body with > <".
+    tutorial_line_6 = "Creates a closure over scope.".
     tutorial_code_1 = "\\(x) => x * 2.".
-    tutorial_code_2 = "5 | \\(x) => x * x.".
+    tutorial_code_2 = "5 | \\(x) => x * x.   // 25".
     tutorial_code_3 = "\\(a, b) => a + b.".
+    tutorial_code_4 = "".
+    tutorial_tip = "TIP: \\ is like a tiny function".
+<
+
+#set_tutorial_comments() >
+    tutorial_title = "COMMENTS".
+    tutorial_line_1 = "Document your code!".
+    tutorial_line_2 = "// starts a single-line comment.".
+    tutorial_line_3 = "Everything after // is ignored.".
+    tutorial_line_4 = "Use to explain complex logic.".
+    tutorial_line_5 = "Also useful for temporarily".
+    tutorial_line_6 = "disabling code while debugging.".
+    tutorial_code_1 = "// This is a comment".
+    tutorial_code_2 = "hp := 100.  // player health".
+    tutorial_code_3 = "// /dangerous_func/.".
+    tutorial_code_4 = "".
+    tutorial_tip = "TIP: Comment your bot's strategy!".
 <
 
 #close_tutorial() >
     tutorial_active = 0.
+    tech_dragging = 0.
 <
 
 // ============================================================================
@@ -578,11 +971,11 @@ tutorial_code_3 := "".
 <
 
 // ============================================================================
-// Heal on Stairs (called when descending)
+// Heal on Stairs (called when descending) - ALWAYS ACTIVE
 // ============================================================================
 
 #apply_stair_heal() >
-    << 0 when /has_upgrade/UPGRADE_BUFF_HEAL_STAIRS == 0.
+    // Stair heal is always on (no upgrade needed)
     player_hp = player_max_hp.
     << 1.
 <
@@ -593,10 +986,25 @@ tutorial_code_3 := "".
 
 #apply_gold_drop(x, y) >
     << 0 when /has_upgrade/UPGRADE_BUFF_GOLD_DROP == 0.
+    // Base drop: 1-5 gold
     drop := /rng_int/5 + 1.
+    // Gold Drops+ doubles the value
+    drop = drop * 2 when /has_upgrade/UPGRADE_BUFF_GOLD_DROP_2 == 1.
     player_gold = player_gold + drop.
     /spawn_gold_particles/x/y.
     << drop.
+<
+
+// ============================================================================
+// Gold Pile Value (based on upgrades)
+// ============================================================================
+
+#get_gold_pile_value() >
+    // Base value: 1-4 gold
+    value := /rng_int/4 + 1.
+    // Gold Spawn+ doubles the value
+    value = value * 2 when /has_upgrade/UPGRADE_BUFF_GOLD_SPAWN_2 == 1.
+    << value.
 <
 
 // ============================================================================

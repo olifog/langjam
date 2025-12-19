@@ -54,7 +54,6 @@ tech_tree_x := 0.
 tech_tree_y := 0.
 tech_tree_w := 0.
 tech_tree_h := 0.
-TECH_TREE_HEIGHT := 380.  // Height for tech tree panel (needs more room for 3 branches)
 
 // Right pane / Editor bounds
 panel_editor_x := 0.
@@ -137,21 +136,15 @@ LAYOUT_PADDING := 16.
     dungeon_y = top_half_y + top_half_h - dungeon_pix_h when dungeon_pix_h lt top_half_h.
     dungeon_y = top_half_y when dungeon_y lt top_half_y.  // Clamp to half
     
-    // ===== BOTTOM HALF: Tech tree (uses full left pane width for 3 branches) =====
+    // ===== BOTTOM HALF: Tech tree (uses full left pane width and height) =====
     bottom_half_y := left_pane_y + half_height + LAYOUT_PADDING.
     bottom_half_h := half_height.
     
-    // Tech tree uses full left pane width (need room for 3 branches)
+    // Tech tree fills the entire bottom half
     tech_tree_w = left_pane_w.
     tech_tree_h = bottom_half_h.
-    tech_tree_h = TECH_TREE_HEIGHT when bottom_half_h gt TECH_TREE_HEIGHT.
-    
-    // Position at left edge
     tech_tree_x = left_pane_x.
-    
-    // Vertically position within bottom half
-    tech_tree_y = bottom_half_y + (bottom_half_h - tech_tree_h) / 2.
-    tech_tree_y = bottom_half_y when tech_tree_y lt bottom_half_y.  // Clamp
+    tech_tree_y = bottom_half_y.
     
     // =========== RIGHT PANE (EDITOR) ===========
     right_pane_x := split_x + divider_width / 2 + divider_padding.
@@ -185,6 +178,9 @@ LAYOUT_PADDING := 16.
     /init_background_shader/.
     /calculate_layout/.
     /generate_dungeon/.
+    
+    // Set initial bonus display to what player would earn for completing floor
+    dngn_bonus = /calculate_floor_bonus/.
     
     /init_editor/.
     /init_intro/.
@@ -412,8 +408,9 @@ NODE_GAP_Y := 14.
 BRANCH_GAP := 35.
 
 // Scroll state
+// Default scroll_y of -120 shows both upper trees and language tree root
 tech_scroll_x := 0.
-tech_scroll_y := 0.
+tech_scroll_y := -120.
 tech_dragging := 0.
 tech_drag_start_x := 0.
 tech_drag_start_y := 0.
@@ -472,18 +469,22 @@ clip_h := 0.
     branch_w := NODE_W * 3 + NODE_GAP_X * 2.
     
     // ===== DRAW BRANCHES =====
-    // Each branch: draw lines first, then nodes
+    // Buff (left) and Difficulty (right) grow UPWARD from bottom
+    // Language (centered below them) grows DOWNWARD
     
-    // BUFF branch
+    // BUFF branch (left, grows up)
     /draw_buff_tree/bx/by.
     
-    // DIFFICULTY branch
+    // DIFFICULTY branch (right of Buff, grows up)
     diff_x := bx + branch_w + BRANCH_GAP.
     /draw_diff_tree/diff_x/by.
     
-    // LANGUAGE branch
-    lang_x := diff_x + branch_w + BRANCH_GAP.
-    /draw_lang_tree/lang_x/by.
+    // LANGUAGE branch (centered below Buff/Diff, grows DOWN)
+    // Position horizontally centered between the two upper trees
+    lang_x := bx + branch_w / 2 + BRANCH_GAP / 2.
+    // Start below the bottom of the view (player scrolls down to see it)
+    lang_y := by + TREE_PADDING * 2.
+    /draw_lang_tree/lang_x/lang_y.
     
     /clear_clip_rect/.
     
@@ -530,12 +531,13 @@ clip_h := 0.
     tc = 180 when hovered == 1.
     /text_draw/(x + 10)/(y + 4)/10/tc/tc/(tc + 20)/"Center".
     
-    // Handle click
+    // Handle click - reset to default scroll position (-120 shows language root)
+    // Skip click handling if tutorial is active (popup may overlap)
     just_clicked := /input_mouse_just_pressed/.
     >
         tech_scroll_x = 0.
-        tech_scroll_y = 0.
-    < when just_clicked == 1 and hovered == 1.
+        tech_scroll_y = -120.
+    < when just_clicked == 1 and hovered == 1 and tutorial_active == 0.
 <
 
 // ============================================================================
@@ -546,61 +548,101 @@ clip_h := 0.
 // Using draw_line for proper bezier-like connections
 
 #draw_buff_tree(bx, by) >
-    // Grid positions: col 0-2, row 0-5 (bottom to top)
+    // Branching tree with player choice!
+    // Col 0: Stats path (STR, AC)
+    // Col 1: Gold path
+    // Col 2: Speed path (separate)
     nw := NODE_W.
     nh := NODE_H.
     gx := NODE_GAP_X.
     gy := NODE_GAP_Y + 8.
     
-    // Calculate node positions
+    // Calculate row positions (8 rows)
     row0 := by - nh.
     row1 := row0 - nh - gy.
     row2 := row1 - nh - gy.
     row3 := row2 - nh - gy.
     row4 := row3 - nh - gy.
     row5 := row4 - nh - gy.
+    row6 := row5 - nh - gy.
+    row7 := row6 - nh - gy.
     
+    // Column positions
     col0 := bx.
     col1 := bx + nw + gx.
     col2 := bx + (nw + gx) * 2.
+    // Center between col0 and col1 for merge points
+    colm := bx + (nw + gx) / 2.
     
-    // Draw connections first (behind nodes)
     lr := 45. lg := 55. lb := 70.
     
-    // Row 0 -> Row 1 (1->3)
-    /draw_tree_conn/(col1 + nw / 2)/(row0 - 2)/(col0 + nw / 2)/(row1 + nh + 2)/lr/lg/lb.
-    /draw_tree_conn/(col1 + nw / 2)/(row0 - 2)/(col1 + nw / 2)/(row1 + nh + 2)/lr/lg/lb.
-    /draw_tree_conn/(col1 + nw / 2)/(row0 - 2)/(col2 + nw / 2)/(row1 + nh + 2)/lr/lg/lb.
+    // Row 0: HP I (center between col0 and col1) branches to 3 paths
+    /draw_tree_conn/(colm + nw / 2)/(row0 - 2)/(col0 + nw / 2)/(row1 + nh + 2)/lr/lg/lb.
+    /draw_tree_conn/(colm + nw / 2)/(row0 - 2)/(col1 + nw / 2)/(row1 + nh + 2)/lr/lg/lb.
+    /draw_tree_conn/(colm + nw / 2)/(row0 - 2)/(col2 + nw / 2)/(row1 + nh + 2)/lr/lg/lb.
     
-    // Row 1 col 0,1 -> Row 2 col 0 (Gold Drop)
+    // Row 1 -> Row 2: Stats path and Gold path continue, Speed continues
     /draw_tree_conn/(col0 + nw / 2)/(row1 - 2)/(col0 + nw / 2)/(row2 + nh + 2)/lr/lg/lb.
-    /draw_tree_conn/(col1 + nw / 2)/(row1 - 2)/(col0 + nw / 2)/(row2 + nh + 2)/lr/lg/lb.
-    
-    // Row 1 col 2 -> Row 2 col 2 (speed)
+    /draw_tree_conn/(col1 + nw / 2)/(row1 - 2)/(col1 + nw / 2)/(row2 + nh + 2)/lr/lg/lb.
     /draw_tree_conn/(col2 + nw / 2)/(row1 - 2)/(col2 + nw / 2)/(row2 + nh + 2)/lr/lg/lb.
     
-    // Vertical chains
-    /draw_tree_conn/(col0 + nw / 2)/(row2 - 2)/(col0 + nw / 2)/(row3 + nh + 2)/lr/lg/lb.
-    /draw_tree_conn/(col0 + nw / 2)/(row3 - 2)/(col0 + nw / 2)/(row4 + nh + 2)/lr/lg/lb.
-    /draw_tree_conn/(col0 + nw / 2)/(row4 - 2)/(col0 + nw / 2)/(row5 + nh + 2)/lr/lg/lb.
+    // Row 2 -> Row 3: Stats and Gold merge to HP II (center)
+    /draw_tree_conn/(col0 + nw / 2)/(row2 - 2)/(colm + nw / 2)/(row3 + nh + 2)/lr/lg/lb.
+    /draw_tree_conn/(col1 + nw / 2)/(row2 - 2)/(colm + nw / 2)/(row3 + nh + 2)/lr/lg/lb.
     /draw_tree_conn/(col2 + nw / 2)/(row2 - 2)/(col2 + nw / 2)/(row3 + nh + 2)/lr/lg/lb.
+    
+    // Row 3: HP II branches to Stats path and Gold path
+    /draw_tree_conn/(colm + nw / 2)/(row3 - 2)/(col0 + nw / 2)/(row4 + nh + 2)/lr/lg/lb.
+    /draw_tree_conn/(colm + nw / 2)/(row3 - 2)/(col1 + nw / 2)/(row4 + nh + 2)/lr/lg/lb.
     /draw_tree_conn/(col2 + nw / 2)/(row3 - 2)/(col2 + nw / 2)/(row4 + nh + 2)/lr/lg/lb.
     
+    // Row 4 -> Row 5: Stats and Gold paths continue
+    /draw_tree_conn/(col0 + nw / 2)/(row4 - 2)/(col0 + nw / 2)/(row5 + nh + 2)/lr/lg/lb.
+    /draw_tree_conn/(col1 + nw / 2)/(row4 - 2)/(col1 + nw / 2)/(row5 + nh + 2)/lr/lg/lb.
+    
+    // Row 5 -> Row 6: Stats and Gold merge to HP III
+    /draw_tree_conn/(col0 + nw / 2)/(row5 - 2)/(colm + nw / 2)/(row6 + nh + 2)/lr/lg/lb.
+    /draw_tree_conn/(col1 + nw / 2)/(row5 - 2)/(colm + nw / 2)/(row6 + nh + 2)/lr/lg/lb.
+    
+    // Row 6 -> Row 7: HP III to STR III
+    /draw_tree_conn/(colm + nw / 2)/(row6 - 2)/(colm + nw / 2)/(row7 + nh + 2)/lr/lg/lb.
+    
     // Draw nodes
-    /draw_node/col1/row0/UPGRADE_BUFF_START.
-    /draw_node/col0/row1/UPGRADE_BUFF_HP_1.
-    /draw_node/col1/row1/UPGRADE_BUFF_STR_1.
+    // Row 0: HP I (center)
+    /draw_node/colm/row0/UPGRADE_BUFF_HP_1.
+    
+    // Row 1: STR I (left), Gold Spawn (center), Speed 5x (right)
+    /draw_node/col0/row1/UPGRADE_BUFF_STR_1.
+    /draw_node/col1/row1/UPGRADE_BUFF_GOLD_SPAWN.
     /draw_node/col2/row1/UPGRADE_BUFF_SPEED_5.
-    /draw_node/col0/row2/UPGRADE_BUFF_GOLD_DROP.
+    
+    // Row 2: AC I (left), Gold Spawn+ (center), Speed 10x (right)
+    /draw_node/col0/row2/UPGRADE_BUFF_AC_1.
+    /draw_node/col1/row2/UPGRADE_BUFF_GOLD_SPAWN_2.
     /draw_node/col2/row2/UPGRADE_BUFF_SPEED_10.
-    /draw_node/col0/row3/UPGRADE_BUFF_HP_2.
+    
+    // Row 3: HP II (center), Speed 100x (right)
+    /draw_node/colm/row3/UPGRADE_BUFF_HP_2.
     /draw_node/col2/row3/UPGRADE_BUFF_SPEED_100.
-    /draw_node/col0/row4/UPGRADE_BUFF_GOLD_SPAWN.
+    
+    // Row 4: STR II (left), Gold Drops (center), Speed 1000x (right)
+    /draw_node/col0/row4/UPGRADE_BUFF_STR_2.
+    /draw_node/col1/row4/UPGRADE_BUFF_GOLD_DROP.
     /draw_node/col2/row4/UPGRADE_BUFF_SPEED_1000.
-    /draw_node/col0/row5/UPGRADE_BUFF_HEAL_STAIRS.
+    
+    // Row 5: AC II (left), Gold Drops+ (center)
+    /draw_node/col0/row5/UPGRADE_BUFF_AC_2.
+    /draw_node/col1/row5/UPGRADE_BUFF_GOLD_DROP_2.
+    
+    // Row 6: HP III (center)
+    /draw_node/colm/row6/UPGRADE_BUFF_HP_3.
+    
+    // Row 7: STR III (center)
+    /draw_node/colm/row7/UPGRADE_BUFF_STR_3.
 <
 
 #draw_diff_tree(bx, by) >
+    // Difficulty tree with choices between rooms and monsters
     nw := NODE_W.
     nh := NODE_H.
     gx := NODE_GAP_X.
@@ -612,6 +654,7 @@ clip_h := 0.
     row3 := row2 - nh - gy.
     row4 := row3 - nh - gy.
     row5 := row4 - nh - gy.
+    row6 := row5 - nh - gy.
     
     col0 := bx.
     col1 := bx + nw + gx.
@@ -619,86 +662,135 @@ clip_h := 0.
     
     lr := 45. lg := 55. lb := 70.
     
-    // Root -> split
-    /draw_tree_conn/(colm + nw / 2)/(row0 - 2)/(col0 + nw / 2)/(row1 + nh + 2)/lr/lg/lb.
-    /draw_tree_conn/(colm + nw / 2)/(row0 - 2)/(col1 + nw / 2)/(row1 + nh + 2)/lr/lg/lb.
-    
-    // Parallel chains
-    /draw_tree_conn/(col0 + nw / 2)/(row1 - 2)/(col0 + nw / 2)/(row2 + nh + 2)/lr/lg/lb.
-    /draw_tree_conn/(col1 + nw / 2)/(row1 - 2)/(col1 + nw / 2)/(row2 + nh + 2)/lr/lg/lb.
-    
-    // Merge to center
-    /draw_tree_conn/(col0 + nw / 2)/(row2 - 2)/(colm + nw / 2)/(row3 + nh + 2)/lr/lg/lb.
-    /draw_tree_conn/(col1 + nw / 2)/(row2 - 2)/(colm + nw / 2)/(row3 + nh + 2)/lr/lg/lb.
-    
-    // Split again
-    /draw_tree_conn/(colm + nw / 2)/(row3 - 2)/(col0 + nw / 2)/(row4 + nh + 2)/lr/lg/lb.
-    /draw_tree_conn/(colm + nw / 2)/(row3 - 2)/(col1 + nw / 2)/(row4 + nh + 2)/lr/lg/lb.
-    
-    // Final merge
-    /draw_tree_conn/(col0 + nw / 2)/(row4 - 2)/(colm + nw / 2)/(row5 + nh + 2)/lr/lg/lb.
-    /draw_tree_conn/(col1 + nw / 2)/(row4 - 2)/(colm + nw / 2)/(row5 + nh + 2)/lr/lg/lb.
-    
-    // Draw nodes
-    /draw_node/colm/row0/UPGRADE_DIFF_ROOM_2.
-    /draw_node/col0/row1/UPGRADE_DIFF_VAR_SIZE.
-    /draw_node/col1/row1/UPGRADE_DIFF_MONSTER_1.
-    /draw_node/col0/row2/UPGRADE_DIFF_ROOM_3.
-    /draw_node/col1/row2/UPGRADE_DIFF_STAIRS_RANDOM.
-    /draw_node/colm/row3/UPGRADE_DIFF_MONSTER_2.
-    /draw_node/col0/row4/UPGRADE_DIFF_ROOM_4.
-    /draw_node/col1/row4/UPGRADE_DIFF_MONSTER_3.
-    /draw_node/colm/row5/UPGRADE_DIFF_ROOM_MANY.
-<
-
-#draw_lang_tree(bx, by) >
-    nw := NODE_W.
-    nh := NODE_H.
-    gx := NODE_GAP_X.
-    gy := NODE_GAP_Y + 8.
-    
-    row0 := by - nh.
-    row1 := row0 - nh - gy.
-    row2 := row1 - nh - gy.
-    row3 := row2 - nh - gy.
-    row4 := row3 - nh - gy.
-    row5 := row4 - nh - gy.
-    
-    col0 := bx.
-    col1 := bx + nw + gx.
-    colm := bx + (nw + gx) / 2.
-    
-    lr := 45. lg := 55. lb := 70.
-    
-    // Straight down
+    // Row 0 -> Row 1: Rnd Stairs to 2 Rooms (straight)
     /draw_tree_conn/(colm + nw / 2)/(row0 - 2)/(colm + nw / 2)/(row1 + nh + 2)/lr/lg/lb.
     
-    // Split
+    // Row 1 -> Row 2: 2 Rooms splits to Var Size and Kobolds
     /draw_tree_conn/(colm + nw / 2)/(row1 - 2)/(col0 + nw / 2)/(row2 + nh + 2)/lr/lg/lb.
     /draw_tree_conn/(colm + nw / 2)/(row1 - 2)/(col1 + nw / 2)/(row2 + nh + 2)/lr/lg/lb.
     
-    // Parallel
+    // Row 2 -> Row 3: Parallel chains
     /draw_tree_conn/(col0 + nw / 2)/(row2 - 2)/(col0 + nw / 2)/(row3 + nh + 2)/lr/lg/lb.
     /draw_tree_conn/(col1 + nw / 2)/(row2 - 2)/(col1 + nw / 2)/(row3 + nh + 2)/lr/lg/lb.
     
-    // Merge
+    // Row 3 -> Row 4: Merge to 2 Monsters
     /draw_tree_conn/(col0 + nw / 2)/(row3 - 2)/(colm + nw / 2)/(row4 + nh + 2)/lr/lg/lb.
     /draw_tree_conn/(col1 + nw / 2)/(row3 - 2)/(colm + nw / 2)/(row4 + nh + 2)/lr/lg/lb.
     
-    // Split
+    // Row 4 -> Row 5: Split to 4 Rooms and 3 Monsters
     /draw_tree_conn/(colm + nw / 2)/(row4 - 2)/(col0 + nw / 2)/(row5 + nh + 2)/lr/lg/lb.
     /draw_tree_conn/(colm + nw / 2)/(row4 - 2)/(col1 + nw / 2)/(row5 + nh + 2)/lr/lg/lb.
     
+    // Row 5 -> Row 6: Merge to Many Rooms
+    /draw_tree_conn/(col0 + nw / 2)/(row5 - 2)/(colm + nw / 2)/(row6 + nh + 2)/lr/lg/lb.
+    /draw_tree_conn/(col1 + nw / 2)/(row5 - 2)/(colm + nw / 2)/(row6 + nh + 2)/lr/lg/lb.
+    
     // Draw nodes
-    /draw_node/colm/row0/UPGRADE_LANG_VARIABLES.
-    /draw_node/colm/row1/UPGRADE_LANG_FUNCTIONS.
-    /draw_node/col0/row2/UPGRADE_LANG_LOOPS.
-    /draw_node/col1/row2/UPGRADE_LANG_CONDITIONS.
-    /draw_node/col0/row3/UPGRADE_LANG_ARRAYS.
-    /draw_node/col1/row3/UPGRADE_LANG_PIPES.
-    /draw_node/colm/row4/UPGRADE_LANG_STRUCTS.
-    /draw_node/col0/row5/UPGRADE_LANG_PATTERN.
-    /draw_node/col1/row5/UPGRADE_LANG_LAMBDA.
+    /draw_node/colm/row0/UPGRADE_DIFF_STAIRS_RANDOM.
+    /draw_node/colm/row1/UPGRADE_DIFF_ROOM_2.
+    /draw_node/col0/row2/UPGRADE_DIFF_VAR_SIZE.
+    /draw_node/col1/row2/UPGRADE_DIFF_KOBOLDS.
+    /draw_node/col0/row3/UPGRADE_DIFF_ROOM_3.
+    /draw_node/col1/row3/UPGRADE_DIFF_GOBLINS.
+    /draw_node/colm/row4/UPGRADE_DIFF_MONSTER_2.
+    /draw_node/col0/row5/UPGRADE_DIFF_ROOM_4.
+    /draw_node/col1/row5/UPGRADE_DIFF_MONSTER_3.
+    /draw_node/colm/row6/UPGRADE_DIFF_ROOM_MANY.
+<
+
+#draw_lang_tree(bx, by) >
+    // Language tree grows DOWNWARD from top - 3 columns, 7 rows
+    nw := NODE_W.
+    nh := NODE_H.
+    gx := NODE_GAP_X.
+    gy := NODE_GAP_Y + 8.
+    
+    // Rows go DOWN (increasing y)
+    row0 := by.
+    row1 := row0 + nh + gy.
+    row2 := row1 + nh + gy.
+    row3 := row2 + nh + gy.
+    row4 := row3 + nh + gy.
+    row5 := row4 + nh + gy.
+    row6 := row5 + nh + gy.
+    
+    // 3 columns
+    col0 := bx.
+    col1 := bx + nw + gx.
+    col2 := bx + (nw + gx) * 2.
+    colm := bx + nw + gx. // Middle column (same as col1)
+    
+    lr := 45. lg := 55. lb := 70.
+    
+    // Row 0: Variables (center) -> Row 1: Arithmetic, Comparison (split)
+    /draw_tree_conn/(colm + nw / 2)/(row0 + nh + 2)/(col0 + nw / 2)/(row1 - 2)/lr/lg/lb.
+    /draw_tree_conn/(colm + nw / 2)/(row0 + nh + 2)/(col2 + nw / 2)/(row1 - 2)/lr/lg/lb.
+    
+    // Row 1 -> Row 2: Functions (merge from Arith/Comp)
+    /draw_tree_conn/(col0 + nw / 2)/(row1 + nh + 2)/(colm + nw / 2)/(row2 - 2)/lr/lg/lb.
+    /draw_tree_conn/(col2 + nw / 2)/(row1 + nh + 2)/(colm + nw / 2)/(row2 - 2)/lr/lg/lb.
+    
+    // Row 2: Functions -> Row 3: Return, When (split)
+    /draw_tree_conn/(colm + nw / 2)/(row2 + nh + 2)/(col0 + nw / 2)/(row3 - 2)/lr/lg/lb.
+    /draw_tree_conn/(colm + nw / 2)/(row2 + nh + 2)/(col2 + nw / 2)/(row3 - 2)/lr/lg/lb.
+    
+    // Row 3 -> Row 4: Loop (merge from Return/When)
+    /draw_tree_conn/(col0 + nw / 2)/(row3 + nh + 2)/(colm + nw / 2)/(row4 - 2)/lr/lg/lb.
+    /draw_tree_conn/(col2 + nw / 2)/(row3 + nh + 2)/(colm + nw / 2)/(row4 - 2)/lr/lg/lb.
+    
+    // Row 4: Loop -> Row 5: For, Break (split)
+    /draw_tree_conn/(colm + nw / 2)/(row4 + nh + 2)/(col0 + nw / 2)/(row5 - 2)/lr/lg/lb.
+    /draw_tree_conn/(colm + nw / 2)/(row4 + nh + 2)/(col2 + nw / 2)/(row5 - 2)/lr/lg/lb.
+    
+    // Row 5 -> Row 6: Data (Arrays, Structs, Strings) - fan out from For/Break
+    /draw_tree_conn/(col0 + nw / 2)/(row5 + nh + 2)/(col0 + nw / 2)/(row6 - 2)/lr/lg/lb.
+    /draw_tree_conn/(col0 + nw / 2)/(row5 + nh + 2)/(colm + nw / 2)/(row6 - 2)/lr/lg/lb.
+    /draw_tree_conn/(col2 + nw / 2)/(row5 + nh + 2)/(colm + nw / 2)/(row6 - 2)/lr/lg/lb.
+    /draw_tree_conn/(col2 + nw / 2)/(row5 + nh + 2)/(col2 + nw / 2)/(row6 - 2)/lr/lg/lb.
+    
+    // Draw nodes (6 rows visible, Tier 4-6 below)
+    /draw_node/colm/row0/UPGRADE_LANG_VARIABLES.       // Tier 1: Root
+    /draw_node/col0/row1/UPGRADE_LANG_ARITHMETIC.      // Tier 1: Left
+    /draw_node/col2/row1/UPGRADE_LANG_COMPARISON.      // Tier 1: Right
+    /draw_node/colm/row2/UPGRADE_LANG_FUNCTIONS.       // Tier 2: Center (merge)
+    /draw_node/col0/row3/UPGRADE_LANG_RETURN.          // Tier 2: Left
+    /draw_node/col2/row3/UPGRADE_LANG_WHEN.            // Tier 2: Right
+    /draw_node/colm/row4/UPGRADE_LANG_LOOP.            // Tier 3: Center (merge)
+    /draw_node/col0/row5/UPGRADE_LANG_FOR.             // Tier 3: Left
+    /draw_node/col2/row5/UPGRADE_LANG_BREAK.           // Tier 3: Right
+    /draw_node/col0/row6/UPGRADE_LANG_ARRAYS.          // Tier 4: Left
+    /draw_node/colm/row6/UPGRADE_LANG_STRUCTS.         // Tier 4: Center
+    /draw_node/col2/row6/UPGRADE_LANG_STRINGS.         // Tier 4: Right
+    
+    // Continue lower tiers
+    row7 := row6 + nh + gy.
+    row8 := row7 + nh + gy.
+    
+    // Row 6 -> Row 7: Advanced (If-else, Pipes, Block-when) - fan in from Data
+    /draw_tree_conn/(col0 + nw / 2)/(row6 + nh + 2)/(col0 + nw / 2)/(row7 - 2)/lr/lg/lb.
+    /draw_tree_conn/(col0 + nw / 2)/(row6 + nh + 2)/(colm + nw / 2)/(row7 - 2)/lr/lg/lb.
+    /draw_tree_conn/(colm + nw / 2)/(row6 + nh + 2)/(col0 + nw / 2)/(row7 - 2)/lr/lg/lb.
+    /draw_tree_conn/(colm + nw / 2)/(row6 + nh + 2)/(colm + nw / 2)/(row7 - 2)/lr/lg/lb.
+    /draw_tree_conn/(colm + nw / 2)/(row6 + nh + 2)/(col2 + nw / 2)/(row7 - 2)/lr/lg/lb.
+    /draw_tree_conn/(col2 + nw / 2)/(row6 + nh + 2)/(colm + nw / 2)/(row7 - 2)/lr/lg/lb.
+    /draw_tree_conn/(col2 + nw / 2)/(row6 + nh + 2)/(col2 + nw / 2)/(row7 - 2)/lr/lg/lb.
+    
+    // Row 7 -> Row 8: Expert (Pattern, Lambda, Comments)
+    /draw_tree_conn/(col0 + nw / 2)/(row7 + nh + 2)/(col0 + nw / 2)/(row8 - 2)/lr/lg/lb.
+    /draw_tree_conn/(col0 + nw / 2)/(row7 + nh + 2)/(colm + nw / 2)/(row8 - 2)/lr/lg/lb.
+    /draw_tree_conn/(colm + nw / 2)/(row7 + nh + 2)/(col0 + nw / 2)/(row8 - 2)/lr/lg/lb.
+    /draw_tree_conn/(colm + nw / 2)/(row7 + nh + 2)/(colm + nw / 2)/(row8 - 2)/lr/lg/lb.
+    /draw_tree_conn/(colm + nw / 2)/(row7 + nh + 2)/(col2 + nw / 2)/(row8 - 2)/lr/lg/lb.
+    /draw_tree_conn/(col2 + nw / 2)/(row7 + nh + 2)/(colm + nw / 2)/(row8 - 2)/lr/lg/lb.
+    /draw_tree_conn/(col2 + nw / 2)/(row7 + nh + 2)/(col2 + nw / 2)/(row8 - 2)/lr/lg/lb.
+    
+    // Draw Tier 5 & 6 nodes
+    /draw_node/col0/row7/UPGRADE_LANG_IFELSE.          // Tier 5: Left
+    /draw_node/colm/row7/UPGRADE_LANG_PIPES.           // Tier 5: Center
+    /draw_node/col2/row7/UPGRADE_LANG_BLOCKWHEN.       // Tier 5: Right
+    /draw_node/col0/row8/UPGRADE_LANG_PATTERN.         // Tier 6: Left
+    /draw_node/colm/row8/UPGRADE_LANG_LAMBDA.          // Tier 6: Center
+    /draw_node/col2/row8/UPGRADE_LANG_COMMENTS.        // Tier 6: Right
 <
 
 // Draw connection line between nodes (top of lower node to bottom of upper node)
@@ -860,40 +952,55 @@ clip_h := 0.
 <
 
 #draw_tutorial_popup() >
-    // Draw centered tutorial popup
+    // Draw larger centered tutorial popup
     cx := tech_tree_x + tech_tree_w / 2.
     cy := tech_tree_y + tech_tree_h / 2.
     
-    pw := 280.
-    ph := 200.
+    pw := 360.
+    ph := 340.
     px := cx - pw / 2.
     py := cy - ph / 2.
     
     // Background with border
-    /draw_rect/px/py/pw/ph/20/25/35/250.
-    /draw_rect/px/py/pw/2/80/160/200/255.
-    /draw_rect/px/(py + ph - 2)/pw/2/40/80/100/255.
-    /draw_rect/px/py/2/ph/60/120/160/255.
-    /draw_rect/(px + pw - 2)/py/2/ph/60/120/160/255.
+    /draw_rect/px/py/pw/ph/15/20/30/250.
+    /draw_rect/px/py/pw/3/80/160/200/255.
+    /draw_rect/px/(py + ph - 3)/pw/3/40/80/100/255.
+    /draw_rect/px/py/3/ph/60/120/160/255.
+    /draw_rect/(px + pw - 3)/py/3/ph/60/120/160/255.
     
-    // Title
-    /text_draw/(px + 10)/(py + 10)/14/100/200/255/tutorial_line_1.
+    // Title (large, centered feel)
+    /text_draw/(px + 15)/(py + 12)/16/100/200/255/tutorial_title.
     
-    // Tutorial text
-    /text_draw/(px + 10)/(py + 35)/10/200/200/210/tutorial_line_2.
-    /text_draw/(px + 10)/(py + 50)/10/200/200/210/tutorial_line_3.
-    /text_draw/(px + 10)/(py + 65)/10/200/200/210/tutorial_line_4.
+    // Separator line
+    /draw_rect/(px + 15)/(py + 35)/330/1/50/80/110/200.
     
-    // Code examples
-    /text_draw/(px + 10)/(py + 90)/10/255/220/100/tutorial_code_1.
-    /text_draw/(px + 10)/(py + 105)/10/255/220/100/tutorial_code_2.
-    /text_draw/(px + 10)/(py + 120)/10/255/220/100/tutorial_code_3.
+    // Tutorial text (6 lines)
+    /text_draw/(px + 15)/(py + 45)/10/200/200/210/tutorial_line_1.
+    /text_draw/(px + 15)/(py + 60)/10/200/200/210/tutorial_line_2.
+    /text_draw/(px + 15)/(py + 75)/10/200/200/210/tutorial_line_3.
+    /text_draw/(px + 15)/(py + 90)/10/200/200/210/tutorial_line_4.
+    /text_draw/(px + 15)/(py + 105)/10/200/200/210/tutorial_line_5.
+    /text_draw/(px + 15)/(py + 120)/10/200/200/210/tutorial_line_6.
+    
+    // Code examples section
+    /draw_rect/(px + 15)/(py + 140)/330/1/50/80/110/200.
+    /text_draw/(px + 15)/(py + 150)/10/120/160/200/"EXAMPLES:".
+    
+    // Code examples (4 lines, monospace-style coloring)
+    /text_draw/(px + 15)/(py + 170)/10/255/220/100/tutorial_code_1.
+    /text_draw/(px + 15)/(py + 185)/10/255/220/100/tutorial_code_2.
+    /text_draw/(px + 15)/(py + 200)/10/255/220/100/tutorial_code_3.
+    /text_draw/(px + 15)/(py + 215)/10/255/220/100/tutorial_code_4.
+    
+    // Tip section
+    /draw_rect/(px + 15)/(py + 240)/330/1/50/80/110/200.
+    /text_draw/(px + 15)/(py + 255)/10/100/220/150/tutorial_tip.
     
     // Close button
-    btn_x := px + pw / 2 - 40.
-    btn_y := py + ph - 35.
-    btn_w := 80.
-    btn_h := 25.
+    btn_x := px + pw / 2 - 50.
+    btn_y := py + ph - 45.
+    btn_w := 100.
+    btn_h := 30.
     
     mx := /input_mouse_x/.
     my := /input_mouse_y/.
@@ -903,9 +1010,9 @@ clip_h := 0.
     bg_r = 60 when btn_hover == 1. bg_g = 120 when btn_hover == 1. bg_b = 150 when btn_hover == 1.
     
     /draw_rect/btn_x/btn_y/btn_w/btn_h/bg_r/bg_g/bg_b/255.
-    /draw_rect/btn_x/btn_y/btn_w/1/100/180/220/255.
+    /draw_rect/btn_x/btn_y/btn_w/2/100/180/220/255.
     
-    /text_draw/(btn_x + 22)/(btn_y + 6)/12/220/240/255/"GOT IT".
+    /text_draw/(btn_x + 22)/(btn_y + 8)/12/220/240/255/"GOT IT!".
     
     // Handle click
     just_clicked := /input_mouse_just_pressed/.
@@ -948,62 +1055,116 @@ clip_h := 0.
     bx := clip_x + TREE_PADDING + tech_scroll_x.
     by := clip_y + clip_h - TREE_PADDING + tech_scroll_y.
     
-    // Row positions
+    // Row positions (8 rows for buff tree with branches)
     row0 := by - nh.
     row1 := row0 - nh - gy.
     row2 := row1 - nh - gy.
     row3 := row2 - nh - gy.
     row4 := row3 - nh - gy.
     row5 := row4 - nh - gy.
+    row6 := row5 - nh - gy.
+    row7 := row6 - nh - gy.
     
-    // BUFF tree columns
+    // BUFF tree columns (3 columns: stats, gold, speed)
     col0 := bx.
     col1 := bx + nw + gx.
     col2 := bx + (nw + gx) * 2.
+    colm := bx + (nw + gx) / 2.
     
-    /try_node_click/col1/row0/UPGRADE_BUFF_START/mx/my.
-    /try_node_click/col0/row1/UPGRADE_BUFF_HP_1/mx/my.
-    /try_node_click/col1/row1/UPGRADE_BUFF_STR_1/mx/my.
+    // BUFF tree - Row 0: HP I (center)
+    /try_node_click/colm/row0/UPGRADE_BUFF_HP_1/mx/my.
+    
+    // Row 1: STR I (left), Gold Spawn (center), Speed 5x (right)
+    /try_node_click/col0/row1/UPGRADE_BUFF_STR_1/mx/my.
+    /try_node_click/col1/row1/UPGRADE_BUFF_GOLD_SPAWN/mx/my.
     /try_node_click/col2/row1/UPGRADE_BUFF_SPEED_5/mx/my.
-    /try_node_click/col0/row2/UPGRADE_BUFF_GOLD_DROP/mx/my.
-    /try_node_click/col2/row2/UPGRADE_BUFF_SPEED_10/mx/my.
-    /try_node_click/col0/row3/UPGRADE_BUFF_HP_2/mx/my.
-    /try_node_click/col2/row3/UPGRADE_BUFF_SPEED_100/mx/my.
-    /try_node_click/col0/row4/UPGRADE_BUFF_GOLD_SPAWN/mx/my.
-    /try_node_click/col2/row4/UPGRADE_BUFF_SPEED_1000/mx/my.
-    /try_node_click/col0/row5/UPGRADE_BUFF_HEAL_STAIRS/mx/my.
     
-    // DIFF tree
+    // Row 2: AC I (left), Gold Spawn+ (center), Speed 10x (right)
+    /try_node_click/col0/row2/UPGRADE_BUFF_AC_1/mx/my.
+    /try_node_click/col1/row2/UPGRADE_BUFF_GOLD_SPAWN_2/mx/my.
+    /try_node_click/col2/row2/UPGRADE_BUFF_SPEED_10/mx/my.
+    
+    // Row 3: HP II (center), Speed 100x (right)
+    /try_node_click/colm/row3/UPGRADE_BUFF_HP_2/mx/my.
+    /try_node_click/col2/row3/UPGRADE_BUFF_SPEED_100/mx/my.
+    
+    // Row 4: STR II (left), Gold Drops (center), Speed 1000x (right)
+    /try_node_click/col0/row4/UPGRADE_BUFF_STR_2/mx/my.
+    /try_node_click/col1/row4/UPGRADE_BUFF_GOLD_DROP/mx/my.
+    /try_node_click/col2/row4/UPGRADE_BUFF_SPEED_1000/mx/my.
+    
+    // Row 5: AC II (left), Gold Drops+ (center)
+    /try_node_click/col0/row5/UPGRADE_BUFF_AC_2/mx/my.
+    /try_node_click/col1/row5/UPGRADE_BUFF_GOLD_DROP_2/mx/my.
+    
+    // Row 6: HP III (center)
+    /try_node_click/colm/row6/UPGRADE_BUFF_HP_3/mx/my.
+    
+    // Row 7: STR III (center)
+    /try_node_click/colm/row7/UPGRADE_BUFF_STR_3/mx/my.
+    
+    // DIFF tree (right of Buff, grows upward - 7 rows)
     diff_x := bx + branch_w + BRANCH_GAP.
     dcol0 := diff_x.
     dcol1 := diff_x + nw + gx.
     dcolm := diff_x + (nw + gx) / 2.
+    drow6 := row5 - nh - gy.
     
-    /try_node_click/dcolm/row0/UPGRADE_DIFF_ROOM_2/mx/my.
-    /try_node_click/dcol0/row1/UPGRADE_DIFF_VAR_SIZE/mx/my.
-    /try_node_click/dcol1/row1/UPGRADE_DIFF_MONSTER_1/mx/my.
-    /try_node_click/dcol0/row2/UPGRADE_DIFF_ROOM_3/mx/my.
-    /try_node_click/dcol1/row2/UPGRADE_DIFF_STAIRS_RANDOM/mx/my.
-    /try_node_click/dcolm/row3/UPGRADE_DIFF_MONSTER_2/mx/my.
-    /try_node_click/dcol0/row4/UPGRADE_DIFF_ROOM_4/mx/my.
-    /try_node_click/dcol1/row4/UPGRADE_DIFF_MONSTER_3/mx/my.
-    /try_node_click/dcolm/row5/UPGRADE_DIFF_ROOM_MANY/mx/my.
+    /try_node_click/dcolm/row0/UPGRADE_DIFF_STAIRS_RANDOM/mx/my.
+    /try_node_click/dcolm/row1/UPGRADE_DIFF_ROOM_2/mx/my.
+    /try_node_click/dcol0/row2/UPGRADE_DIFF_VAR_SIZE/mx/my.
+    /try_node_click/dcol1/row2/UPGRADE_DIFF_KOBOLDS/mx/my.
+    /try_node_click/dcol0/row3/UPGRADE_DIFF_ROOM_3/mx/my.
+    /try_node_click/dcol1/row3/UPGRADE_DIFF_GOBLINS/mx/my.
+    /try_node_click/dcolm/row4/UPGRADE_DIFF_MONSTER_2/mx/my.
+    /try_node_click/dcol0/row5/UPGRADE_DIFF_ROOM_4/mx/my.
+    /try_node_click/dcol1/row5/UPGRADE_DIFF_MONSTER_3/mx/my.
+    /try_node_click/dcolm/drow6/UPGRADE_DIFF_ROOM_MANY/mx/my.
     
-    // LANG tree
-    lang_x := diff_x + branch_w + BRANCH_GAP.
+    // LANG tree (centered below Buff/Diff, grows DOWNWARD - 3 columns, 9 rows)
+    lang_x := bx + branch_w / 2 + BRANCH_GAP / 2.
     lcol0 := lang_x.
     lcol1 := lang_x + nw + gx.
-    lcolm := lang_x + (nw + gx) / 2.
+    lcol2 := lang_x + (nw + gx) * 2.
+    lcolm := lang_x + nw + gx. // Middle column
     
-    /try_node_click/lcolm/row0/UPGRADE_LANG_VARIABLES/mx/my.
-    /try_node_click/lcolm/row1/UPGRADE_LANG_FUNCTIONS/mx/my.
-    /try_node_click/lcol0/row2/UPGRADE_LANG_LOOPS/mx/my.
-    /try_node_click/lcol1/row2/UPGRADE_LANG_CONDITIONS/mx/my.
-    /try_node_click/lcol0/row3/UPGRADE_LANG_ARRAYS/mx/my.
-    /try_node_click/lcol1/row3/UPGRADE_LANG_PIPES/mx/my.
-    /try_node_click/lcolm/row4/UPGRADE_LANG_STRUCTS/mx/my.
-    /try_node_click/lcol0/row5/UPGRADE_LANG_PATTERN/mx/my.
-    /try_node_click/lcol1/row5/UPGRADE_LANG_LAMBDA/mx/my.
+    // Row positions for downward-growing tree
+    lang_by := by + TREE_PADDING * 2.
+    lrow0 := lang_by.
+    lrow1 := lrow0 + nh + gy.
+    lrow2 := lrow1 + nh + gy.
+    lrow3 := lrow2 + nh + gy.
+    lrow4 := lrow3 + nh + gy.
+    lrow5 := lrow4 + nh + gy.
+    lrow6 := lrow5 + nh + gy.
+    lrow7 := lrow6 + nh + gy.
+    lrow8 := lrow7 + nh + gy.
+    
+    // Tier 1: Root
+    /try_lang_node_click/lcolm/lrow0/UPGRADE_LANG_VARIABLES/mx/my.
+    // Tier 1: Branches
+    /try_lang_node_click/lcol0/lrow1/UPGRADE_LANG_ARITHMETIC/mx/my.
+    /try_lang_node_click/lcol2/lrow1/UPGRADE_LANG_COMPARISON/mx/my.
+    // Tier 2
+    /try_lang_node_click/lcolm/lrow2/UPGRADE_LANG_FUNCTIONS/mx/my.
+    /try_lang_node_click/lcol0/lrow3/UPGRADE_LANG_RETURN/mx/my.
+    /try_lang_node_click/lcol2/lrow3/UPGRADE_LANG_WHEN/mx/my.
+    // Tier 3
+    /try_lang_node_click/lcolm/lrow4/UPGRADE_LANG_LOOP/mx/my.
+    /try_lang_node_click/lcol0/lrow5/UPGRADE_LANG_FOR/mx/my.
+    /try_lang_node_click/lcol2/lrow5/UPGRADE_LANG_BREAK/mx/my.
+    // Tier 4: Data
+    /try_lang_node_click/lcol0/lrow6/UPGRADE_LANG_ARRAYS/mx/my.
+    /try_lang_node_click/lcolm/lrow6/UPGRADE_LANG_STRUCTS/mx/my.
+    /try_lang_node_click/lcol2/lrow6/UPGRADE_LANG_STRINGS/mx/my.
+    // Tier 5: Advanced
+    /try_lang_node_click/lcol0/lrow7/UPGRADE_LANG_IFELSE/mx/my.
+    /try_lang_node_click/lcolm/lrow7/UPGRADE_LANG_PIPES/mx/my.
+    /try_lang_node_click/lcol2/lrow7/UPGRADE_LANG_BLOCKWHEN/mx/my.
+    // Tier 6: Expert
+    /try_lang_node_click/lcol0/lrow8/UPGRADE_LANG_PATTERN/mx/my.
+    /try_lang_node_click/lcolm/lrow8/UPGRADE_LANG_LAMBDA/mx/my.
+    /try_lang_node_click/lcol2/lrow8/UPGRADE_LANG_COMMENTS/mx/my.
 <
 
 #update_tech_drag() >
@@ -1049,4 +1210,24 @@ clip_h := 0.
         /generate_dungeon/.
         /bot_reset_on_change/.
     < when result == 1.
+<
+
+// Special click handler for language nodes - allows re-showing tutorial
+#try_lang_node_click(x, y, upgrade_id, mx, my) >
+    nw := NODE_W.
+    nh := NODE_H.
+    in_x := mx ge x and mx lt x + nw.
+    in_y := my ge y and my lt y + nh.
+    << 0 when in_x * in_y == 0.
+    
+    // Check if already purchased - if so, just show tutorial again
+    has := /has_upgrade/upgrade_id.
+    >
+        /show_language_tutorial/upgrade_id.
+        << 1.
+    < when has == 1.
+    
+    // Otherwise try to purchase
+    result := /try_purchase_upgrade/upgrade_id.
+    << result.
 <

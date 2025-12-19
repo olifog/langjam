@@ -21,7 +21,7 @@ bot_env := 0.          // The execution environment
 bot_is_running := 0.   // 1 if continuously running, 0 if stopped
 bot_is_stepping := 0.  // 1 if we're in step mode
 bot_step_timer := 0.   // Timer for continuous run delay
-bot_step_delay := 500. // Delay between steps in continuous mode (ms)
+bot_step_delay := 1000. // Delay between steps in continuous mode (ms)
 bot_error := "".       // Error message if any
 bot_has_error := 0.    // 1 if there's an error
 

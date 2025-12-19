@@ -1456,6 +1456,9 @@ void gl_tex_parameteri(Value target, Value pname, Value param) {
 
 static int keys[512];
 static int keys_prev[512];
+// Accumulates keydown events between frames, then moves to _active at frame start
+static int keys_just_pressed_pending[512];
+static int keys_just_pressed_active[512];  // Read during the frame
 static int shift_held = 0;
 
 Value input_key_pressed(Value key) {
@@ -1469,7 +1472,9 @@ Value input_key_just_pressed(Value key) {
   long k = AS_INT(key);
   if (k < 0 || k >= 512)
     return VAL_INT(0);
-  return VAL_INT(keys[k] && !keys_prev[k]);
+  // Read from active buffer - this contains events from BEFORE this frame started
+  // Multiple reads per frame all return the same value
+  return VAL_INT(keys_just_pressed_active[k]);
 }
 
 Value input_shift_held(void) { return VAL_INT(shift_held); }
@@ -1966,8 +1971,10 @@ void game_render(void) {}
 
 void on_key_down(Value key) {
   long k = AS_INT(key);
-  if (k >= 0 && k < 512)
+  if (k >= 0 && k < 512) {
     keys[k] = 1;
+    keys_just_pressed_pending[k] = 1;  // Accumulate for next frame
+  }
 }
 
 void on_key_up(Value key) {
@@ -1978,6 +1985,10 @@ void on_key_up(Value key) {
 
 void on_frame_start(void) {
   memcpy(keys_prev, keys, sizeof(keys));
+  // Transfer pending just_pressed events to active buffer for this frame
+  // This ensures keys pressed BETWEEN frames are detected this frame
+  memcpy(keys_just_pressed_active, keys_just_pressed_pending, sizeof(keys_just_pressed_active));
+  memset(keys_just_pressed_pending, 0, sizeof(keys_just_pressed_pending));
   // GC collection is now safe because __gc_register_roots() registers
   // all global arrays and string variables as roots at game_init
   gc_maybe_collect();

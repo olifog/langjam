@@ -578,8 +578,11 @@ expand_used := []. // 1 if this expansion point has been tried
     << 0 when dng_monster_count == 0.
     
     for i in 0..dng_monster_count >
-        // Random Type (only kobolds for now)
+        // Random Type based on unlocked monster types
         type := ENTITY_KOBOLD.
+        // If goblins enabled, 50% chance of goblin
+        roll := /rng_int/100.
+        type = ENTITY_GOBLIN when dng_goblins_enabled == 1 and roll lt 50.
         
         // Random Position in non-starting room
         sx := 0. sy := 0.

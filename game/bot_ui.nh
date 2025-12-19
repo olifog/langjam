@@ -208,8 +208,8 @@ speed_multiplier := 1.  // Computed from slider_pos
     speed_multiplier = max_speed when speed_multiplier gt max_speed.
     
     // Update bot step delay: base delay / speed
-    // Base delay is 500ms at 1x
-    bot_step_delay = 500 / speed_multiplier.
+    // Base delay is 1000ms at 1x (slower base for readability)
+    bot_step_delay = 1000 / speed_multiplier.
     bot_step_delay = 1 when bot_step_delay lt 1.
 <
 

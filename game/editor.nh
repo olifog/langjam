@@ -225,43 +225,14 @@ SYN_PUNCT_B := 180.
     /console_log/"Initializing editor...".
     
     // Minimal left-wall follower
-    editor_lines[0] = "// Left-Wall Follower".
-    editor_lines[1] = "// 0=N 1=E 2=S 3=W".
-    editor_lines[2] = "dir := 2.".
-    editor_lines[3] = "".
-    editor_lines[4] = "// Find a wall: go south then west".
-    editor_lines[5] = "loop >".
-    editor_lines[6] = "    >> when /can_walk/0/1 == 0.".
-    editor_lines[7] = "    /move/0/1.".
-    editor_lines[8] = "<".
-    editor_lines[9] = "dir = 3.".
-    editor_lines[10] = "".
-    editor_lines[11] = "// Left-wall following".
-    editor_lines[12] = "loop >".
-    editor_lines[13] = "    // Direction vectors".
-    editor_lines[14] = "    ld := (dir + 3) % 4.".
-    editor_lines[15] = "    fx := dir | > 1=>1 3=>(0-1) _=>0 <.".
-    editor_lines[16] = "    fy := dir | > 0=>(0-1) 2=>1 _=>0 <.".
-    editor_lines[17] = "    lx := ld | > 1=>1 3=>(0-1) _=>0 <.".
-    editor_lines[18] = "    ly := ld | > 0=>(0-1) 2=>1 _=>0 <.".
-    editor_lines[19] = "".
-    editor_lines[20] = "    // Try left".
-    editor_lines[21] = "    >".
-    editor_lines[22] = "        dir = ld.".
-    editor_lines[23] = "        /move/lx/ly.".
-    editor_lines[24] = "        ><.".
-    editor_lines[25] = "    < when /can_walk/lx/ly == 1.".
-    editor_lines[26] = "".
-    editor_lines[27] = "    // Try forward".
-    editor_lines[28] = "    >".
-    editor_lines[29] = "        /move/fx/fy.".
-    editor_lines[30] = "        ><.".
-    editor_lines[31] = "    < when /can_walk/fx/fy == 1.".
-    editor_lines[32] = "".
-    editor_lines[33] = "    // Turn right".
-    editor_lines[34] = "    dir = (dir + 1) % 4.".
-    editor_lines[35] = "<".
-    editor_num_lines = 36.
+    editor_lines[0] = "// welcome to nh!".
+    editor_lines[1] = "// call functions (including helpful apis you'll buy over time)".
+    editor_lines[2] = "// using the modern /wand/ application syntax:".
+    editor_lines[3] = "/move/0/-1.".
+    editor_lines[4] = "// /move/????".
+    editor_lines[5] = "".
+
+    editor_num_lines = 6.
     
     // Initialize fold_state for all lines to 0 (not collapsed)
     for i in 0..editor_num_lines >
