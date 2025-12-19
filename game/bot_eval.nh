@@ -218,7 +218,7 @@
     << /bot_builtin_get_x/args/env when /ds_streq/name/"get_x".
     << /bot_builtin_get_y/args/env when /ds_streq/name/"get_y".
     << /bot_builtin_look/args/env when /ds_streq/name/"look".
-    << /bot_builtin_can_walk/args/env when /ds_streq/name/"can_walk".
+    << /bot_builtin_can_move/args/env when /ds_streq/name/"can_move".
     << /bot_builtin_print/args/env when /ds_streq/name/"print".
     << /bot_builtin_json/args/env when /ds_streq/name/"json".
     << /bot_builtin_strcat/args/env when /ds_streq/name/"strcat".
@@ -500,10 +500,24 @@
     << /get_tile/(player_x + dx)/(player_y + dy).
 <
 
-// /can_walk/dx/dy - Check if a tile is walkable
-#bot_builtin_can_walk(args, env) >
-    dx := /bot_eval/(/ds_list_get/args/0)/env.
-    dy := /bot_eval/(/ds_list_get/args/1)/env.
+// /can_move/dir - Check if movement is possible in a direction
+// Direction: 0=north, 1=east, 2=south, 3=west (clockwise)
+// Returns 1 if walkable, 0 otherwise
+#bot_builtin_can_move(args, env) >
+    dir := /bot_eval/(/ds_list_get/args/0)/env.
+    
+    // Convert direction to dx/dy (clockwise: N=0, E=1, S=2, W=3)
+    dx := 0.
+    dy := 0.
+    
+    // North (up): dy = -1
+    dy = 0 - 1 when dir == 0.
+    // East (right): dx = 1
+    dx = 1 when dir == 1.
+    // South (down): dy = 1
+    dy = 1 when dir == 2.
+    // West (left): dx = -1
+    dx = 0 - 1 when dir == 3.
     
     // Check for tile type
     tile := /get_tile/(player_x + dx)/(player_y + dy).
