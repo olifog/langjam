@@ -12,7 +12,10 @@ import type { WasmModule } from './types'
 import { audioManager } from './audio'
 
   // Expose audio function for WASM
-  ; (window as any).playGameSound = (id: number) => audioManager.play(id)
+  ; (window as any).playGameSound = (id: number) => {
+    console.log('[Native] Request Sound:', id);
+    audioManager.play(id)
+  }
 
 // Initialize global window state
 window.screenWidth = window.innerWidth

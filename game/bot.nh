@@ -516,6 +516,7 @@ bot_message := "".
 
 #bot_handle_stairs() >
     last_message = "You found the stairs! Banking gold...".
+    /play_sound_wrapper/SOUND_LEVEL_UP.
     
     // Calculate bonus based on difficulty upgrades (NOT dungeon level)
     bonus := /calculate_floor_bonus/.
@@ -539,6 +540,7 @@ bot_message := "".
     // Reset bot program to start from beginning
     bot_stmt_index = 0.
     bot_current_line = bot_stmt_lines[0] when bot_stmt_count gt 0.
+    
     // Reset loop state
     bot_yield = 0.
     bot_in_loop = 0.
@@ -547,5 +549,5 @@ bot_message := "".
     bot_loop_body_count = 0.
     bot_loop_body_idx = 0.
     
-    bot_message = "Program restarting on new level...".
+    bot_message = "Restarting on new level...".
 <

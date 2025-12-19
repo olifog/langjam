@@ -1624,9 +1624,9 @@ void console_log(Value msg) {
   fflush(stdout);
 }
 
-void console_log_int(Value value) { printf("[LOG] %ld\n", AS_INT(value)); }
+void console_log_int(Value value) { printf("%ld\n", AS_INT(value)); }
 
-void console_log_float(float value) { printf("[LOG] %f\n", value); }
+void console_log_float(float value) { printf("%f\n", value); }
 
 // ============================================================================
 // Text Rendering

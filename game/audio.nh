@@ -13,6 +13,8 @@ SOUND_UI_STOP := 8.
 SOUND_KEY_TYPE := 9.
 SOUND_LETTER_OPEN := 10.
 SOUND_LETTER_SIGN := 11.
+SOUND_GAME_OVER := 12.
+SOUND_LEVEL_UP := 13.
 
 #play_sound_wrapper(id) >
     /play_sound/id.

@@ -9,12 +9,15 @@ export enum SoundType {
     UI_STOP = 8,
     KEY_TYPE = 9,
     LETTER_OPEN = 10,
-    LETTER_SIGN = 11
+    LETTER_SIGN = 11,
+    GAME_OVER = 12,
+    LEVEL_UP = 13
 }
 
 class AudioManager {
     private ctx: AudioContext | null = null;
     private masterGain: GainNode | null = null;
+    private compressor: DynamicsCompressorNode | null = null;
 
     constructor() {
         // We defer initialization until the first interaction to satisfy browser policies
@@ -29,8 +32,18 @@ class AudioManager {
 
         this.ctx = new AudioContext();
         this.masterGain = this.ctx.createGain();
-        this.masterGain.gain.value = 0.3; // Default volume
-        this.masterGain.connect(this.ctx.destination);
+        this.masterGain.gain.value = 0.2; // Reduced volume/Default volume
+
+        // Add compressor to normalize volume (limit loud peaks)
+        this.compressor = this.ctx.createDynamicsCompressor();
+        this.compressor.threshold.value = -24;
+        this.compressor.knee.value = 30;
+        this.compressor.ratio.value = 12;
+        this.compressor.attack.value = 0.003;
+        this.compressor.release.value = 0.25;
+
+        this.masterGain.connect(this.compressor);
+        this.compressor.connect(this.ctx.destination);
 
         console.log('[Audio] Initialized');
     }
@@ -88,6 +101,14 @@ class AudioManager {
 
             case SoundType.LETTER_SIGN: // Pen scratch
                 this.playPenScratch(t);
+                break;
+
+            case SoundType.GAME_OVER: // Womp Womp
+                this.playWompWomp(t);
+                break;
+
+            case SoundType.LEVEL_UP: // Sparkly Ascend
+                this.playLevelUp(t);
                 break;
         }
     }
@@ -372,6 +393,76 @@ class AudioManager {
 
         noise.start(t);
         noise.stop(t + duration + 0.05);
+    }
+
+    private playWompWomp(t: number) {
+        if (!this.ctx || !this.masterGain) return;
+
+        // "Womp Womp" - descending triangle waves
+        // Note 1: G3 (196Hz) -> C#3 (138Hz)
+        // Note 2: F#3 (185Hz) -> C3 (130Hz)
+
+        const playNote = (startFreq: number, endFreq: number, startTime: number, duration: number) => {
+            if (!this.ctx || !this.masterGain) return;
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(startFreq, startTime);
+            osc.frequency.linearRampToValueAtTime(endFreq, startTime + duration);
+
+            gain.gain.setValueAtTime(0, startTime);
+            gain.gain.linearRampToValueAtTime(0.5, startTime + 0.05);
+            gain.gain.setValueAtTime(0.5, startTime + duration - 0.05);
+            gain.gain.linearRampToValueAtTime(0, startTime + duration);
+
+            osc.connect(gain);
+            gain.connect(this.masterGain);
+
+            osc.start(startTime);
+            osc.stop(startTime + duration + 0.1);
+        };
+
+        playNote(196, 138, t, 0.4);
+        playNote(185, 130, t + 0.45, 0.6);
+    }
+
+    private playLevelUp(t: number) {
+        if (!this.ctx || !this.masterGain) return;
+        console.log('[Audio] Playing Level Up Sound');
+
+        // Warmer ascending arpeggio (C4 Major)
+        // Lower frequencies for a "power up" feel rather than high sparkle
+        const notes = [
+            261.63, // C4
+            329.63, // E4
+            392.00, // G4
+            523.25, // C5
+            659.25  // E5
+        ];
+
+        notes.forEach((freq, i) => {
+            const osc = this.ctx!.createOscillator();
+            const gain = this.ctx!.createGain();
+
+            // Triangle wave for a bit more presence than sine, but still smooth
+            osc.type = 'triangle';
+            osc.frequency.value = freq;
+
+            // Staggered starts
+            const startTime = t + i * 0.08; // Slightly slower strum
+            const duration = 0.6;
+
+            gain.gain.setValueAtTime(0, startTime);
+            gain.gain.linearRampToValueAtTime(0.15, startTime + 0.1);
+            gain.gain.exponentialRampToValueAtTime(0.01, startTime + duration);
+
+            osc.connect(gain);
+            gain.connect(this.masterGain!);
+
+            osc.start(startTime);
+            osc.stop(startTime + duration + 0.1);
+        });
     }
 
     // Helper to generate fresh noise (prevents "frozen" noise patterns)

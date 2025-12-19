@@ -182,6 +182,8 @@ last_message_buffer := "".
     player_is_dead = 1.
     last_message = "You died!".
     bot_message = "Script Terminated (Death).".
+
+    /play_sound_wrapper/SOUND_GAME_OVER.
     
     // Fix visual glitch: Snap to final position
     anim_timer = 0.
