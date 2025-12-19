@@ -732,14 +732,14 @@ clip_h := 0.
     
     // Row 2: Functions -> Row 3: Return, When (split)
     /draw_tree_conn/(colm + nw / 2)/(row2 + nh + 2)/(col0 + nw / 2)/(row3 - 2)/lr/lg/lb.
-    /draw_tree_conn/(colm + nw / 2)/(row2 + nh + 2)/(col2 + nw / 2)/(row3 - 2)/lr/lg/lb.
+    /draw_tree_conn/(colm + nw / 2)/(row2 + nh + 2)/(colm + nw / 2)/(row3 - 2)/lr/lg/lb.
     
-    // When -> Can Move (side connection at row 3)
-    /draw_tree_conn/(col2 + nw / 2)/(row3 + nh / 2)/(colm + nw + 2)/(row3 + nh / 2)/lr/lg/lb.
+    // When -> Can Move (right side connection at row 3)
+    /draw_tree_conn/(colm + nw / 2)/(row3 + nh / 2)/(col2 - 2)/(row3 + nh / 2)/lr/lg/lb.
     
     // Row 3 -> Row 4: Loop (merge from Return/When)
     /draw_tree_conn/(col0 + nw / 2)/(row3 + nh + 2)/(colm + nw / 2)/(row4 - 2)/lr/lg/lb.
-    /draw_tree_conn/(col2 + nw / 2)/(row3 + nh + 2)/(colm + nw / 2)/(row4 - 2)/lr/lg/lb.
+    /draw_tree_conn/(colm + nw / 2)/(row3 + nh + 2)/(colm + nw / 2)/(row4 - 2)/lr/lg/lb.
     
     // Row 4: Loop -> Row 5: For, Break (split)
     /draw_tree_conn/(colm + nw / 2)/(row4 + nh + 2)/(col0 + nw / 2)/(row5 - 2)/lr/lg/lb.
@@ -757,8 +757,8 @@ clip_h := 0.
     /draw_node/col2/row1/UPGRADE_LANG_COMPARISON.      // Tier 1: Right
     /draw_node/colm/row2/UPGRADE_LANG_FUNCTIONS.       // Tier 2: Center (merge)
     /draw_node/col0/row3/UPGRADE_LANG_RETURN.          // Tier 2: Left
-    /draw_node/col2/row3/UPGRADE_LANG_WHEN.            // Tier 2: Right
-    /draw_node/colm/row3/UPGRADE_LANG_CANMOVE.         // Tier 2.5: Center (from When)
+    /draw_node/colm/row3/UPGRADE_LANG_WHEN.            // Tier 2: Center
+    /draw_node/col2/row3/UPGRADE_LANG_CANMOVE.         // Tier 2.5: Right (from When)
     /draw_node/colm/row4/UPGRADE_LANG_LOOP.            // Tier 3: Center (merge)
     /draw_node/col0/row5/UPGRADE_LANG_FOR.             // Tier 3: Left
     /draw_node/col2/row5/UPGRADE_LANG_BREAK.           // Tier 3: Right
@@ -794,38 +794,45 @@ clip_h := 0.
     /draw_node/col0/row8/UPGRADE_LANG_PATTERN.         // Tier 6: Left
     /draw_node/col2/row8/UPGRADE_LANG_LAMBDA.          // Tier 6: Right
     
-    // Vision APIs: Tier 7-9
-    row9 := row8 + nh + gy.
-    row10 := row9 + nh + gy.
-    row11 := row10 + nh + gy.
+    // Vision APIs: Branch from Can Move (row3/col2) to the right side
+    // Vision tree runs parallel in col3 (further right)
+    col3 := bx + (nw + gx) * 3 + gx.  // Fourth column, further right
     
-    // Row 8 -> Row 9: Can Walk (center, from Pattern or Lambda)
-    /draw_tree_conn/(col0 + nw / 2)/(row8 + nh + 2)/(colm + nw / 2)/(row9 - 2)/lr/lg/lb.
-    /draw_tree_conn/(col2 + nw / 2)/(row8 + nh + 2)/(colm + nw / 2)/(row9 - 2)/lr/lg/lb.
+    // Can Move -> Surroundings/Scan (horizontal then down to row4-5)
+    vision_row0 := row3.  // Same level as Can Move
+    vision_row1 := row4.  // Surroundings/Scan level
+    vision_row2 := row5.  // Pathfind/Room level  
+    vision_row3 := row6.  // Find/FullMap level
     
-    // Row 9 -> Row 10: Surroundings (left) and Scan (right) branch from Can Walk
-    /draw_tree_conn/(colm + nw / 2)/(row9 + nh + 2)/(col0 + nw / 2)/(row10 - 2)/lr/lg/lb.
-    /draw_tree_conn/(colm + nw / 2)/(row9 + nh + 2)/(col2 + nw / 2)/(row10 - 2)/lr/lg/lb.
+    // Connection from Can Move (col2) to right (horizontal line)
+    /draw_tree_conn/(col2 + nw + 2)/(row3 + nh / 2)/(col3 + nw / 2)/(row3 + nh / 2)/lr/lg/lb.
     
-    // Draw Vision API nodes
-    /draw_node/colm/row9/UPGRADE_LANG_CANWALK.         // Tier 7: Can Walk (center)
-    /draw_node/col0/row10/UPGRADE_LANG_SURROUNDINGS.   // Tier 8: Surroundings (left)
-    /draw_node/col2/row10/UPGRADE_LANG_SCAN.           // Tier 8: Scan (right)
+    // Junction node at col3/row3 that branches down to Surroundings and Scan
+    /draw_tree_conn/(col3 + nw / 2)/(row3 + nh / 2)/(col3 + nw / 2)/(vision_row1 - 2)/lr/lg/lb.
     
-    // Tier 9: 
-    // Row 11: Find/Room from Surroundings
-    // Row 12: Pathfind/FullMap from Scan
-    row12 := row11 + nh + gy.
+    // Surroundings (col3/vision_row1) -> Pathfind -> Find
+    /draw_tree_conn/(col3 + nw / 2)/(vision_row1 + nh + 2)/(col3 + nw / 2)/(vision_row2 - 2)/lr/lg/lb.
+    /draw_tree_conn/(col3 + nw / 2)/(vision_row2 + nh + 2)/(col3 + nw / 2)/(vision_row3 - 2)/lr/lg/lb.
     
-    // Row 10 -> Row 11: Scan to Pathfind (left) - straight down then visual only
-    // Row 10 -> Row 12: Surroundings to Find (left), Scan to FullMap (right)
-    /draw_tree_conn/(col0 + nw / 2)/(row10 + nh + 2)/(col0 + nw / 2)/(row12 - 2)/lr/lg/lb.
-    /draw_tree_conn/(col2 + nw / 2)/(row10 + nh + 2)/(col2 + nw / 2)/(row12 - 2)/lr/lg/lb.
+    // Draw Vision API nodes (stacked vertically in col3)
+    /draw_node/col3/vision_row1/UPGRADE_LANG_SURROUNDINGS.  // Surroundings
+    /draw_node/col3/vision_row2/UPGRADE_LANG_PATHFIND.      // Pathfind
+    /draw_node/col3/vision_row3/UPGRADE_LANG_FIND.          // Find
     
-    /draw_node/col0/row11/UPGRADE_LANG_PATHFIND.       // Tier 9: Pathfind (from Scan)
-    /draw_node/col2/row11/UPGRADE_LANG_ROOM.           // Tier 9: Room (from Surroundings)
-    /draw_node/col0/row12/UPGRADE_LANG_FIND.           // Tier 9: Find (from Surroundings)
-    /draw_node/col2/row12/UPGRADE_LANG_FULLMAP.        // Tier 9: FullMap (from Scan)
+    // Scan branch - use col4 (even further right)
+    col4 := col3 + nw + gx.
+    
+    // Junction from Can Move also goes to Scan
+    /draw_tree_conn/(col3 + nw / 2)/(row3 + nh / 2)/(col4 + nw / 2)/(row3 + nh / 2)/lr/lg/lb.
+    /draw_tree_conn/(col4 + nw / 2)/(row3 + nh / 2)/(col4 + nw / 2)/(vision_row1 - 2)/lr/lg/lb.
+    
+    // Scan (col4/vision_row1) -> Room -> FullMap
+    /draw_tree_conn/(col4 + nw / 2)/(vision_row1 + nh + 2)/(col4 + nw / 2)/(vision_row2 - 2)/lr/lg/lb.
+    /draw_tree_conn/(col4 + nw / 2)/(vision_row2 + nh + 2)/(col4 + nw / 2)/(vision_row3 - 2)/lr/lg/lb.
+    
+    /draw_node/col4/vision_row1/UPGRADE_LANG_SCAN.          // Scan
+    /draw_node/col4/vision_row2/UPGRADE_LANG_ROOM.          // Room
+    /draw_node/col4/vision_row3/UPGRADE_LANG_FULLMAP.       // FullMap
 <
 
 // Draw connection line between nodes (top of lower node to bottom of upper node)
@@ -1183,8 +1190,8 @@ clip_h := 0.
     // Tier 2
     /try_lang_node_click/lcolm/lrow2/UPGRADE_LANG_FUNCTIONS/mx/my.
     /try_lang_node_click/lcol0/lrow3/UPGRADE_LANG_RETURN/mx/my.
-    /try_lang_node_click/lcol2/lrow3/UPGRADE_LANG_WHEN/mx/my.
-    /try_lang_node_click/lcolm/lrow3/UPGRADE_LANG_CANMOVE/mx/my.
+    /try_lang_node_click/lcolm/lrow3/UPGRADE_LANG_WHEN/mx/my.
+    /try_lang_node_click/lcol2/lrow3/UPGRADE_LANG_CANMOVE/mx/my.
     // Tier 3
     /try_lang_node_click/lcolm/lrow4/UPGRADE_LANG_LOOP/mx/my.
     /try_lang_node_click/lcol0/lrow5/UPGRADE_LANG_FOR/mx/my.
@@ -1201,22 +1208,20 @@ clip_h := 0.
     /try_lang_node_click/lcol0/lrow8/UPGRADE_LANG_PATTERN/mx/my.
     /try_lang_node_click/lcol2/lrow8/UPGRADE_LANG_LAMBDA/mx/my.
     
-    // Vision APIs: Tier 7-9
-    lrow9 := lrow8 + nh + gy.
-    lrow10 := lrow9 + nh + gy.
-    lrow11 := lrow10 + nh + gy.
-    lrow12 := lrow11 + nh + gy.
+    // Vision APIs: Branch from Can Move at row3
+    // Uses col3 for Surroundings branch, col4 for Scan branch
+    lcol3 := lang_x + (nw + gx) * 3 + gx.
+    lcol4 := lcol3 + nw + gx.
     
-    // Tier 7: Can Walk
-    /try_lang_node_click/lcolm/lrow9/UPGRADE_LANG_CANWALK/mx/my.
-    // Tier 8: Surroundings, Scan
-    /try_lang_node_click/lcol0/lrow10/UPGRADE_LANG_SURROUNDINGS/mx/my.
-    /try_lang_node_click/lcol2/lrow10/UPGRADE_LANG_SCAN/mx/my.
-    // Tier 9: Pathfind, Room (row11), Find, FullMap (row12)
-    /try_lang_node_click/lcol0/lrow11/UPGRADE_LANG_PATHFIND/mx/my.
-    /try_lang_node_click/lcol2/lrow11/UPGRADE_LANG_ROOM/mx/my.
-    /try_lang_node_click/lcol0/lrow12/UPGRADE_LANG_FIND/mx/my.
-    /try_lang_node_click/lcol2/lrow12/UPGRADE_LANG_FULLMAP/mx/my.
+    // Surroundings -> Pathfind -> Find (in col3, rows 4-6)
+    /try_lang_node_click/lcol3/lrow4/UPGRADE_LANG_SURROUNDINGS/mx/my.
+    /try_lang_node_click/lcol3/lrow5/UPGRADE_LANG_PATHFIND/mx/my.
+    /try_lang_node_click/lcol3/lrow6/UPGRADE_LANG_FIND/mx/my.
+    
+    // Scan -> Room -> FullMap (in col4, rows 4-6)
+    /try_lang_node_click/lcol4/lrow4/UPGRADE_LANG_SCAN/mx/my.
+    /try_lang_node_click/lcol4/lrow5/UPGRADE_LANG_ROOM/mx/my.
+    /try_lang_node_click/lcol4/lrow6/UPGRADE_LANG_FULLMAP/mx/my.
 <
 
 #update_tech_drag() >

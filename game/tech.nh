@@ -68,8 +68,6 @@ UPGRADE_LANG_CANMOVE := 58.       // /can_move/dir
 // Tier 6: Expert
 UPGRADE_LANG_PATTERN := 55.       // val | > 0 => ... <
 UPGRADE_LANG_LAMBDA := 56.        // \(x) => expr
-// Tier 7: Vision (Root)
-UPGRADE_LANG_CANWALK := 58.       // can_walk(dx, dy)
 // Tier 8: Vision (Local)
 UPGRADE_LANG_SURROUNDINGS := 59.  // check_surroundings()
 UPGRADE_LANG_SCAN := 60.          // scan_area(radius)
@@ -176,9 +174,7 @@ upgrades := [].
     // Tier 6: Expert ($300-400)
     << 350 when id == UPGRADE_LANG_PATTERN.
     << 400 when id == UPGRADE_LANG_LAMBDA.
-    // Tier 7: Vision Root ($500)
-    << 500 when id == UPGRADE_LANG_CANWALK.
-    // Tier 8: Vision Local ($1000-2000)
+    // Vision APIs (branch from Can Move)
     << 1000 when id == UPGRADE_LANG_SURROUNDINGS.
     << 2000 when id == UPGRADE_LANG_SCAN.
     // Tier 9: Vision Advanced ($3000-5000)
@@ -381,25 +377,19 @@ upgrades := [].
     << 1 when id == UPGRADE_LANG_PATTERN and has_tier5 gt 0.
     << 1 when id == UPGRADE_LANG_LAMBDA and has_tier5 gt 0.
     
-    // Tier 7: can_walk needs ANY of tier 6
-    has_pattern := /has_upgrade/UPGRADE_LANG_PATTERN.
-    has_lambda := /has_upgrade/UPGRADE_LANG_LAMBDA.
-    has_tier6 := has_pattern + has_lambda.
-    << 1 when id == UPGRADE_LANG_CANWALK and has_tier6 gt 0.
+    // Vision APIs branch from Can Move (not Can Walk)
+    has_canmove := /has_upgrade/UPGRADE_LANG_CANMOVE.
+    << has_canmove when id == UPGRADE_LANG_SURROUNDINGS.
+    << has_canmove when id == UPGRADE_LANG_SCAN.
     
-    // Tier 8: check_surroundings and scan_area need can_walk
-    has_canwalk := /has_upgrade/UPGRADE_LANG_CANWALK.
-    << has_canwalk when id == UPGRADE_LANG_SURROUNDINGS.
-    << has_canwalk when id == UPGRADE_LANG_SCAN.
-    
-    // Tier 9: surround -> pathfind -> find
+    // surround -> pathfind -> find
     has_surroundings := /has_upgrade/UPGRADE_LANG_SURROUNDINGS.
     << has_surroundings when id == UPGRADE_LANG_PATHFIND.
     
     has_pathfind := /has_upgrade/UPGRADE_LANG_PATHFIND.
     << has_pathfind when id == UPGRADE_LANG_FIND.
     
-    // Tier 9: scan -> room -> fullmap
+    // scan -> room -> fullmap
     has_scan := /has_upgrade/UPGRADE_LANG_SCAN.
     << has_scan when id == UPGRADE_LANG_ROOM.
     
@@ -615,9 +605,7 @@ dng_bonus_from_upgrades := 0.
     // LANGUAGE - Tier 6 (Expert)
     << "Match" when id == UPGRADE_LANG_PATTERN.
     << "Lambda" when id == UPGRADE_LANG_LAMBDA.
-    // LANGUAGE - Tier 7 (Vision Root)
-    << "Can Walk" when id == UPGRADE_LANG_CANWALK.
-    // LANGUAGE - Tier 8 (Vision Local)
+    // LANGUAGE - Vision APIs
     << "Surround" when id == UPGRADE_LANG_SURROUNDINGS.
     << "Scan" when id == UPGRADE_LANG_SCAN.
     // LANGUAGE - Tier 9 (Vision Advanced)
@@ -690,9 +678,7 @@ dng_bonus_from_upgrades := 0.
     // LANGUAGE - Tier 6
     << "Match value patterns" when id == UPGRADE_LANG_PATTERN.
     << "Anonymous functions" when id == UPGRADE_LANG_LAMBDA.
-    // LANGUAGE - Tier 7 (Vision Root)
-    << "Check if tile is walkable" when id == UPGRADE_LANG_CANWALK.
-    // LANGUAGE - Tier 8 (Vision Local)
+    // LANGUAGE - Vision APIs
     << "See 3x3 around you" when id == UPGRADE_LANG_SURROUNDINGS.
     << "Scan variable radius" when id == UPGRADE_LANG_SCAN.
     // LANGUAGE - Tier 9 (Vision Advanced)
@@ -746,8 +732,7 @@ tutorial_tip := "".
     /set_tutorial_blockwhen/ when id == UPGRADE_LANG_BLOCKWHEN.
     /set_tutorial_patterns/ when id == UPGRADE_LANG_PATTERN.
     /set_tutorial_lambdas/ when id == UPGRADE_LANG_LAMBDA.
-    // Tier 7-9: Vision APIs
-    /set_tutorial_canwalk/ when id == UPGRADE_LANG_CANWALK.
+    // Vision APIs
     /set_tutorial_surroundings/ when id == UPGRADE_LANG_SURROUNDINGS.
     /set_tutorial_scan/ when id == UPGRADE_LANG_SCAN.
     /set_tutorial_find/ when id == UPGRADE_LANG_FIND.
@@ -1024,21 +1009,6 @@ tutorial_tip := "".
     tutorial_code_3 = "\\(a, b) => a + b.".
     tutorial_code_4 = "".
     tutorial_tip = "TIP: \\ is like a tiny function".
-<
-
-#set_tutorial_canwalk() >
-    tutorial_title = "CAN WALK".
-    tutorial_line_1 = "Check if adjacent tile is walkable.".
-    tutorial_line_2 = "Pass delta x and delta y offset.".
-    tutorial_line_3 = "Returns 1 if walkable, 0 if not.".
-    tutorial_line_4 = "Use to avoid bumping into walls!".
-    tutorial_line_5 = "Foundation for all vision APIs.".
-    tutorial_line_6 = "Checks tile type (floor, corridor, door).".
-    tutorial_code_1 = "// Check if can move right".
-    tutorial_code_2 = "ok := /can_walk/1/0.".
-    tutorial_code_3 = "/move/1/0 when ok == 1.".
-    tutorial_code_4 = "up := /can_walk/0/-1.".
-    tutorial_tip = "TIP: Check before you move!".
 <
 
 #set_tutorial_surroundings() >
