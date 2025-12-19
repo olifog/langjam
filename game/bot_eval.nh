@@ -91,7 +91,9 @@
     
     flow := /bot_env_get_flow/env.
     << 0 when flow != 0.
-    << 0 when bot_yield == 1.
+    // Only yield early in step mode; in run mode, complete the sequence
+    // so that continue/break after moves work correctly
+    << 0 when bot_yield == 1 and bot_is_stepping == 1.
     
     // Update line number for second statement
     bot_current_line = node->b->line when node->b->line gt 0.
