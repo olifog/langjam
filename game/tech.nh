@@ -32,15 +32,15 @@ UPGRADE_BUFF_SPEED_1000 := 15.    // Max speed 1000x
 // DIFFICULTY BRANCH (IDs 20-39)
 // Branching tree with player choice!
 UPGRADE_DIFF_STAIRS_RANDOM := 20. // Stairs in random position (START)
-UPGRADE_DIFF_ROOM_2 := 21.        // 2 rooms per floor
+UPGRADE_DIFF_ROOM_2 := 21.        // +1 room per floor
 UPGRADE_DIFF_VAR_SIZE := 22.      // Variable room sizes (left path)
 UPGRADE_DIFF_KOBOLDS := 23.       // Enable kobold spawning (right path)
-UPGRADE_DIFF_ROOM_3 := 24.        // 3 rooms per floor
+UPGRADE_DIFF_ROOM_3 := 24.        // +1 room per floor
 UPGRADE_DIFF_GOBLINS := 25.       // Enable goblin spawning
-UPGRADE_DIFF_MONSTER_2 := 26.     // 2 monsters per floor (merge)
-UPGRADE_DIFF_ROOM_4 := 27.        // 4 rooms per floor
-UPGRADE_DIFF_MONSTER_3 := 28.     // 3 monsters per floor
-UPGRADE_DIFF_ROOM_MANY := 29.     // 5+ rooms per floor
+UPGRADE_DIFF_MONSTER_2 := 26.     // +1 monster per floor (merge)
+UPGRADE_DIFF_ROOM_4 := 27.        // +1 room per floor
+UPGRADE_DIFF_MONSTER_3 := 28.     // +1 monster per floor
+UPGRADE_DIFF_ROOM_MANY := 29.     // +1 room per floor
 
 // LANGUAGE BRANCH (IDs 40-69)
 // Tier 1: Basics
@@ -272,15 +272,15 @@ upgrades := [].
     //              |
     //          Var Size
     //           /    \
-    //      2 Rooms   Kobolds
+    //     +1 Room   Kobolds
     //        |          |
-    //     3 Rooms    Goblins
+    //    +1 Room     Goblins
     //         \       /
-    //        2 Monsters (merge)
+    //       +1 Monster (merge)
     //          /     \
-    //     4 Rooms   3 Monsters
+    //    +1 Room   +1 Monster
     //         \       /
-    //        Many Rooms (merge)
+    //        +1 Room (merge)
     
     // Row 0: Random Stairs is the starting node (no prereqs)
     << 1 when id == UPGRADE_DIFF_STAIRS_RANDOM.
@@ -289,29 +289,29 @@ upgrades := [].
     has_stairs := /has_upgrade/UPGRADE_DIFF_STAIRS_RANDOM.
     << has_stairs when id == UPGRADE_DIFF_VAR_SIZE.
     
-    // Row 2: 2 Rooms (left) or Kobolds (right) need Var Size
+    // Row 2: +1 Room (left) or Kobolds (right) need Var Size
     has_var := /has_upgrade/UPGRADE_DIFF_VAR_SIZE.
     << has_var when id == UPGRADE_DIFF_ROOM_2.
     << has_var when id == UPGRADE_DIFF_KOBOLDS.
     
-    // Row 3: 3 Rooms needs 2 Rooms, Goblins needs Kobolds
+    // Row 3: +1 Room needs previous +1 Room, Goblins needs Kobolds
     has_room2 := /has_upgrade/UPGRADE_DIFF_ROOM_2.
     has_kobolds := /has_upgrade/UPGRADE_DIFF_KOBOLDS.
     << has_room2 when id == UPGRADE_DIFF_ROOM_3.
     << has_kobolds when id == UPGRADE_DIFF_GOBLINS.
     
-    // Row 4: 2 Monsters needs EITHER 3 Rooms OR Goblins (merge point)
+    // Row 4: +1 Monster needs EITHER +1 Room OR Goblins (merge point)
     has_room3 := /has_upgrade/UPGRADE_DIFF_ROOM_3.
     has_goblins := /has_upgrade/UPGRADE_DIFF_GOBLINS.
     has_tier3_diff := has_room3 + has_goblins.
     << 1 when id == UPGRADE_DIFF_MONSTER_2 and has_tier3_diff gt 0.
     
-    // Row 5: 4 Rooms or 3 Monsters need 2 Monsters
+    // Row 5: +1 Room or +1 Monster need previous +1 Monster
     has_mon2 := /has_upgrade/UPGRADE_DIFF_MONSTER_2.
     << has_mon2 when id == UPGRADE_DIFF_ROOM_4.
     << has_mon2 when id == UPGRADE_DIFF_MONSTER_3.
     
-    // Row 6: Many Rooms needs EITHER 4 Rooms OR 3 Monsters (merge point)
+    // Row 6: +1 Room needs EITHER +1 Room OR +1 Monster (merge point)
     has_room4 := /has_upgrade/UPGRADE_DIFF_ROOM_4.
     has_mon3 := /has_upgrade/UPGRADE_DIFF_MONSTER_3.
     has_tier5_diff := has_room4 + has_mon3.
@@ -494,17 +494,17 @@ dng_bonus_from_upgrades := 0.
     dng_stairs_random = 1 when /has_upgrade/UPGRADE_DIFF_STAIRS_RANDOM == 1.
     bonus = bonus + 1 when /has_upgrade/UPGRADE_DIFF_STAIRS_RANDOM == 1.
     
-    // Room count from difficulty upgrades
-    dng_max_rooms = 2 when /has_upgrade/UPGRADE_DIFF_ROOM_2 == 1.
+    // Room count from difficulty upgrades (additive +1 each)
+    dng_max_rooms = dng_max_rooms + 1 when /has_upgrade/UPGRADE_DIFF_ROOM_2 == 1.
     bonus = bonus + 1 when /has_upgrade/UPGRADE_DIFF_ROOM_2 == 1.
     
-    dng_max_rooms = 3 when /has_upgrade/UPGRADE_DIFF_ROOM_3 == 1.
+    dng_max_rooms = dng_max_rooms + 1 when /has_upgrade/UPGRADE_DIFF_ROOM_3 == 1.
     bonus = bonus + 1 when /has_upgrade/UPGRADE_DIFF_ROOM_3 == 1.
     
-    dng_max_rooms = 4 when /has_upgrade/UPGRADE_DIFF_ROOM_4 == 1.
+    dng_max_rooms = dng_max_rooms + 1 when /has_upgrade/UPGRADE_DIFF_ROOM_4 == 1.
     bonus = bonus + 1 when /has_upgrade/UPGRADE_DIFF_ROOM_4 == 1.
     
-    dng_max_rooms = 6 when /has_upgrade/UPGRADE_DIFF_ROOM_MANY == 1.
+    dng_max_rooms = dng_max_rooms + 1 when /has_upgrade/UPGRADE_DIFF_ROOM_MANY == 1.
     bonus = bonus + 2 when /has_upgrade/UPGRADE_DIFF_ROOM_MANY == 1.
     
     // Room size
@@ -519,11 +519,11 @@ dng_bonus_from_upgrades := 0.
     dng_goblins_enabled = 1 when /has_upgrade/UPGRADE_DIFF_GOBLINS == 1.
     bonus = bonus + 2 when /has_upgrade/UPGRADE_DIFF_GOBLINS == 1.
     
-    // Monster count upgrades
-    dng_monster_count = 2 when /has_upgrade/UPGRADE_DIFF_MONSTER_2 == 1.
+    // Monster count upgrades (additive +1 each)
+    dng_monster_count = dng_monster_count + 1 when /has_upgrade/UPGRADE_DIFF_MONSTER_2 == 1.
     bonus = bonus + 2 when /has_upgrade/UPGRADE_DIFF_MONSTER_2 == 1.
     
-    dng_monster_count = 3 when /has_upgrade/UPGRADE_DIFF_MONSTER_3 == 1.
+    dng_monster_count = dng_monster_count + 1 when /has_upgrade/UPGRADE_DIFF_MONSTER_3 == 1.
     bonus = bonus + 2 when /has_upgrade/UPGRADE_DIFF_MONSTER_3 == 1.
     
     // Gold spawning (from BUFF branch)
@@ -570,15 +570,15 @@ dng_bonus_from_upgrades := 0.
     
     // DIFFICULTY
     << "Rnd Stairs" when id == UPGRADE_DIFF_STAIRS_RANDOM.
-    << "2 Rooms" when id == UPGRADE_DIFF_ROOM_2.
+    << "+1 Room" when id == UPGRADE_DIFF_ROOM_2.
     << "Var Size" when id == UPGRADE_DIFF_VAR_SIZE.
     << "Kobolds" when id == UPGRADE_DIFF_KOBOLDS.
-    << "3 Rooms" when id == UPGRADE_DIFF_ROOM_3.
+    << "+1 Room" when id == UPGRADE_DIFF_ROOM_3.
     << "Goblins" when id == UPGRADE_DIFF_GOBLINS.
-    << "2 Monsters" when id == UPGRADE_DIFF_MONSTER_2.
-    << "4 Rooms" when id == UPGRADE_DIFF_ROOM_4.
-    << "3 Monsters" when id == UPGRADE_DIFF_MONSTER_3.
-    << "Many Rooms" when id == UPGRADE_DIFF_ROOM_MANY.
+    << "+1 Monster" when id == UPGRADE_DIFF_MONSTER_2.
+    << "+1 Room" when id == UPGRADE_DIFF_ROOM_4.
+    << "+1 Monster" when id == UPGRADE_DIFF_MONSTER_3.
+    << "+1 Room" when id == UPGRADE_DIFF_ROOM_MANY.
     
     // LANGUAGE - Tier 1 (Basics)
     << "Variables" when id == UPGRADE_LANG_VARIABLES.
@@ -643,15 +643,15 @@ dng_bonus_from_upgrades := 0.
     
     // DIFFICULTY
     << "Stairs in random spot (+$1)" when id == UPGRADE_DIFF_STAIRS_RANDOM.
-    << "Floors have 2 rooms (+$1)" when id == UPGRADE_DIFF_ROOM_2.
+    << "+1 room per floor (+$1)" when id == UPGRADE_DIFF_ROOM_2.
     << "Room size varies 3-7 (+$1)" when id == UPGRADE_DIFF_VAR_SIZE.
     << "Kobolds spawn (+$2)" when id == UPGRADE_DIFF_KOBOLDS.
-    << "Floors have 3 rooms (+$1)" when id == UPGRADE_DIFF_ROOM_3.
+    << "+1 room per floor (+$1)" when id == UPGRADE_DIFF_ROOM_3.
     << "Goblins spawn (+$2)" when id == UPGRADE_DIFF_GOBLINS.
-    << "2 monsters per floor (+$2)" when id == UPGRADE_DIFF_MONSTER_2.
-    << "Floors have 4 rooms (+$1)" when id == UPGRADE_DIFF_ROOM_4.
-    << "3 monsters per floor (+$2)" when id == UPGRADE_DIFF_MONSTER_3.
-    << "Floors have 5+ rooms (+$2)" when id == UPGRADE_DIFF_ROOM_MANY.
+    << "+1 monster per floor (+$2)" when id == UPGRADE_DIFF_MONSTER_2.
+    << "+1 room per floor (+$1)" when id == UPGRADE_DIFF_ROOM_4.
+    << "+1 monster per floor (+$2)" when id == UPGRADE_DIFF_MONSTER_3.
+    << "+1 room per floor (+$2)" when id == UPGRADE_DIFF_ROOM_MANY.
     
     // LANGUAGE - Tier 1 (describe purpose, not syntax!)
     << "Store values for later" when id == UPGRADE_LANG_VARIABLES.

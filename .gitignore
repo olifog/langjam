@@ -1,2 +1,4 @@
 build/
-web/game.*
+web/public/game.js
+web/public/game.wasm
+.vercel
