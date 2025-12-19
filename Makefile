@@ -39,12 +39,12 @@ all: compiler
 # Quick start: build everything and run dev server
 .PHONY: dev
 dev: wasm
-	@cd $(WEB_DIR) && npm install --silent && npm run dev
+	@cd $(WEB_DIR) && bun install && bun run dev
 
 # Production build
 .PHONY: dist
 dist: wasm
-	@cd $(WEB_DIR) && npm install --silent && npm run build
+	@cd $(WEB_DIR) && bun install && bun run build
 
 # =============================================================================
 # Compiler
@@ -91,7 +91,7 @@ wasm: $(BUILD_DIR)/game.c
 
 .PHONY: serve
 serve:
-	@cd $(WEB_DIR) && npm run dev
+	@cd $(WEB_DIR) && bun run dev
 
 # =============================================================================
 # Testing
@@ -153,4 +153,4 @@ help:
 	@echo "  make clean        - Remove build artifacts"
 	@echo ""
 	@echo "Requirements:"
-	@echo "  bison, flex, gcc, emscripten, node/npm"
+	@echo "  bison, flex, gcc, emscripten, bun"

@@ -1,7 +1,6 @@
 import { defineConfig } from 'vite'
 
 export default defineConfig({
-  base: '/langjam/',
   publicDir: 'public',
   build: {
     outDir: 'dist',
