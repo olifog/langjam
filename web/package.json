@@ -8,6 +8,9 @@
     "build": "tsc && vite build",
     "preview": "vite preview"
   },
+  "dependencies": {
+    "@vercel/analytics": "^1.4.0"
+  },
   "devDependencies": {
     "typescript": "^5.3.3",
     "vite": "^5.4.11"
