@@ -73,13 +73,13 @@ vec3 applyCRT(vec2 fragCoord, vec3 color)
        ========================= */
 
     float dist = distance(uv, vec2(0.5));
-    color *= smoothstep(0.85, 0.35, dist);
+    color *= smoothstep(0.95, 0.45, dist);
 
     /* =========================
        FLICKER
        ========================= */
 
-    color *= 0.97 + 0.03 * sin(iTime * 60.0);
+    color *= 0.98 + 0.02 * sin(iTime * 60.0);
 
     return color;
 }
