@@ -171,6 +171,7 @@ fade_alpha := 0.
 #start_opening() >
     intro_state = INTRO_STATE_OPENING.
     intro_timer = 0.
+    /play_sound/SOUND_LETTER_OPEN.
     
     // Initialize paper position at envelope (hidden behind it)
     paper_start_y = envelope_y - 50.
@@ -247,7 +248,7 @@ fade_alpha := 0.
     
     // Start new stroke when clicking in box OR when re-entering while held
     /start_sig_stroke/mx/my when just_pressed == 1 and in_box == 1.
-    /start_sig_stroke/mx/my when just_entered == 1 and sig_drawing == 1.
+    /start_sig_stroke/mx/my when just_entered == 1.
     
     // Continue stroke while mouse held and in box
     /continue_sig_stroke/mx/my when down == 1 and in_box == 1 and sig_drawing == 1.
@@ -289,7 +290,7 @@ fade_alpha := 0.
     dy := my - sig_last_y.
     dist_sq := dx * dx + dy * dy.
     
-    << 0 when dist_sq lt 4.
+    << 0 when dist_sq lt 1.
     
     idx := sig_point_count.
     << 0 when idx ge 500.
@@ -298,6 +299,8 @@ fade_alpha := 0.
     sig_points_y[idx] = my.
     sig_breaks[idx] = 0.
     sig_point_count = idx + 1.
+    
+    /play_sound/SOUND_LETTER_SIGN.
     
     sig_last_x = mx.
     sig_last_y = my.
