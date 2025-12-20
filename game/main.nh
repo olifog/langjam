@@ -12,6 +12,7 @@
 @use "dungeon.nh".
 @use "render.nh".
 @use "particles.nh".
+@use "floating_text.nh".
 @use "combat.nh".
 @use "bot.nh".
 @use "docs_content.nh".
@@ -178,6 +179,7 @@ LAYOUT_PADDING := 16.
     seed := /time_ms/.
     /rng_seed/seed.
     /init_particles/.
+    /init_floating_text/.
     /init_entities/.
     /init_upgrades/.
     /init_contacts/.  // Initialize chat contacts
@@ -217,6 +219,7 @@ LAYOUT_PADDING := 16.
     // Normal game update
     /do_update/dt when can_run == 1.
     /update_particles/ when can_run == 1.
+    /update_floating_text/ when can_run == 1.
 <
 
 #do_update(dt) >
@@ -424,6 +427,7 @@ LAYOUT_PADDING := 16.
     /draw_entities/.
     /draw_player/.
     /draw_particles/.
+    /draw_floating_text/.
     /draw_buttons/.
     /draw_slider/.
     /draw_docs_button/.

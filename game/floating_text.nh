@@ -1,0 +1,192 @@
+// floating_text.nh - Floating "damage number" style text
+// Used for displaying resource gains (+Gold, +Bank)
+
+MAX_FLOATING_TEXT := 20.
+
+// Parallel arrays for floating text
+ft_active := [].
+ft_x := [].
+ft_y := [].
+ft_life := [].
+ft_text := [].
+ft_r := [].
+ft_g := [].
+ft_b := [].
+
+// Tracking for changes
+last_player_gold := 0.
+last_player_bank := 0.
+last_dngn_bonus := 0.
+
+#init_floating_text() >
+    for i in 0..MAX_FLOATING_TEXT >
+        ft_active[i] = 0.
+        ft_x[i] = 0.
+        ft_y[i] = 0.
+        ft_life[i] = 0.
+        ft_text[i] = "".
+        ft_r[i] = 255.
+        ft_g[i] = 255.
+        ft_b[i] = 255.
+    <
+    
+    // Initialize tracking variables to current values
+    last_player_gold = player_gold.
+    last_player_bank = player_bank.
+    last_dngn_bonus = dngn_bonus.
+<
+
+#spawn_floating_text(x, y, text, r, g, b) >
+    // Find free slot
+    slot := -1.
+    for i in 0..MAX_FLOATING_TEXT >
+        is_active := ft_active[i].
+        // Found empty slot?
+        >
+            slot = i.
+            // Break loop (hack: set i to max)
+            i = MAX_FLOATING_TEXT.
+        < when is_active == 0.
+    <
+    
+    // If found, spawn
+    >
+        ft_active[slot] = 1.
+        ft_x[slot] = x.
+        ft_y[slot] = y.
+        ft_life[slot] = 20. // 330ms at 60fps
+        ft_text[slot] = text.
+        ft_r[slot] = r.
+        ft_g[slot] = g.
+        ft_b[slot] = b.
+    < when slot != -1.
+<
+
+#update_floating_text() >
+    // 1. Check for resource changes
+    /check_resource_changes/.
+    
+    // 2. Update active texts
+    for i in 0..MAX_FLOATING_TEXT >
+        active := ft_active[i].
+        >
+            life := ft_life[i].
+            // Move up
+            y := ft_y[i].
+            ft_y[i] = y - 1. // 1 pixel per frame (20px total height)
+            
+            // Decrease life
+            life = life - 1.
+            ft_life[i] = life.
+            
+            // Kill if dead
+            ft_active[i] = 0 when life le 0.
+        < when active == 1.
+    <
+<
+
+#draw_floating_text() >
+    for i in 0..MAX_FLOATING_TEXT >
+        active := ft_active[i].
+        >
+            x := ft_x[i].
+            y := ft_y[i].
+            life := ft_life[i].
+            txt := ft_text[i].
+            r := ft_r[i].
+            g := ft_g[i].
+            b := ft_b[i].
+            
+            // Fade out
+            // Alpha not supported, just draw
+            // Maybe blink near death?
+            should_draw := 1.
+            should_draw = 0 when life lt 8 and (life / 2) * 2 == life. // Flicker faster near end
+            
+            /text_draw/x/y/14/r/g/b/txt when should_draw == 1.
+            
+        < when active == 1.
+    <
+<
+
+#check_resource_changes() >
+    // GOLD
+    diff_gold := player_gold - last_player_gold.
+    >
+        // Spawn text (+X)
+        txt := "+".
+        val_str := /ds_int_to_string/diff_gold.
+        txt = /ds_string_concat/txt/val_str.
+        
+        // Position: Align with Gold counter in render.nh
+        // Line 1 Y: dungeon_y + 12 + MAP_HEIGHT * TILE_H + 10
+        // Gold X: dungeon_x + 200 + 110 + 70 + 70 + 20 = +470
+        
+        py := dungeon_y + 12 + MAP_HEIGHT * TILE_H + 10.
+        px := dungeon_x + 470.
+        
+        /spawn_floating_text/px/py/txt/255/255/0. // Yellow
+        
+        last_player_gold = player_gold.
+    < when diff_gold gt 0.
+    
+    // BANK
+    diff_bank := player_bank - last_player_bank.
+    >
+        // Spawn text (+X)
+        txt := "+".
+        val_str := /ds_int_to_string/diff_bank.
+        txt = /ds_string_concat/txt/val_str.
+        
+        // 1. Position: Line 2 (Y + 20) -> Bank X: dungeon_x + 60
+        py1 := dungeon_y + 12 + MAP_HEIGHT * TILE_H + 30.
+        px1 := dungeon_x + 60.
+        
+        /spawn_floating_text/px1/py1/txt/100/255/100. // Green
+        
+        // 2. Position: Tech Tree Header
+        // (tx + tw - 40)/(ty + 12)
+        px2 := tech_tree_x + tech_tree_w - 40.
+        py2 := tech_tree_y + 12.
+        
+        /spawn_floating_text/px2/py2/txt/100/255/100. // Green
+        
+        last_player_bank = player_bank.
+    < when diff_bank gt 0.
+    
+    // Sync on decrease (e.g. spending or reset) without showing text
+    last_player_gold = player_gold when player_gold lt last_player_gold.
+    last_player_bank = player_bank when player_bank lt last_player_bank.
+    
+    // BONUS
+    // Bonus doesn't usually "increase" incrementally, it's recalculated.
+    // If it goes up (e.g. killing more monsters/exploring), show it?
+    // It updates when calling calculate_floor_bonus at end of level or init.
+    // It might be spammy if it updates every turn?
+    // calculate_floor_bonus is called in game_init, and change_level, and restart_game.
+    // It's only recalculated at specific points, not every frame.
+    // Wait, dngn_bonus is static during the level?
+    // In player.nh: dngn_bonus = 0.
+    // It is NOT updated every frame.
+    // So if it changes, it's a significant event (e.g. level complete).
+    
+    diff_bonus := dngn_bonus - last_dngn_bonus.
+    >
+        // Only show if positive change
+        txt := "+".
+        val_str := /ds_int_to_string/diff_bonus.
+        txt = /ds_string_concat/txt/val_str.
+        
+        // Position: Line 2
+        // Bonus X (Label at +110, Value at +165)
+        
+        py := dungeon_y + 12 + MAP_HEIGHT * TILE_H + 30.
+        px := dungeon_x + 165.
+        
+        /spawn_floating_text/px/py/txt/0/255/255. // Cyan
+        
+        last_dngn_bonus = dngn_bonus.
+    < when diff_bonus gt 0.
+    
+    last_dngn_bonus = dngn_bonus when dngn_bonus lt last_dngn_bonus.
+<
