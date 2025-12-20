@@ -106,3 +106,16 @@ jobs:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
 
+      - name: Install butler
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          curl -L -o butler.zip https://broth.itch.zone/butler/linux-amd64/LATEST/archive/default
+          unzip butler.zip
+          chmod +x butler
+          ./butler -V
+
+      - name: Deploy to itch.io (Production)
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: ./butler push web/dist olifog/yendor:html5
+        env:
+          BUTLER_API_KEY: ${{ secrets.BUTLER_API_KEY }}
