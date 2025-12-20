@@ -392,6 +392,10 @@ save_slot_names := ["Empty Slot", "Empty Slot", "Empty Slot"].
     /generate_dungeon/.
     dngn_bonus = /calculate_floor_bonus/.
     
+    // Mark as new game so tutorial auto-starts
+    ui_tut_is_new_game = 1.
+    ui_tut_has_shown = 0.  // Reset so tutorial shows on each new game
+    
     // Fully initialize intro state (clears old state from previous plays)
     /init_intro/.
 <

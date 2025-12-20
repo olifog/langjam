@@ -1,0 +1,383 @@
+// tutorial.nh - UI Tutorial System with Spotlight Highlights
+// ============================================================================
+// A modular tutorial that highlights UI elements and explains their purpose
+// ============================================================================
+
+// State (prefixed with ui_tut_ to avoid conflict with language tutorial in tech.nh)
+ui_tut_active := 0.
+ui_tut_stage := 0.
+ui_tut_has_shown := 0.     // Persists across sessions (checked on first start)
+ui_tut_is_new_game := 0.   // Flag to distinguish new game from load game
+
+// Number of stages (update when adding new stages)
+UI_TUT_STAGE_COUNT := 6.
+
+// Stage data arrays - add new stages by extending these
+// Titles
+ui_tut_titles := [].
+
+// Descriptions (multi-line stored as single strings with line breaks)
+ui_tut_descs := [].
+
+// Highlight regions (x, y, w, h) - computed at runtime based on layout
+// We'll compute these dynamically from global layout vars
+
+// Popup positioning
+UI_TUT_POPUP_W := 400.
+UI_TUT_POPUP_H := 250.
+UI_TUT_POPUP_PADDING := 20.
+
+// Button dimensions
+UI_TUT_BTN_CONTINUE_W := 100.
+UI_TUT_BTN_CONTINUE_H := 32.
+UI_TUT_BTN_SKIP_W := 80.
+UI_TUT_BTN_SKIP_H := 28.
+
+// ============================================================================
+// Stage Content Initialization
+// ============================================================================
+
+#init_ui_tut_content() >
+    // Stage 0: Dungeon Panel
+    ui_tut_titles[0] = "The Dungeon".
+    ui_tut_descs[0] = "This is the dungeon view. You control the @| symbol. Navigate through rooms, collect|gold ($), fight monsters (k, g, o), and find|the stairs (>) to descend deeper.".
+    
+    // Stage 1: Status Bar
+    ui_tut_titles[1] = "Status Bar".
+    ui_tut_descs[1] = "Your character's stats are shown here:|HP - Health Points (don't let it reach 0!)|St - Strength (damage dealt)|AC - Armor Class (damage reduction)|$ - Gold on hand |BANK - Saved gold for upgrades".
+    
+    // Stage 2: Tech Tree
+    ui_tut_titles[2] = "Upgrades".
+    ui_tut_descs[2] = "Unlock upgrades with your gold.|Left tree: Buffs (HP, strength, speed)|Right tree: Dungeon (more challenge = |more reward)|Bottom tree: Language features for your bot".
+    
+    // Stage 3: Code Editor
+    ui_tut_titles[3] = "Code Editor".
+    ui_tut_descs[3] = "Write your bot's code here!|This controls your character movements.|Start with simple movement commands like:|  /move/0/-1.  (move up)|  /move/1/0.  (move right)".
+    
+    // Stage 4: Bot Controls
+    ui_tut_titles[4] = "Bot Controls".
+    ui_tut_descs[4] = "Control your bot with these buttons:|PLAY - Start/pause bot execution|STOP - Stop and reset the bot|STEP - Execute one instruction at a time|SLIDER - Adjust execution speed".
+    
+    // Stage 5: Docs Button
+    ui_tut_titles[5] = "Documentation".
+    ui_tut_descs[5] = "Click DOCS to open the language manual.|It explains all available functions and|language features you've unlocked.|Check it often as you unlock new abilities!".
+<
+
+// ============================================================================
+// Get Highlight Region for Current Stage
+// ============================================================================
+
+// Returns highlight rect values via global output vars
+ui_tut_highlight_x := 0.
+ui_tut_highlight_y := 0.
+ui_tut_highlight_w := 0.
+ui_tut_highlight_h := 0.
+
+#get_ui_tut_stage_highlight() >
+    stage := ui_tut_stage.
+    
+    // Stage 0: Dungeon Panel
+    >
+        ui_tut_highlight_x = dungeon_x - 10.
+        ui_tut_highlight_y = dungeon_y - 5.
+        ui_tut_highlight_w = MAP_WIDTH * TILE_W + 40.
+        ui_tut_highlight_h = MAP_HEIGHT * TILE_H + 60.
+    < when stage == 0.
+    
+    // Stage 1: Status Bar (below dungeon)
+    >
+        ui_tut_highlight_x = dungeon_x - 10.
+        ui_tut_highlight_y = dungeon_y + MAP_HEIGHT * TILE_H + 20.
+        ui_tut_highlight_w = 500.
+        ui_tut_highlight_h = 50.
+    < when stage == 1.
+    
+    // Stage 2: Tech Tree
+    >
+        ui_tut_highlight_x = tech_tree_x.
+        ui_tut_highlight_y = tech_tree_y.
+        ui_tut_highlight_w = tech_tree_w.
+        ui_tut_highlight_h = tech_tree_h.
+    < when stage == 2.
+    
+    // Stage 3: Code Editor
+    >
+        ui_tut_highlight_x = panel_editor_x.
+        ui_tut_highlight_y = panel_editor_y.
+        ui_tut_highlight_w = panel_editor_w.
+        ui_tut_highlight_h = panel_editor_h.
+    < when stage == 3.
+    
+    // Stage 4: Bot Controls (buttons + slider area)
+    >
+        ui_tut_highlight_x = btn_play_x - 5.
+        ui_tut_highlight_y = btn_play_y - 5.
+        ui_tut_highlight_w = slider_x + slider_width - btn_play_x + 20.
+        ui_tut_highlight_h = btn_size + 10.
+    < when stage == 4.
+    
+    // Stage 5: Docs Button
+    >
+        ui_tut_highlight_x = SCREEN_W - 115.
+        ui_tut_highlight_y = LAYOUT_PADDING.
+        ui_tut_highlight_w = 60.
+        ui_tut_highlight_h = 32.
+    < when stage == 5.
+<
+
+// ============================================================================
+// Update Logic
+// ============================================================================
+
+#update_ui_tutorial() >
+    <<0 when ui_tut_active == 0.
+    
+    mx := /input_mouse_x/.
+    my := /input_mouse_y/.
+    just_clicked := /input_mouse_just_pressed/.
+    
+    <<0 when just_clicked == 0.
+    
+    // Get popup position to check button clicks
+    /get_ui_tut_stage_highlight/.
+    /get_ui_tut_popup_position/.
+    
+    // Continue button
+    btn_x := ui_tut_popup_x + UI_TUT_POPUP_W - UI_TUT_BTN_CONTINUE_W - UI_TUT_POPUP_PADDING.
+    btn_y := ui_tut_popup_y + UI_TUT_POPUP_H - UI_TUT_BTN_CONTINUE_H - UI_TUT_POPUP_PADDING.
+    
+    in_continue := mx ge btn_x and mx lt btn_x + UI_TUT_BTN_CONTINUE_W and my ge btn_y and my lt btn_y + UI_TUT_BTN_CONTINUE_H.
+    
+    >
+        /play_sound_wrapper/SOUND_UI_CLICK.
+        ui_tut_stage = ui_tut_stage + 1.
+        
+        // End tutorial if we've passed the last stage
+        >
+            ui_tut_active = 0.
+            ui_tut_has_shown = 1.
+        < when ui_tut_stage ge UI_TUT_STAGE_COUNT.
+    < when in_continue == 1.
+    
+    // Skip button
+    skip_x := ui_tut_popup_x + UI_TUT_POPUP_PADDING.
+    skip_y := ui_tut_popup_y + UI_TUT_POPUP_H - UI_TUT_BTN_SKIP_H - UI_TUT_POPUP_PADDING.
+    
+    in_skip := mx ge skip_x and mx lt skip_x + UI_TUT_BTN_SKIP_W and my ge skip_y and my lt skip_y + UI_TUT_BTN_SKIP_H.
+    
+    >
+        /play_sound_wrapper/SOUND_UI_CLICK.
+        ui_tut_active = 0.
+        ui_tut_has_shown = 1.
+    < when in_skip == 1.
+<
+
+// ============================================================================
+// Calculate Popup Position (avoids overlapping highlight)
+// ============================================================================
+
+ui_tut_popup_x := 0.
+ui_tut_popup_y := 0.
+
+#get_ui_tut_popup_position() >
+    hx := ui_tut_highlight_x.
+    hy := ui_tut_highlight_y.
+    hw := ui_tut_highlight_w.
+    hh := ui_tut_highlight_h.
+    
+    // Determine available space on each side
+    space_left := hx.
+    space_right := SCREEN_W - (hx + hw).
+    space_above := hy.
+    space_below := SCREEN_H - (hy + hh).
+    
+    // Try to position based on where there's most space
+    
+    // If enough space to the left, position there
+    >
+        ui_tut_popup_x = hx - UI_TUT_POPUP_W - 30.
+        ui_tut_popup_y = hy + (hh - UI_TUT_POPUP_H) / 2.
+    < when space_left ge UI_TUT_POPUP_W + 50.
+    
+    // If enough space to the right, position there
+    >
+        ui_tut_popup_x = hx + hw + 30.
+        ui_tut_popup_y = hy + (hh - UI_TUT_POPUP_H) / 2.
+    < when space_left lt UI_TUT_POPUP_W + 50 and space_right ge UI_TUT_POPUP_W + 50.
+    
+    // If neither side has enough space, position above or below
+    >
+        // Center horizontally
+        ui_tut_popup_x = hx + (hw - UI_TUT_POPUP_W) / 2.
+        
+        // Choose above or below based on available space
+        >
+            ui_tut_popup_y = hy - UI_TUT_POPUP_H - 20.
+        < when space_above ge UI_TUT_POPUP_H + 40.
+        
+        >
+            ui_tut_popup_y = hy + hh + 20.
+        < when space_above lt UI_TUT_POPUP_H + 40.
+    < when space_left lt UI_TUT_POPUP_W + 50 and space_right lt UI_TUT_POPUP_W + 50.
+    
+    // Final clamp to screen bounds
+    ui_tut_popup_x = 20 when ui_tut_popup_x lt 20.
+    ui_tut_popup_x = SCREEN_W - UI_TUT_POPUP_W - 20 when ui_tut_popup_x gt SCREEN_W - UI_TUT_POPUP_W - 20.
+    ui_tut_popup_y = 20 when ui_tut_popup_y lt 20.
+    ui_tut_popup_y = SCREEN_H - UI_TUT_POPUP_H - 20 when ui_tut_popup_y gt SCREEN_H - UI_TUT_POPUP_H - 20.
+<
+
+// ============================================================================
+// Rendering
+// ============================================================================
+
+#draw_ui_tut_overlay() >
+    <<0 when ui_tut_active == 0.
+    
+    // Get current stage highlight
+    /get_ui_tut_stage_highlight/.
+    
+    hx := ui_tut_highlight_x.
+    hy := ui_tut_highlight_y.
+    hw := ui_tut_highlight_w.
+    hh := ui_tut_highlight_h.
+    
+    // Draw darkened overlay with cutout (4 rectangles around highlight)
+    // Overlay alpha
+    oa := 200.
+    
+    // Top rectangle (above highlight)
+    /draw_rect/0/0/SCREEN_W/hy/0/0/0/oa when hy gt 0.
+    
+    // Bottom rectangle (below highlight)
+    bot_y := hy + hh.
+    bot_h := SCREEN_H - bot_y.
+    /draw_rect/0/bot_y/SCREEN_W/bot_h/0/0/0/oa when bot_h gt 0.
+    
+    // Left rectangle (left of highlight, between top and bottom)
+    /draw_rect/0/hy/hx/hh/0/0/0/oa when hx gt 0.
+    
+    // Right rectangle (right of highlight, between top and bottom)
+    right_x := hx + hw.
+    right_w := SCREEN_W - right_x.
+    /draw_rect/right_x/hy/right_w/hh/0/0/0/oa when right_w gt 0.
+    
+    // Draw highlight border (glowing effect)
+    border_r := 100. border_g := 180. border_b := 255.
+    /draw_rect/(hx - 2)/(hy - 2)/(hw + 4)/2/border_r/border_g/border_b/255.
+    /draw_rect/(hx - 2)/(hy + hh)/(hw + 4)/2/border_r/border_g/border_b/255.
+    /draw_rect/(hx - 2)/(hy - 2)/2/(hh + 4)/border_r/border_g/border_b/255.
+    /draw_rect/(hx + hw)/(hy - 2)/2/(hh + 4)/border_r/border_g/border_b/255.
+    
+    // Get popup position
+    /get_ui_tut_popup_position/.
+    px := ui_tut_popup_x.
+    py := ui_tut_popup_y.
+    
+    // Draw popup panel
+    /draw_ui_tut_popup_panel/px/py.
+<
+
+#draw_ui_tut_popup_panel(px, py) >
+    // Background
+    /draw_rect/px/py/UI_TUT_POPUP_W/UI_TUT_POPUP_H/25/30/40/255.
+    
+    // Border
+    br := 60. bg := 80. bb := 120.
+    /draw_rect/px/py/UI_TUT_POPUP_W/2/br/bg/bb/255.
+    /draw_rect/px/(py + UI_TUT_POPUP_H - 2)/UI_TUT_POPUP_W/2/(br - 20)/(bg - 20)/(bb - 20)/255.
+    /draw_rect/px/py/2/UI_TUT_POPUP_H/br/bg/bb/255.
+    /draw_rect/(px + UI_TUT_POPUP_W - 2)/py/2/UI_TUT_POPUP_H/(br - 20)/(bg - 20)/(bb - 20)/255.
+    
+    // Title
+    stage := ui_tut_stage.
+    title := ui_tut_titles[stage].
+    /text_draw/(px + UI_TUT_POPUP_PADDING)/(py + UI_TUT_POPUP_PADDING)/20/100/200/255/title.
+    
+    // Stage indicator (e.g., "1 / 6")
+    stage_num := stage + 1.
+    /text_draw/(px + UI_TUT_POPUP_W - 60)/(py + UI_TUT_POPUP_PADDING)/14/120/130/150/stage_num.
+    /text_draw/(px + UI_TUT_POPUP_W - 45)/(py + UI_TUT_POPUP_PADDING)/14/120/130/150/" / ".
+    /text_draw/(px + UI_TUT_POPUP_W - 25)/(py + UI_TUT_POPUP_PADDING)/14/120/130/150/UI_TUT_STAGE_COUNT.
+    
+    // Description (split by | character for line breaks)
+    desc := ui_tut_descs[stage].
+    /draw_ui_tut_desc/(px + UI_TUT_POPUP_PADDING)/(py + 55)/desc.
+    
+    // Continue button
+    btn_x := px + UI_TUT_POPUP_W - UI_TUT_BTN_CONTINUE_W - UI_TUT_POPUP_PADDING.
+    btn_y := py + UI_TUT_POPUP_H - UI_TUT_BTN_CONTINUE_H - UI_TUT_POPUP_PADDING.
+    
+    mx := /input_mouse_x/.
+    my := /input_mouse_y/.
+    cont_hover := mx ge btn_x and mx lt btn_x + UI_TUT_BTN_CONTINUE_W and my ge btn_y and my lt btn_y + UI_TUT_BTN_CONTINUE_H.
+    
+    cont_bg_r := 40. cont_bg_g := 80. cont_bg_b := 120.
+    cont_bg_r = 60 when cont_hover == 1. cont_bg_g = 120 when cont_hover == 1. cont_bg_b = 180 when cont_hover == 1.
+    
+    /draw_rect/btn_x/btn_y/UI_TUT_BTN_CONTINUE_W/UI_TUT_BTN_CONTINUE_H/cont_bg_r/cont_bg_g/cont_bg_b/255.
+    
+    label := "Continue".
+    label = "Finish" when ui_tut_stage == UI_TUT_STAGE_COUNT - 1.
+    /text_draw/(btn_x + 15)/(btn_y + 8)/14/220/230/255/label.
+    
+    // Skip button
+    skip_x := px + UI_TUT_POPUP_PADDING.
+    skip_y := py + UI_TUT_POPUP_H - UI_TUT_BTN_SKIP_H - UI_TUT_POPUP_PADDING.
+    
+    skip_hover := mx ge skip_x and mx lt skip_x + UI_TUT_BTN_SKIP_W and my ge skip_y and my lt skip_y + UI_TUT_BTN_SKIP_H.
+    
+    skip_r := 80. skip_g := 70. skip_b := 70.
+    skip_r = 120 when skip_hover == 1. skip_g = 100 when skip_hover == 1. skip_b = 100 when skip_hover == 1.
+    
+    /draw_rect/skip_x/skip_y/UI_TUT_BTN_SKIP_W/UI_TUT_BTN_SKIP_H/skip_r/skip_g/skip_b/255.
+    /text_draw/(skip_x + 18)/(skip_y + 7)/12/180/170/170/"Skip".
+<
+
+// Draw multi-line description (lines separated by |)
+#draw_ui_tut_desc(x, y, desc) >
+    len := /ds_strlen/desc.
+    line_y := y.
+    line_start := 0.
+    line_h := 22.
+    
+    for i in 0..(len + 1) >
+        ch := 0.
+        ch = /ds_string_at/desc/i when i lt len.
+        
+        is_break := ch == 124. // | character
+        is_end := i == len.
+        
+        >
+            // Extract substring for this line
+            line_len := i - line_start.
+            >
+                line := /ds_substring/desc/line_start/line_len.
+                /text_draw/x/line_y/14/200/210/220/line.
+            < when line_len gt 0.
+            
+            line_y = line_y + line_h.
+            line_start = i + 1.
+        < when is_break == 1 or is_end == 1.
+    <
+<
+
+// ============================================================================
+// Public API
+// ============================================================================
+
+#start_ui_tutorial() >
+    ui_tut_active = 1.
+    ui_tut_stage = 0.
+    /init_ui_tut_content/.
+<
+
+#check_ui_tutorial_auto_start() >
+    // Auto-start tutorial on first NEW game launch (not on load)
+    >
+        /start_ui_tutorial/.
+    < when ui_tut_has_shown == 0 and ui_tut_is_new_game == 1.
+    
+    // Clear the flag after checking
+    ui_tut_is_new_game = 0.
+<
