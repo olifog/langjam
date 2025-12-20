@@ -2055,6 +2055,48 @@ void js_call_set_volume(Value level_val) {
 #endif
 }
 
+void js_call_set_master_volume(Value level_val) {
+  int level = (int)AS_INT(level_val);
+#ifdef __EMSCRIPTEN__
+  EM_ASM_(
+      {
+        if (window.setMasterVolume)
+          window.setMasterVolume($0);
+      },
+      level);
+#else
+  (void)level;
+#endif
+}
+
+void js_call_set_music_volume(Value level_val) {
+  int level = (int)AS_INT(level_val);
+#ifdef __EMSCRIPTEN__
+  EM_ASM_(
+      {
+        if (window.setMusicVolume)
+          window.setMusicVolume($0);
+      },
+      level);
+#else
+  (void)level;
+#endif
+}
+
+void js_call_set_sfx_volume(Value level_val) {
+  int level = (int)AS_INT(level_val);
+#ifdef __EMSCRIPTEN__
+  EM_ASM_(
+      {
+        if (window.setSfxVolume)
+          window.setSfxVolume($0);
+      },
+      level);
+#else
+  (void)level;
+#endif
+}
+
 // ============================================================================
 // URL Opening (opens in new tab)
 // ============================================================================

@@ -16,10 +16,25 @@ import { audioManager } from './audio'
     audioManager.play(id)
   }
 
-  // Expose volume control for WASM
+  // Expose volume controls for WASM
   ; (window as any).setGameVolume = (level: number) => {
-    audioManager.setVolume(level);
+    audioManager.setMasterVolume(level);
     localStorage.setItem('game_volume', String(level));
+  }
+  
+  ; (window as any).setMasterVolume = (level: number) => {
+    audioManager.setMasterVolume(level);
+    localStorage.setItem('setting_master_volume', String(level));
+  }
+  
+  ; (window as any).setMusicVolume = (level: number) => {
+    audioManager.setMusicVolume(level);
+    localStorage.setItem('setting_music_volume', String(level));
+  }
+  
+  ; (window as any).setSfxVolume = (level: number) => {
+    audioManager.setSfxVolume(level);
+    localStorage.setItem('setting_sfx_volume', String(level));
   }
 
   // Save/Load system

@@ -10,7 +10,10 @@ MENU_STATE_SETTINGS := 2.    // Settings panel
 menu_active := 1.            // Menu is active on game start
 menu_state := 0.             // Current menu state
 menu_hovered_button := -1.   // Which button is hovered (-1 = none)
-menu_volume := 100.          // Volume level (0-100)
+menu_volume := 100.          // Volume level (0-100) - legacy, now master
+menu_master_volume := 100.   // Master volume (0-100)
+menu_music_volume := 100.    // Music volume (0-100)
+menu_sfx_volume := 100.      // SFX volume (0-100)
 
 // ============================================================================
 // Menu Background - Scrolling Dungeons
@@ -64,11 +67,22 @@ save_slot_names := ["Empty Slot", "Empty Slot", "Empty Slot"].
     menu_state = MENU_STATE_MAIN.
     menu_hovered_button = -1.
     
-    // Load volume setting from storage
-    stored_vol := /js_get_setting/"volume".
-    menu_volume = stored_vol when stored_vol gt 0.
-    menu_volume = 100 when stored_vol == 0.
-    /js_set_volume/menu_volume.
+    // Load volume settings from storage
+    stored_master := /js_get_setting/"master_volume".
+    stored_music := /js_get_setting/"music_volume".
+    stored_sfx := /js_get_setting/"sfx_volume".
+    
+    menu_master_volume = stored_master when stored_master gt 0.
+    menu_master_volume = 100 when stored_master == 0.
+    menu_music_volume = stored_music when stored_music gt 0.
+    menu_music_volume = 100 when stored_music == 0.
+    menu_sfx_volume = stored_sfx when stored_sfx gt 0.
+    menu_sfx_volume = 100 when stored_sfx == 0.
+    
+    // Apply volume settings
+    /js_set_master_volume/menu_master_volume.
+    /js_set_music_volume/menu_music_volume.
+    /js_set_sfx_volume/menu_sfx_volume.
     
     // Check save slots
     /refresh_save_slots/.
@@ -454,24 +468,47 @@ save_slot_names := ["Empty Slot", "Empty Slot", "Empty Slot"].
     menu_hovered_button = 10 when in_back == 1.
     menu_state = MENU_STATE_MAIN when in_back == 1 and just_pressed == 1.
     /play_sound_wrapper/SOUND_UI_CLICK when in_back == 1 and just_pressed == 1.
-    /js_set_setting/"volume"/menu_volume when in_back == 1 and just_pressed == 1.
+    /js_set_setting/"master_volume"/menu_master_volume when in_back == 1 and just_pressed == 1.
+    /js_set_setting/"music_volume"/menu_music_volume when in_back == 1 and just_pressed == 1.
+    /js_set_setting/"sfx_volume"/menu_sfx_volume when in_back == 1 and just_pressed == 1.
     
-    // Volume slider
+    // Slider dimensions
     slider_x := (SCREEN_W - 300) / 2.
-    slider_y := SCREEN_H / 2.
     slider_w := 300.
     slider_h := 20.
     
-    in_slider := mx ge slider_x and mx lt slider_x + slider_w and my ge slider_y - 10 and my lt slider_y + slider_h + 10.
+    // Master Volume slider
+    master_y := SCREEN_H / 2 - 60.
+    in_master := mx ge slider_x and mx lt slider_x + slider_w and my ge master_y - 10 and my lt master_y + slider_h + 10.
+    drag_master := in_master * mouse_down.
+    new_master := 0.
+    new_master = (mx - slider_x) * 100 / slider_w when drag_master == 1.
+    new_master = 0 when new_master lt 0.
+    new_master = 100 when new_master gt 100.
+    menu_master_volume = new_master when drag_master == 1.
+    /js_set_master_volume/menu_master_volume when drag_master == 1.
     
-    // Drag slider
-    drag_slider := in_slider * mouse_down.
-    new_vol := 0.
-    new_vol = (mx - slider_x) * 100 / slider_w when drag_slider == 1.
-    new_vol = 0 when new_vol lt 0.
-    new_vol = 100 when new_vol gt 100.
-    menu_volume = new_vol when drag_slider == 1.
-    /js_set_volume/menu_volume when drag_slider == 1.
+    // Music Volume slider
+    music_y := SCREEN_H / 2.
+    in_music := mx ge slider_x and mx lt slider_x + slider_w and my ge music_y - 10 and my lt music_y + slider_h + 10.
+    drag_music := in_music * mouse_down.
+    new_music := 0.
+    new_music = (mx - slider_x) * 100 / slider_w when drag_music == 1.
+    new_music = 0 when new_music lt 0.
+    new_music = 100 when new_music gt 100.
+    menu_music_volume = new_music when drag_music == 1.
+    /js_set_music_volume/menu_music_volume when drag_music == 1.
+    
+    // SFX Volume slider
+    sfx_y := SCREEN_H / 2 + 60.
+    in_sfx := mx ge slider_x and mx lt slider_x + slider_w and my ge sfx_y - 10 and my lt sfx_y + slider_h + 10.
+    drag_sfx := in_sfx * mouse_down.
+    new_sfx := 0.
+    new_sfx = (mx - slider_x) * 100 / slider_w when drag_sfx == 1.
+    new_sfx = 0 when new_sfx lt 0.
+    new_sfx = 100 when new_sfx gt 100.
+    menu_sfx_volume = new_sfx when drag_sfx == 1.
+    /js_set_sfx_volume/menu_sfx_volume when drag_sfx == 1.
 <
 
 // ============================================================================
@@ -733,32 +770,49 @@ save_slot_names := ["Empty Slot", "Empty Slot", "Empty Slot"].
     title_y := 180.
     /text_draw_font/title_x/title_y/24/180/160/120/0/set_title.
     
-    // Volume label
-    label_x := SCREEN_W / 2 - 150.
-    label_y := SCREEN_H / 2 - 40.
-    /text_draw/label_x/label_y/14/200/200/200/"Volume".
-    
-    // Volume slider
+    // Slider dimensions
     slider_x := (SCREEN_W - 300) / 2.
-    slider_y := SCREEN_H / 2.
     slider_w := 300.
     slider_h := 20.
     
-    // Slider track
-    /draw_rect/slider_x/slider_y/slider_w/slider_h/40/45/55/255.
+    // Master Volume
+    master_label_y := SCREEN_H / 2 - 80.
+    master_y := SCREEN_H / 2 - 60.
+    /text_draw/(slider_x)/master_label_y/14/200/200/200/"Master Volume".
+    /draw_rect/slider_x/master_y/slider_w/slider_h/40/45/55/255.
+    master_fill := slider_w * menu_master_volume / 100.
+    /draw_rect/slider_x/master_y/master_fill/slider_h/80/120/180/255.
+    master_handle := slider_x + master_fill - 5.
+    /draw_rect/master_handle/(master_y - 3)/10/(slider_h + 6)/200/200/200/255.
+    master_pct_x := slider_x + slider_w + 20.
+    /text_draw_int/master_pct_x/master_y/14/200/200/200/menu_master_volume.
+    /text_draw/(master_pct_x + 30)/master_y/14/200/200/200/"%".
     
-    // Slider fill
-    fill_w := slider_w * menu_volume / 100.
-    /draw_rect/slider_x/slider_y/fill_w/slider_h/80/120/180/255.
+    // Music Volume
+    music_label_y := SCREEN_H / 2 - 20.
+    music_y := SCREEN_H / 2.
+    /text_draw/(slider_x)/music_label_y/14/200/200/200/"Music Volume".
+    /draw_rect/slider_x/music_y/slider_w/slider_h/40/45/55/255.
+    music_fill := slider_w * menu_music_volume / 100.
+    /draw_rect/slider_x/music_y/music_fill/slider_h/100/180/100/255.
+    music_handle := slider_x + music_fill - 5.
+    /draw_rect/music_handle/(music_y - 3)/10/(slider_h + 6)/200/200/200/255.
+    music_pct_x := slider_x + slider_w + 20.
+    /text_draw_int/music_pct_x/music_y/14/200/200/200/menu_music_volume.
+    /text_draw/(music_pct_x + 30)/music_y/14/200/200/200/"%".
     
-    // Slider handle
-    handle_x := slider_x + fill_w - 5.
-    /draw_rect/handle_x/(slider_y - 3)/10/(slider_h + 6)/200/200/200/255.
-    
-    // Volume percentage
-    pct_x := slider_x + slider_w + 20.
-    /text_draw_int/pct_x/slider_y/14/200/200/200/menu_volume.
-    /text_draw/(pct_x + 30)/slider_y/14/200/200/200/"%".
+    // SFX Volume
+    sfx_label_y := SCREEN_H / 2 + 40.
+    sfx_y := SCREEN_H / 2 + 60.
+    /text_draw/(slider_x)/sfx_label_y/14/200/200/200/"SFX Volume".
+    /draw_rect/slider_x/sfx_y/slider_w/slider_h/40/45/55/255.
+    sfx_fill := slider_w * menu_sfx_volume / 100.
+    /draw_rect/slider_x/sfx_y/sfx_fill/slider_h/180/100/100/255.
+    sfx_handle := slider_x + sfx_fill - 5.
+    /draw_rect/sfx_handle/(sfx_y - 3)/10/(slider_h + 6)/200/200/200/255.
+    sfx_pct_x := slider_x + slider_w + 20.
+    /text_draw_int/sfx_pct_x/sfx_y/14/200/200/200/menu_sfx_volume.
+    /text_draw/(sfx_pct_x + 30)/sfx_y/14/200/200/200/"%".
     
     // Back button
     /draw_menu_button/50/(SCREEN_H - 80)/100/40/"Back"/(menu_hovered_button == 10).
@@ -893,7 +947,7 @@ save_slot_names := ["Empty Slot", "Empty Slot", "Empty Slot"].
 
 #update_pause_popup_settings(mx, my, just_pressed, mouse_down) >
     popup_w := 300.
-    popup_h := 250.
+    popup_h := 320.
     popup_x := (SCREEN_W - popup_w) / 2.
     popup_y := (SCREEN_H - popup_h) / 2.
     
@@ -906,25 +960,48 @@ save_slot_names := ["Empty Slot", "Empty Slot", "Empty Slot"].
     in_close := mx ge close_x and mx lt close_x + close_size and my ge close_y and my lt close_y + close_size.
     pause_popup_hovered = 0 when in_close == 1.
     pause_popup_state = 0 when in_close == 1 and just_pressed == 1.
-    /js_set_setting/"volume"/menu_volume when in_close == 1 and just_pressed == 1.
+    /js_set_setting/"master_volume"/menu_master_volume when in_close == 1 and just_pressed == 1.
+    /js_set_setting/"music_volume"/menu_music_volume when in_close == 1 and just_pressed == 1.
+    /js_set_setting/"sfx_volume"/menu_sfx_volume when in_close == 1 and just_pressed == 1.
     /play_sound_wrapper/SOUND_UI_CLICK when in_close == 1 and just_pressed == 1.
     
-    // Volume slider
+    // Slider dimensions
     slider_w := 200.
     slider_h := 20.
     slider_x := popup_x + (popup_w - slider_w) / 2.
-    slider_y := popup_y + 120.
     
-    in_slider := mx ge slider_x and mx lt slider_x + slider_w and my ge slider_y - 10 and my lt slider_y + slider_h + 10.
+    // Master Volume slider
+    master_y := popup_y + 90.
+    in_master := mx ge slider_x and mx lt slider_x + slider_w and my ge master_y - 10 and my lt master_y + slider_h + 10.
+    drag_master := in_master * mouse_down.
+    new_master := 0.
+    new_master = (mx - slider_x) * 100 / slider_w when drag_master == 1.
+    new_master = 0 when new_master lt 0.
+    new_master = 100 when new_master gt 100.
+    menu_master_volume = new_master when drag_master == 1.
+    /js_set_master_volume/menu_master_volume when drag_master == 1.
     
-    // Drag slider
-    drag_slider := in_slider * mouse_down.
-    new_vol := 0.
-    new_vol = (mx - slider_x) * 100 / slider_w when drag_slider == 1.
-    new_vol = 0 when new_vol lt 0.
-    new_vol = 100 when new_vol gt 100.
-    menu_volume = new_vol when drag_slider == 1.
-    /js_set_volume/menu_volume when drag_slider == 1.
+    // Music Volume slider
+    music_y := popup_y + 160.
+    in_music := mx ge slider_x and mx lt slider_x + slider_w and my ge music_y - 10 and my lt music_y + slider_h + 10.
+    drag_music := in_music * mouse_down.
+    new_music := 0.
+    new_music = (mx - slider_x) * 100 / slider_w when drag_music == 1.
+    new_music = 0 when new_music lt 0.
+    new_music = 100 when new_music gt 100.
+    menu_music_volume = new_music when drag_music == 1.
+    /js_set_music_volume/menu_music_volume when drag_music == 1.
+    
+    // SFX Volume slider
+    sfx_y := popup_y + 230.
+    in_sfx := mx ge slider_x and mx lt slider_x + slider_w and my ge sfx_y - 10 and my lt sfx_y + slider_h + 10.
+    drag_sfx := in_sfx * mouse_down.
+    new_sfx := 0.
+    new_sfx = (mx - slider_x) * 100 / slider_w when drag_sfx == 1.
+    new_sfx = 0 when new_sfx lt 0.
+    new_sfx = 100 when new_sfx gt 100.
+    menu_sfx_volume = new_sfx when drag_sfx == 1.
+    /js_set_sfx_volume/menu_sfx_volume when drag_sfx == 1.
 <
 
 #update_pause_popup_save(mx, my, just_pressed) >
@@ -973,9 +1050,10 @@ save_slot_names := ["Empty Slot", "Empty Slot", "Empty Slot"].
     // Darken background
     /draw_rect/0/0/SCREEN_W/SCREEN_H/0/0/0/150.
     
-    // Popup dimensions (taller for save slot picker)
+    // Popup dimensions (taller for settings with 3 sliders, or save slot picker)
     popup_w := 300.
     popup_h := 250.
+    popup_h = 320 when pause_popup_state == 1.
     popup_h = 280 when pause_popup_state == 2.
     popup_x := (SCREEN_W - popup_w) / 2.
     popup_y := (SCREEN_H - popup_h) / 2.
@@ -1039,34 +1117,58 @@ save_slot_names := ["Empty Slot", "Empty Slot", "Empty Slot"].
     title_y := popup_y + 30.
     /text_draw/title_x/title_y/20/200/200/200/title.
     
-    // Volume label
-    label := "Volume".
-    label_width := /text_measure/label/14.
-    label_x := popup_x + (popup_w - label_width) / 2.
-    label_y := popup_y + 80.
-    /text_draw/label_x/label_y/14/180/180/180/label.
-    
-    // Volume slider
+    // Slider dimensions
     slider_w := 200.
     slider_h := 20.
     slider_x := popup_x + (popup_w - slider_w) / 2.
-    slider_y := popup_y + 120.
     
-    // Slider track
-    /draw_rect/slider_x/slider_y/slider_w/slider_h/50/55/65/255.
+    // Master Volume
+    master_label := "Master".
+    master_label_width := /text_measure/master_label/14.
+    master_label_x := popup_x + (popup_w - master_label_width) / 2.
+    master_label_y := popup_y + 60.
+    master_y := popup_y + 90.
+    /text_draw/master_label_x/master_label_y/14/180/180/180/master_label.
+    /draw_rect/slider_x/master_y/slider_w/slider_h/50/55/65/255.
+    master_fill := slider_w * menu_master_volume / 100.
+    /draw_rect/slider_x/master_y/master_fill/slider_h/80/120/180/255.
+    master_handle := slider_x + master_fill - 5.
+    /draw_rect/master_handle/(master_y - 3)/10/(slider_h + 6)/200/200/200/255.
+    master_pct_x := slider_x + slider_w + 10.
+    /text_draw_int/master_pct_x/master_y/14/200/200/200/menu_master_volume.
+    /text_draw/(master_pct_x + 25)/master_y/14/200/200/200/"%".
     
-    // Slider fill
-    fill_w := slider_w * menu_volume / 100.
-    /draw_rect/slider_x/slider_y/fill_w/slider_h/80/120/180/255.
+    // Music Volume
+    music_label := "Music".
+    music_label_width := /text_measure/music_label/14.
+    music_label_x := popup_x + (popup_w - music_label_width) / 2.
+    music_label_y := popup_y + 130.
+    music_y := popup_y + 160.
+    /text_draw/music_label_x/music_label_y/14/180/180/180/music_label.
+    /draw_rect/slider_x/music_y/slider_w/slider_h/50/55/65/255.
+    music_fill := slider_w * menu_music_volume / 100.
+    /draw_rect/slider_x/music_y/music_fill/slider_h/100/180/100/255.
+    music_handle := slider_x + music_fill - 5.
+    /draw_rect/music_handle/(music_y - 3)/10/(slider_h + 6)/200/200/200/255.
+    music_pct_x := slider_x + slider_w + 10.
+    /text_draw_int/music_pct_x/music_y/14/200/200/200/menu_music_volume.
+    /text_draw/(music_pct_x + 25)/music_y/14/200/200/200/"%".
     
-    // Slider handle
-    handle_x := slider_x + fill_w - 5.
-    /draw_rect/handle_x/(slider_y - 3)/10/(slider_h + 6)/200/200/200/255.
-    
-    // Volume percentage
-    pct_x := slider_x + slider_w + 10.
-    /text_draw_int/pct_x/slider_y/14/200/200/200/menu_volume.
-    /text_draw/(pct_x + 25)/slider_y/14/200/200/200/"%".
+    // SFX Volume
+    sfx_label := "SFX".
+    sfx_label_width := /text_measure/sfx_label/14.
+    sfx_label_x := popup_x + (popup_w - sfx_label_width) / 2.
+    sfx_label_y := popup_y + 200.
+    sfx_y := popup_y + 230.
+    /text_draw/sfx_label_x/sfx_label_y/14/180/180/180/sfx_label.
+    /draw_rect/slider_x/sfx_y/slider_w/slider_h/50/55/65/255.
+    sfx_fill := slider_w * menu_sfx_volume / 100.
+    /draw_rect/slider_x/sfx_y/sfx_fill/slider_h/180/100/100/255.
+    sfx_handle := slider_x + sfx_fill - 5.
+    /draw_rect/sfx_handle/(sfx_y - 3)/10/(slider_h + 6)/200/200/200/255.
+    sfx_pct_x := slider_x + slider_w + 10.
+    /text_draw_int/sfx_pct_x/sfx_y/14/200/200/200/menu_sfx_volume.
+    /text_draw/(sfx_pct_x + 25)/sfx_y/14/200/200/200/"%".
 <
 
 #render_pause_popup_save(popup_x, popup_y, popup_w, popup_h) >

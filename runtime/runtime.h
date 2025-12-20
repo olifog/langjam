@@ -515,6 +515,9 @@ void play_sound(Value id);
 // Volume Control
 // ============================================================================
 void js_call_set_volume(Value level);
+void js_call_set_master_volume(Value level);
+void js_call_set_music_volume(Value level);
+void js_call_set_sfx_volume(Value level);
 
 // ============================================================================
 // URL Opening (opens in new tab)

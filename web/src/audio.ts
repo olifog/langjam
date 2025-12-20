@@ -21,7 +21,19 @@ export enum SoundType {
 class AudioManager {
     private ctx: AudioContext | null = null;
     private masterGain: GainNode | null = null;
+    private musicGain: GainNode | null = null;
+    private sfxGain: GainNode | null = null;
     private compressor: DynamicsCompressorNode | null = null;
+    
+    // Background music
+    private musicElement: HTMLAudioElement | null = null;
+    private musicSource: MediaElementAudioSourceNode | null = null;
+    private musicStarted: boolean = false;
+    
+    // Volume levels (0-100)
+    private masterVolume: number = 100;
+    private musicVolume: number = 100;
+    private sfxVolume: number = 100;
 
     constructor() {
         // We defer initialization until the first interaction to satisfy browser policies
@@ -35,8 +47,18 @@ class AudioManager {
         if (!AudioContext) return;
 
         this.ctx = new AudioContext();
+        
+        // Master gain node
         this.masterGain = this.ctx.createGain();
-        this.masterGain.gain.value = 0.2; // Reduced volume/Default volume
+        this.masterGain.gain.value = this.masterVolume / 100;
+        
+        // Music gain node (separate from SFX)
+        this.musicGain = this.ctx.createGain();
+        this.musicGain.gain.value = (this.musicVolume / 100) * 0.3; // Music at 30% max for balance
+        
+        // SFX gain node
+        this.sfxGain = this.ctx.createGain();
+        this.sfxGain.gain.value = (this.sfxVolume / 100) * 0.2; // SFX at 20% max
 
         // Add compressor to normalize volume (limit loud peaks)
         this.compressor = this.ctx.createDynamicsCompressor();
@@ -46,20 +68,89 @@ class AudioManager {
         this.compressor.attack.value = 0.003;
         this.compressor.release.value = 0.25;
 
-        this.masterGain.connect(this.compressor);
-        this.compressor.connect(this.ctx.destination);
+        // Connect SFX through compressor
+        this.sfxGain.connect(this.compressor);
+        this.compressor.connect(this.masterGain);
+        
+        // Connect music directly to master (no compression needed for pre-mixed music)
+        this.musicGain.connect(this.masterGain);
+        
+        this.masterGain.connect(this.ctx.destination);
 
         console.log('[Audio] Initialized');
+        
+        // Start background music
+        this.startBackgroundMusic();
+    }
+    
+    private startBackgroundMusic() {
+        if (this.musicStarted || !this.ctx || !this.musicGain) return;
+        
+        try {
+            this.musicElement = new Audio('./LANGJAM_BEAT_YNJ.mp3');
+            this.musicElement.loop = true;
+            this.musicElement.volume = 1.0; // Full volume, controlled by gain node
+            
+            this.musicSource = this.ctx.createMediaElementSource(this.musicElement);
+            this.musicSource.connect(this.musicGain);
+            
+            // Only mark as started after successful play
+            this.musicStarted = true;
+            
+            this.musicElement.play().then(() => {
+                console.log('[Audio] Background music started');
+            }).catch(err => {
+                console.warn('[Audio] Failed to start music, will retry on next interaction:', err.message);
+                this.musicStarted = false; // Allow retry
+            });
+        } catch (e) {
+            console.error('[Audio] Error setting up background music:', e);
+        }
+    }
+    
+    // Called on any user interaction to ensure music starts
+    private ensureMusicPlaying() {
+        if (!this.musicStarted && this.ctx && this.musicGain) {
+            this.startBackgroundMusic();
+        } else if (this.musicElement && this.musicElement.paused && this.musicStarted) {
+            // Music was set up but paused, try to resume
+            this.musicElement.play().catch(() => {});
+        }
     }
 
-    public setVolume(level: number) {
-        // level is 0-100, map to 0.0-0.2
+    public setMasterVolume(level: number) {
+        this.masterVolume = Math.max(0, Math.min(100, level));
         if (!this.masterGain) {
             this.init();
         }
         if (this.masterGain) {
-            this.masterGain.gain.value = (level / 100) * 0.2;
+            this.masterGain.gain.value = this.masterVolume / 100;
         }
+    }
+    
+    public setMusicVolume(level: number) {
+        this.musicVolume = Math.max(0, Math.min(100, level));
+        if (!this.musicGain) {
+            this.init();
+        }
+        if (this.musicGain) {
+            this.musicGain.gain.value = (this.musicVolume / 100) * 0.3;
+        }
+    }
+    
+    public setSfxVolume(level: number) {
+        this.sfxVolume = Math.max(0, Math.min(100, level));
+        if (!this.sfxGain) {
+            this.init();
+        }
+        if (this.sfxGain) {
+            this.sfxGain.gain.value = (this.sfxVolume / 100) * 0.2;
+        }
+    }
+
+    // Legacy method for backwards compatibility
+    public setVolume(level: number) {
+        this.setMasterVolume(level);
     }
 
     public play(id: number) {
@@ -68,7 +159,10 @@ class AudioManager {
             this.ctx?.resume();
         }
 
-        if (!this.ctx || !this.masterGain) return;
+        if (!this.ctx || !this.sfxGain) return;
+        
+        // Ensure background music is playing on any user-triggered sound
+        this.ensureMusicPlaying();
 
         const t = this.ctx.currentTime;
 
@@ -144,7 +238,7 @@ class AudioManager {
     }
 
     private playCoinPickup(t: number) {
-        if (!this.ctx || !this.masterGain) return;
+        if (!this.ctx || !this.sfxGain) return;
 
         // Classic coin sound: quick ascending arpeggio with a high sparkle
         // Similar to Mario coin or Zelda rupee
@@ -163,7 +257,7 @@ class AudioManager {
             gain.gain.exponentialRampToValueAtTime(0.01, t + i * duration + duration * 1.5);
 
             osc.connect(gain);
-            gain.connect(this.masterGain!);
+            gain.connect(this.sfxGain!);
 
             osc.start(t + i * duration);
             osc.stop(t + i * duration + duration * 2);
@@ -171,7 +265,7 @@ class AudioManager {
     }
 
     private playFootstep(t: number) {
-        if (!this.ctx || !this.masterGain) return;
+        if (!this.ctx || !this.sfxGain) return;
 
         // Crispy footstep: short high-frequency noise bursts
         const bufferSize = Math.floor(this.ctx.sampleRate * 0.03); // 30ms
@@ -197,13 +291,13 @@ class AudioManager {
 
         noise.connect(filter);
         filter.connect(gain);
-        gain.connect(this.masterGain);
+        gain.connect(this.sfxGain);
 
         noise.start(t);
     }
 
     private playSwipe(t: number) {
-        if (!this.ctx || !this.masterGain) return;
+        if (!this.ctx || !this.sfxGain) return;
 
         // ORGANIC SWORD SWOOSH
         const variance = Math.random() * 0.1 - 0.05; // +/- 50ms random var
@@ -226,7 +320,7 @@ class AudioManager {
 
         airSource.connect(airFilter);
         airFilter.connect(airGain);
-        airGain.connect(this.masterGain);
+        airGain.connect(this.sfxGain);
 
         airSource.start(t);
         airSource.stop(t + duration + 0.2);
@@ -248,14 +342,14 @@ class AudioManager {
 
         bodySource.connect(bodyFilter);
         bodyFilter.connect(bodyGain);
-        bodyGain.connect(this.masterGain);
+        bodyGain.connect(this.sfxGain);
 
         bodySource.start(t);
         bodySource.stop(t + duration + 0.2);
     }
 
     private playThud(t: number) {
-        if (!this.ctx || !this.masterGain) return;
+        if (!this.ctx || !this.sfxGain) return;
 
         // Blunt thud: Low frequency sine/triangle with fast pitch drop
         const osc = this.ctx.createOscillator();
@@ -275,14 +369,14 @@ class AudioManager {
 
         osc.connect(filter);
         filter.connect(gain);
-        gain.connect(this.masterGain);
+        gain.connect(this.sfxGain);
 
         osc.start(t);
         osc.stop(t + 0.2);
     }
 
     private playDescending(t: number) {
-        if (!this.ctx || !this.masterGain) return;
+        if (!this.ctx || !this.sfxGain) return;
 
         const osc = this.ctx.createOscillator();
         const gain = this.ctx.createGain();
@@ -295,14 +389,14 @@ class AudioManager {
         gain.gain.linearRampToValueAtTime(0, t + 1.0);
 
         osc.connect(gain);
-        gain.connect(this.masterGain);
+        gain.connect(this.sfxGain);
 
         osc.start(t);
         osc.stop(t + 1.0);
     }
 
     private playMouseClick(t: number) {
-        if (!this.ctx || !this.masterGain) return;
+        if (!this.ctx || !this.sfxGain) return;
 
         // Mouse click: very short, sharp noise burst with high-frequency content
         const bufferSize = Math.floor(this.ctx.sampleRate * 0.02); // 20ms
@@ -328,13 +422,13 @@ class AudioManager {
 
         noise.connect(filter);
         filter.connect(gain);
-        gain.connect(this.masterGain);
+        gain.connect(this.sfxGain);
 
         noise.start(t);
     }
 
     private playKeyType(t: number) {
-        if (!this.ctx || !this.masterGain) return;
+        if (!this.ctx || !this.sfxGain) return;
 
         // Keyboard clack: Muffled
         const bufferSize = Math.floor(this.ctx.sampleRate * 0.025); // 25ms
@@ -359,13 +453,13 @@ class AudioManager {
 
         noise.connect(filter);
         filter.connect(gain);
-        gain.connect(this.masterGain);
+        gain.connect(this.sfxGain);
 
         noise.start(t);
     }
 
     private playPaperRustle(t: number) {
-        if (!this.ctx || !this.masterGain) return;
+        if (!this.ctx || !this.sfxGain) return;
 
         // Paper rustle: Bandpassed noise with erratic volume modulation
         const duration = 0.5;
@@ -386,14 +480,14 @@ class AudioManager {
 
         noise.connect(filter);
         filter.connect(gain);
-        gain.connect(this.masterGain);
+        gain.connect(this.sfxGain);
 
         noise.start(t);
         noise.stop(t + duration + 0.1);
     }
 
     private playPenScratch(t: number) {
-        if (!this.ctx || !this.masterGain) return;
+        if (!this.ctx || !this.sfxGain) return;
 
         // Pen scratch: Smoother granular synthesis
         // Less "ratchety" means we need softer attacks and higher friction frequencies
@@ -419,21 +513,21 @@ class AudioManager {
 
         noise.connect(filter);
         filter.connect(gain);
-        gain.connect(this.masterGain);
+        gain.connect(this.sfxGain);
 
         noise.start(t);
         noise.stop(t + duration + 0.05);
     }
 
     private playWompWomp(t: number) {
-        if (!this.ctx || !this.masterGain) return;
+        if (!this.ctx || !this.sfxGain) return;
 
         // "Womp Womp" - descending triangle waves
         // Note 1: G3 (196Hz) -> C#3 (138Hz)
         // Note 2: F#3 (185Hz) -> C3 (130Hz)
 
         const playNote = (startFreq: number, endFreq: number, startTime: number, duration: number) => {
-            if (!this.ctx || !this.masterGain) return;
+            if (!this.ctx || !this.sfxGain) return;
             const osc = this.ctx.createOscillator();
             const gain = this.ctx.createGain();
 
@@ -447,7 +541,7 @@ class AudioManager {
             gain.gain.linearRampToValueAtTime(0, startTime + duration);
 
             osc.connect(gain);
-            gain.connect(this.masterGain);
+            gain.connect(this.sfxGain);
 
             osc.start(startTime);
             osc.stop(startTime + duration + 0.1);
@@ -458,7 +552,7 @@ class AudioManager {
     }
 
     private playLevelUp(t: number) {
-        if (!this.ctx || !this.masterGain) return;
+        if (!this.ctx || !this.sfxGain) return;
         console.log('[Audio] Playing Level Up Sound');
 
         // Warmer ascending arpeggio (C4 Major)
@@ -488,7 +582,7 @@ class AudioManager {
             gain.gain.exponentialRampToValueAtTime(0.01, startTime + duration);
 
             osc.connect(gain);
-            gain.connect(this.masterGain!);
+            gain.connect(this.sfxGain!);
 
             osc.start(startTime);
             osc.stop(startTime + duration + 0.1);
@@ -496,7 +590,7 @@ class AudioManager {
     }
 
     private playCrtOpen(t: number) {
-        if (!this.ctx || !this.masterGain) return;
+        if (!this.ctx || !this.sfxGain) return;
 
         try {
             // CRT Open: High pitched sine wave sweeping up
@@ -515,7 +609,7 @@ class AudioManager {
             gain.gain.exponentialRampToValueAtTime(0.001, t + 0.8);
 
             osc.connect(gain);
-            gain.connect(this.masterGain);
+            gain.connect(this.sfxGain);
 
             osc.start(t);
             osc.stop(t + 0.8);
@@ -536,7 +630,7 @@ class AudioManager {
 
             hum.connect(filter);
             filter.connect(humGain);
-            humGain.connect(this.masterGain);
+            humGain.connect(this.sfxGain);
 
             hum.start(t);
             hum.stop(t + 0.4);
@@ -558,7 +652,7 @@ class AudioManager {
 
             noise.connect(noiseFilter);
             noiseFilter.connect(noiseGain);
-            noiseGain.connect(this.masterGain);
+            noiseGain.connect(this.sfxGain);
 
             noise.start(t);
         } catch (e) {
@@ -567,7 +661,7 @@ class AudioManager {
     }
 
     private playBootBeep(t: number) {
-        if (!this.ctx || !this.masterGain) return;
+        if (!this.ctx || !this.sfxGain) return;
 
         // Classic PC Boot Beep
         // Square wave, ~800Hz-1000Hz, short duration
@@ -582,14 +676,14 @@ class AudioManager {
         gain.gain.linearRampToValueAtTime(0, t + 0.15);
 
         osc.connect(gain);
-        gain.connect(this.masterGain);
+        gain.connect(this.sfxGain);
 
         osc.start(t);
         osc.stop(t + 0.2);
     }
 
     private playNewMessage(t: number) {
-        if (!this.ctx || !this.masterGain) return;
+        if (!this.ctx || !this.sfxGain) return;
 
         // Slack-like "knock knock" notification
         // Two quick melodic tones
@@ -608,7 +702,7 @@ class AudioManager {
             gain.gain.exponentialRampToValueAtTime(0.01, t + i * 0.12 + noteDuration);
 
             osc.connect(gain);
-            gain.connect(this.masterGain!);
+            gain.connect(this.sfxGain!);
 
             osc.start(t + i * 0.12);
             osc.stop(t + i * 0.12 + noteDuration * 2);
