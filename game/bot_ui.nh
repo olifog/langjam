@@ -410,6 +410,7 @@ INFO_GITHUB_3 := "https://github.com/GreenMan891".
 INFO_NAME_4 := "Yoonjae Hwang - Chief Soundcloud Engineer".
 INFO_GITHUB_4 := "https://github.com/GreenMan891".
 INFO_PROJECT_GITHUB := "https://github.com/olifog/langjam".
+INFO_ITCH_URL := "https://olifog.itch.io/yendor".
 
 #update_info_button() >
     mx := /input_mouse_x/.
@@ -463,7 +464,7 @@ INFO_PROJECT_GITHUB := "https://github.com/olifog/langjam".
     
     // Popup dimensions and position (centered in screen)
     pw := 350.
-    ph := 360.
+    ph := 400.
     px := (SCREEN_W - pw) / 2.
     py := (SCREEN_H - ph) / 2.
     
@@ -525,6 +526,13 @@ INFO_PROJECT_GITHUB := "https://github.com/olifog/langjam".
         /open_url/INFO_PROJECT_GITHUB.
         /play_sound_wrapper/SOUND_UI_CLICK.
     < when in_link5 == 1.
+    
+    // Itch.io link
+    in_link6 := my ge link_start_y + 225 and my lt link_start_y + 225 + link_h.
+    >
+        /open_url/INFO_ITCH_URL.
+        /play_sound_wrapper/SOUND_UI_CLICK.
+    < when in_link6 == 1.
 <
 
 #draw_info_popup() >
@@ -535,7 +543,7 @@ INFO_PROJECT_GITHUB := "https://github.com/olifog/langjam".
     
     // Popup dimensions
     pw := 350.
-    ph := 360.
+    ph := 400.
     px := (SCREEN_W - pw) / 2.
     py := (SCREEN_H - ph) / 2.
     
@@ -593,9 +601,13 @@ INFO_PROJECT_GITHUB := "https://github.com/olifog/langjam".
     // Project section
     /text_draw/(px + 20)/(py + 255)/12/120/140/180/"PROJECT:".
     
-    // Project link
+    // Project link (GitHub)
     in_link5 := my ge link_start_y + 190 and my lt link_start_y + 190 + link_h and mx ge px + 20 and mx lt px + pw - 20.
     /draw_link_with_icon/(px + 30)/(link_start_y + 195)/"GitHub Repository"/in_link5.
+    
+    // Itch.io link
+    in_link6 := my ge link_start_y + 225 and my lt link_start_y + 225 + link_h and mx ge px + 20 and mx lt px + pw - 20.
+    /draw_link_with_icon/(px + 30)/(link_start_y + 230)/"Itch.io Page"/in_link6.
     
     // Bottom label
     /draw_rect/(px + 15)/(py + ph - 50)/(pw - 30)/1/50/60/80/255.
