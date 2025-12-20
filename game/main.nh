@@ -1054,6 +1054,26 @@ clip_h := 0.
     bg_b = bg_b + 15 when hovered == 1.
     
     // Draw node
+    // Glitch effect for Final Ascension upgrade
+    is_final := upgrade_id == UPGRADE_FINAL_ASCENSION.
+    >
+        // Random color shifts (Darker, less piercing)
+        bg_r = /rand_range/20/60.
+        bg_g = /rand_range/20/60.
+        bg_b = /rand_range/20/80.
+        
+        // Border glitch (Muted brightness)
+        br_r = /rand_range/80/160.
+        br_g = /rand_range/80/160.
+        br_b = /rand_range/80/160.
+        
+        // Subtle position jitter (+/- 1px)
+        dx := /rand_range/0/2 - 1.
+        dy := /rand_range/0/2 - 1.
+        x = x + dx.
+        y = y + dy.
+    < when is_final == 1 and available == 1.
+    
     /draw_rect/x/y/nw/nh/bg_r/bg_g/bg_b/255.
     
     // Border - consistent 2px on all sides
@@ -1071,6 +1091,11 @@ clip_h := 0.
     tr = 220 when available == 1. tg = 200 when available == 1. tb = 150 when available == 1.
     tr = 190 when has == 1. tg = 210 when has == 1. tb = 220 when has == 1.
     
+    // Glitch text color
+    >
+        tr = 0. tg = 0. tb = 0.
+    < when is_final == 1 and available == 1.
+
     /text_draw/tx/ty/14/tr/tg/tb/name.
     
     // Cost or status - on second line

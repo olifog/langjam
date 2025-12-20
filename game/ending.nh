@@ -86,10 +86,37 @@ chars_shown := 0.
     
     // Phase 3: Credits
     >
-        credits_scroll_y = credits_scroll_y - (dt / 6). // Scroll speed (faster)
+        // Target Y: -390 sets wizard center (750) to screen center (360) 
+        target_y := -390.
         
-        // End game / loop check?
-        // For now just scroll forever or stop
+        // Scroll until target
+        credits_scroll_y = credits_scroll_y - (dt / 6) when credits_scroll_y gt target_y.
+        
+        // Clamp to target when close or past
+        credits_scroll_y = target_y when credits_scroll_y le target_y.
+        
+        // If stopped at target, allow clicking Main Menu button
+        >
+            btn_w := 200.
+            btn_h := 50.
+            btn_x := (SCREEN_W - btn_w) / 2.
+            btn_y := SCREEN_H - 100. // Near bottom
+            
+            mx := /input_mouse_x/.
+            my := /input_mouse_y/.
+            just_pressed := /input_mouse_just_pressed/.
+            
+            in_btn_x := mx ge btn_x and mx lt btn_x + btn_w.
+            in_btn_y := my ge btn_y and my lt btn_y + btn_h.
+            
+            >
+                // Clicked Main Menu -> Reset Game
+                /game_init/.
+                /play_sound/SOUND_UI_CLICK.
+            < when just_pressed == 1 and in_btn_x == 1 and in_btn_y == 1.
+            
+        < when credits_scroll_y == target_y.
+        
     < when ending_state == ENDING_STATE_CREDITS.
 <
 
@@ -162,7 +189,159 @@ chars_shown := 0.
     /text_draw_centered/cx/(cy + 520)/18/200/200/200/"NetHack Dev Team".
     /text_draw_centered/cx/(cy + 550)/18/200/200/200/"Langjam Organizers".
     
-    /text_draw_centered/cx/(cy + 650)/24/255/200/100/"THANK YOU FOR PLAYING!".
+    /draw_dungeon_rain/ when ending_state ge ENDING_STATE_ASCENSION.
+    
+    /draw_ascii_wizard/cx/(cy + 750).
+
+    /text_draw_centered/cx/(cy + 950)/24/255/200/100/"THANK YOU FOR PLAYING!".
+    
+    // Draw Main Menu button if scrolling stopped
+    target_y := -390.
+    >
+        btn_w := 200.
+        btn_h := 50.
+        btn_x := (SCREEN_W - btn_w) / 2.
+        btn_y := SCREEN_H - 100.
+        
+        mx := /input_mouse_x/.
+        my := /input_mouse_y/.
+        in_btn_x := mx ge btn_x and mx lt btn_x + btn_w.
+        in_btn_y := my ge btn_y and my lt btn_y + btn_h.
+        hover := in_btn_x * in_btn_y.
+        
+        // Button BG
+        br := 60. bg := 60. bb := 80.
+        br = 80 when hover == 1. bg = 80 when hover == 1. bb = 100 when hover == 1.
+        /draw_rect/btn_x/btn_y/btn_w/btn_h/br/bg/bb/255.
+        
+        // Button Border
+        /draw_rect/btn_x/btn_y/btn_w/2/150/150/180/255.
+        /draw_rect/btn_x/(btn_y + btn_h - 2)/btn_w/2/150/150/180/255.
+        /draw_rect/btn_x/btn_y/2/btn_h/150/150/180/255.
+        /draw_rect/(btn_x + btn_w - 2)/btn_y/2/btn_h/150/150/180/255.
+        
+        // Text
+        /text_draw_centered/(btn_x + btn_w/2)/(btn_y + 15)/20/255/255/255/"MAIN MENU".
+        
+    < when credits_scroll_y == target_y.
+<
+
+#draw_ascii_wizard(x, y) >
+    // Reusing the Letterhead Logo as a Hat
+    // Adjusted manually to sit on top of the head
+    
+    r := 200. g := 200. b := 255.
+    sz := 12.  // Logo Font size
+    lh := 14.  // Logo Line height
+    cw := 7.   // Logo Character width
+    sz_big := 16.
+    
+    // HAT (The Logo)
+    cx := x.
+    hat_y := y.
+    
+    u_left := cx - cw * 2.
+    u_mid := cx - cw / 2.
+    u_right := cx + cw.
+    
+    // Hat Triangle
+    /text_draw_font/(cx - cw/2)/(hat_y + 5)/sz/r/g/b/2/"^".
+    /text_draw_font/(cx - cw - 2)/(hat_y + lh)/sz/r/g/b/2/"/".
+    /text_draw_font/(cx + 2)/(hat_y + lh)/sz/r/g/b/2/"\\".
+    /text_draw_font/(cx - cw * 2)/(hat_y + lh * 2)/sz/r/g/b/2/"/".
+    /text_draw_font/(cx + cw)/(hat_y + lh * 2)/sz/r/g/b/2/"\\".
+    
+    // Hat Brim
+    /text_draw_font/u_left/(hat_y + lh * 3 - 10)/sz/r/g/b/2/"_".
+    /text_draw_font/u_mid/(hat_y + lh * 3 - 7)/sz/r/g/b/2/"_".
+    /text_draw_font/u_right/(hat_y + lh * 3 - 10)/sz/r/g/b/2/"_".
+    
+    // Hat Base
+    /text_draw_font/(cx - cw * 3 - 6)/(hat_y + lh * 4 - 13)/sz_big/r/g/b/2/"(".
+    /text_draw_font/u_left/(hat_y + lh * 4 - 10)/sz/r/g/b/2/"_".
+    /text_draw_font/u_mid/(hat_y + lh * 4 - 7)/sz/r/g/b/2/"_".
+    /text_draw_font/u_right/(hat_y + lh * 4 - 10)/sz/r/g/b/2/"_".
+    /text_draw_font/(cx + cw * 2 + 3)/(hat_y + lh * 4 - 13)/sz_big/r/g/b/2/")".
+    
+    // WIZARD FACE (Below the hat)
+    face_y := hat_y + lh * 4 + 5.
+    
+    // Eyes: Symmetric around center
+    // Left eye center at -12, Right at +12
+    /text_draw_font/(cx - 15)/face_y/14/r/g/b/2/"o".
+    /text_draw_font/(cx + 8)/face_y/14/r/g/b/2/"o".
+    
+    // Beard / Robe - Using centered text for better alignment
+    // Row 1: { | }
+    /text_draw_font/(cx - 20)/(face_y + 15)/14/r/g/b/2/"{".
+    /text_draw_font/(cx - 3)/(face_y + 15)/14/r/g/b/2/"|". // Centered nose
+    /text_draw_font/(cx + 14)/(face_y + 15)/14/r/g/b/2/"}".
+    
+    // Row 2: / | \
+    /text_draw_font/(cx - 25)/(face_y + 30)/14/r/g/b/2/"/".
+    /text_draw_font/(cx - 3)/(face_y + 30)/14/r/g/b/2/"|".
+    /text_draw_font/(cx + 18)/(face_y + 30)/14/r/g/b/2/"\\".
+    
+    // Row 3: Base
+    // Manual adjustment to look centered
+    /text_draw_font/(cx - 30)/(face_y + 45)/14/r/g/b/2/"/___|___\\".
+<
+
+// Rain State
+rain_x := [].
+rain_y := [].
+rain_char := [].
+rain_speed := [].
+rain_inited := 0.
+
+#init_rain() >
+    for i in 0..100 >
+        rain_x[i] = /rand_range/0/SCREEN_W.
+        rain_y[i] = /rand_range/0/SCREEN_H.
+        
+        // Random dungeon char
+        type := /rand_range/0/5.
+        ch := "#".
+        ch = "." when type == 1.
+        ch = "@" when type == 2.
+        ch = "D" when type == 3.
+        ch = "+" when type == 4.
+        rain_char[i] = ch.
+        
+        rain_speed[i] = /rand_range/2/8.
+    <
+    rain_inited = 1.
+<
+
+#update_rain() >
+    /init_rain/ when rain_inited == 0.
+    
+    for i in 0..100 >
+        y := rain_y[i].
+        s := rain_speed[i].
+        y = y + s.
+        
+        // Reset at bottom
+        >
+            y = -20.
+            rain_x[i] = /rand_range/0/SCREEN_W.
+        < when y gt SCREEN_H.
+        
+        rain_y[i] = y.
+    <
+<
+
+#draw_dungeon_rain() >
+    /update_rain/.
+    
+    for i in 0..100 >
+        x := rain_x[i].
+        y := rain_y[i].
+        ch := rain_char[i].
+        
+        // Dark matrix green color
+        /text_draw/x/y/16/0/100/0/ch.
+    <
 <
 
 #text_draw_centered(x, y, size, r, g, b, text) >

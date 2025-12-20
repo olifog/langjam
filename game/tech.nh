@@ -747,23 +747,16 @@ dng_bonus_from_upgrades := 0.
 <
 
 #check_final_unlock_condition() >
-    // Requires capstones of all 3 branches
+    // Requires ALL upgrades to be purchased (Completionist run)
+    // Total standard upgrades = 50
+    // Buff: 16, Diff: 10, Lang: 24
     
-    // Buff: Strength III (ID 11)
-    has_buff := upgrades[UPGRADE_BUFF_STR_3].
+    count := 0.
+    for i in 0..70 >
+        count = count + 1 when upgrades[i] == 1.
+    <
     
-    // Diff: Many Rooms (ID 29)
-    // Note: Diff tree branches, so check if EITHER leaf is bought?
-    // Actually ID 29 is the only Tier 8 node in Diff branch.
-    // Let's verify tree structure in draw_diff_tree if needed.
-    // Assuming ID 29 is the final one.
-    has_diff := upgrades[UPGRADE_DIFF_ROOM_MANY].
-    
-    // Lang: Full Map (ID 64)
-    has_lang := upgrades[UPGRADE_LANG_FULLMAP].
-    
-    // Return 1 if all present
-    << 1 when has_buff == 1 and has_diff == 1 and has_lang == 1.
+    << 1 when count ge 50.
     << 0.
 <
 

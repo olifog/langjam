@@ -405,6 +405,13 @@ chat_queue_contact := [].
         /start_conv_kobold_goblin/.
         <<0.
     < when upgrades[25] == 1 and /has_seen_conversation/14 == 0.
+    
+    // Final Ascension Unlock Message (from friend's ending code)
+    can_ascend := /check_final_unlock_condition/.
+    >
+        /start_conv_kobold_final/.
+        <<0.
+    < when can_ascend == 1 and /has_seen_conversation/15 == 0.
 <
 
 #count_total_upgrades() >
@@ -1038,6 +1045,7 @@ chat_queue_contact := [].
     /on_seb_45_response/choice when chat_conv_id == 11.
     /on_kobold_1_response/choice when chat_conv_id == 12.
     /on_kobold_goblin_response/choice when chat_conv_id == 14.
+    /on_kobold_final_response/choice when chat_conv_id == 15.
     
     // Sub-conversations (multi-part responses)
     /on_dave_intro_response2/choice when chat_conv_id == 21.
@@ -1129,6 +1137,13 @@ chat_queue_contact := [].
     // Click outside to close (but not on bubble)
     in_box := mx ge chat_x and mx lt chat_x + CHAT_W and my ge chat_y and my lt chat_y + CHAT_H.
     >
+        // If Kobold, BLOCK closing and play error sound
+        is_kobold := current_contact == CONTACT_KOBOLD.
+        >
+            /play_sound_wrapper/SOUND_BOOT_BEEP.
+            <<1.
+        < when is_kobold == 1.
+        
         chat_active = 0.
         <<0.
     < when in_box == 0.
@@ -1523,10 +1538,23 @@ chat_queue_contact := [].
         bubble_w := max_w.
         bubble_h := wrapped_lines * 18 + 28.
         
-        /draw_rect/bubble_x/y/bubble_w/bubble_h/35/40/55/255.
+        // Default NPC (Blue/Purple/Greyish)
+        bg_r := 35. bg_g := 40. bg_b := 55.
+        // Kobold Red Scheme
+        is_kobold := sender == "Kobold".
+        bg_r = 90 when is_kobold == 1. bg_g = 20 when is_kobold == 1. bg_b = 20 when is_kobold == 1.
         
-        /text_draw/(bubble_x + 8)/(y + 4)/10/100/160/200/sender.
-        /draw_wrapped_text/(bubble_x + 8)/(y + 20)/text/chars_per_line/180/190/210.
+        /draw_rect/bubble_x/y/bubble_w/bubble_h/bg_r/bg_g/bg_b/255.
+        
+        // Text Color
+        tr := 100. tg := 160. tb := 200.
+        tr = 255 when is_kobold == 1. tg = 180 when is_kobold == 1. tb = 180 when is_kobold == 1.
+        
+        /text_draw/(bubble_x + 8)/(y + 4)/10/tr/tg/tb/sender.
+        
+        tcr := 180. tcg := 190. tcb := 210.
+        tcr = 255 when is_kobold == 1. tcg = 200 when is_kobold == 1. tcb = 200 when is_kobold == 1.
+        /draw_wrapped_text/(bubble_x + 8)/(y + 20)/text/chars_per_line/tcr/tcg/tcb.
     < when is_player == 0.
 <
 
@@ -1612,4 +1640,35 @@ chat_queue_contact := [].
         /draw_rect/btn3_x/resp_y/btn3_w/btn_h/btn3_r/btn3_g/btn3_b/255.
         /text_draw/(btn3_x + 8)/(resp_y + 7)/11/200/215/240/r3.
     < when /ds_strlen/r3 gt 0.
+<
+
+// --- CONV 15: Final Kobold Ascension Message ---
+#start_conv_kobold_final() >
+    /mark_conversation_seen/15.
+    /clear_chat_queue/.
+    chat_conv_id = 15.
+    current_contact = CONTACT_KOBOLD.
+    
+    /add_chat_separator/CONTACT_KOBOLD.
+    
+    sender := contact_names[CONTACT_KOBOLD].
+    /enqueue_chat/CONTACT_KOBOLD/sender/"Psst..."/0.
+    /enqueue_chat/CONTACT_KOBOLD/sender/"Hey, human..."/0.
+    /enqueue_chat/CONTACT_KOBOLD/sender/"The path is open..."/0.
+    /enqueue_chat/CONTACT_KOBOLD/sender/"Look to the bottom of the upgrade tree..."/0.
+    
+    /set_response_options/"Running"/""/"".
+    
+    /advance_chat_queue/.
+    
+    /play_sound_wrapper/SOUND_NEW_MESSAGE.
+    chat_active = 1.
+    contact_unread[CONTACT_KOBOLD] = 0.  // Clear unread since we're now viewing
+<
+
+#on_kobold_final_response(choice) >
+    >
+        // No real response needed, just close it or whatever
+        chat_active = 0.
+    < when choice == 1.
 <
