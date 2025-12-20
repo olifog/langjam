@@ -43,7 +43,7 @@
 
     @font-face {
       font-family: 'Berkeley Mono';
-      src: url('/fonts/BerkeleyMono-Regular.woff2') format('woff2');
+      src: url('./fonts/BerkeleyMono-Regular.woff2') format('woff2');
     }
   </style>
 </head>
@@ -53,12 +53,12 @@
     <canvas id="canvas"></canvas>
     <canvas id="textCanvas"></canvas>
   </div>
-  <script src="/game.js"></script>
-  <script type="module" src="/src/main.ts"></script>
+  <script src="./game.js"></script>
+  <script type="module" src="./src/main.ts"></script>
   <script>
     window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };
   </script>
-  <script defer src="/_vercel/insights/script.js"></script>
+  <script defer src="https://va.vercel-scripts.com/v1/script.js"></script>
 </body>
 
 </html>

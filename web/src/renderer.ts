@@ -48,7 +48,7 @@ export async function initCRT(canvas: HTMLCanvasElement): Promise<void> {
   gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true)
 
   // Fetch Shader Code
-  const response = await fetch('/shaders/crt.glsl')
+  const response = await fetch('./shaders/crt.glsl')
   const crtFunctions = await response.text()
 
   const vsSource = `#version 300 es

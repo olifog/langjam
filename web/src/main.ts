@@ -52,7 +52,7 @@ import { audioManager } from './audio'
 
 // Menu Art
 let menuArtLines: string[] = []
-fetch('/ascii_art/menu.txt')
+fetch('./ascii_art/menu.txt')
   .then(res => res.text())
   .then(text => {
     // Remove trailing newline if present and split
