@@ -330,7 +330,7 @@ BUBBLE_MARGIN := 20.
     >
         chat_active = 0.
         /play_sound_wrapper/SOUND_UI_CLICK.
-        <<0.
+        <<1.
     < when in_close == 1.
     
     // Check if clicking the bubble (to toggle closed)
@@ -340,7 +340,7 @@ BUBBLE_MARGIN := 20.
     >
         chat_active = 0.
         /play_sound_wrapper/SOUND_UI_CLICK.
-        <<0.
+        <<1.
     < when in_bubble == 1.
     
     // Click outside to close (but not on bubble)
@@ -355,6 +355,10 @@ BUBBLE_MARGIN := 20.
     
     // Response button clicks
     /update_chat_responses/mx/my/chat_x/chat_y when chat_has_responses == 1 and chat_responded == 0.
+    
+    // If we got here, we are inside the box and handled whatever (or ignored dead space inside box)
+    // but we should block underneath.
+    <<1.
 <
 
 #update_contact_clicks(mx, my, chat_x, chat_y) >

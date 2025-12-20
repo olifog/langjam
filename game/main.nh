@@ -235,10 +235,10 @@ LAYOUT_PADDING := 16.
     <<0 when ui_tut_active == 1.
     
     // Handle chat if active (blocks other input)
-    // Save state before update since update might close chat
-    was_chat_active := chat_active.
-    /update_inbox/.
-    <<0 when was_chat_active == 1.
+    chat_consumed := /update_inbox/.
+    // Block if chat still active (clicked inside/no click) OR if consumed (clicked close button)
+    <<0 when chat_active == 1.
+    <<0 when chat_consumed == 1.
     
     // Update chat bubble (only when chat closed)
     /update_chat_bubble/.
