@@ -184,10 +184,11 @@ chars_shown := 0.
     /text_draw_centered/cx/(cy + 340)/18/200/200/200/INFO_NAME_1.
     /text_draw_centered/cx/(cy + 370)/18/200/200/200/INFO_NAME_2.
     /text_draw_centered/cx/(cy + 400)/18/200/200/200/INFO_NAME_3.
+    /text_draw_centered/cx/(cy + 430)/18/200/200/200/INFO_NAME_4.
     
-    /text_draw_centered/cx/(cy + 480)/24/100/180/255/"SPECIAL THANKS".
-    /text_draw_centered/cx/(cy + 520)/18/200/200/200/"NetHack Dev Team".
-    /text_draw_centered/cx/(cy + 550)/18/200/200/200/"Langjam Organizers".
+    /text_draw_centered/cx/(cy + 510)/24/100/180/255/"SPECIAL THANKS".
+    /text_draw_centered/cx/(cy + 550)/18/200/200/200/"NetHack Dev Team".
+    /text_draw_centered/cx/(cy + 580)/18/200/200/200/"Langjam Organizers".
     
     /draw_dungeon_rain/ when ending_state ge ENDING_STATE_ASCENSION.
     
@@ -198,7 +199,7 @@ chars_shown := 0.
     // Draw Main Menu button if scrolling stopped
     target_y := -390.
     >
-        btn_w := 200.
+        btn_w := 600.
         btn_h := 50.
         btn_x := (SCREEN_W - btn_w) / 2.
         btn_y := SCREEN_H - 100.
@@ -221,7 +222,7 @@ chars_shown := 0.
         /draw_rect/(btn_x + btn_w - 2)/btn_y/2/btn_h/150/150/180/255.
         
         // Text
-        /text_draw_centered/(btn_x + btn_w/2)/(btn_y + 15)/20/255/255/255/"MAIN MENU".
+        /text_draw_centered/(btn_x + btn_w/2)/(btn_y + 15)/20/255/255/255/"You hear a distant rumble of thunder...".
         
     < when credits_scroll_y == target_y.
 <
