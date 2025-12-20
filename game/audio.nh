@@ -18,6 +18,7 @@ SOUND_LEVEL_UP := 13.
 SOUND_CRT_OPEN := 14.
 SOUND_BOOT_BEEP := 15.
 SOUND_POWER_BUTTON := 16.
+SOUND_NEW_MESSAGE := 17.
 
 #play_sound_wrapper(id) >
     /play_sound/id.

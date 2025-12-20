@@ -14,7 +14,8 @@ export enum SoundType {
     LEVEL_UP = 13,
     CRT_OPEN = 14,
     BOOT_BEEP = 15,
-    POWER_BUTTON = 16
+    POWER_BUTTON = 16,
+    NEW_MESSAGE = 17
 }
 
 class AudioManager {
@@ -134,6 +135,10 @@ class AudioManager {
 
             case SoundType.POWER_BUTTON: // Mechanical Click
                 this.playMouseClick(t);
+                break;
+
+            case SoundType.NEW_MESSAGE: // Slack-like notification
+                this.playNewMessage(t);
                 break;
         }
     }
@@ -581,6 +586,33 @@ class AudioManager {
 
         osc.start(t);
         osc.stop(t + 0.2);
+    }
+
+    private playNewMessage(t: number) {
+        if (!this.ctx || !this.masterGain) return;
+
+        // Slack-like "knock knock" notification
+        // Two quick melodic tones
+        const notes = [523.25, 659.25]; // C5, E5 - friendly interval
+        const noteDuration = 0.08;
+
+        notes.forEach((freq, i) => {
+            const osc = this.ctx!.createOscillator();
+            const gain = this.ctx!.createGain();
+
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(freq, t + i * 0.12);
+
+            gain.gain.setValueAtTime(0, t + i * 0.12);
+            gain.gain.linearRampToValueAtTime(0.25, t + i * 0.12 + 0.01);
+            gain.gain.exponentialRampToValueAtTime(0.01, t + i * 0.12 + noteDuration);
+
+            osc.connect(gain);
+            gain.connect(this.masterGain!);
+
+            osc.start(t + i * 0.12);
+            osc.stop(t + i * 0.12 + noteDuration * 2);
+        });
     }
 
 

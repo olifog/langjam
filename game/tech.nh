@@ -443,6 +443,9 @@ upgrades := [].
     is_speed = 1 when id == UPGRADE_BUFF_SPEED_1000.
     /recalc_slider_for_new_max/ when is_speed == 1.
     
+    // Check for story message triggers
+    /check_message_triggers/.
+    
     << 1.
 <
 

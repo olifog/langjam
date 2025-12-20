@@ -1,0 +1,777 @@
+// messages.nh - Slack-like Chat Thread System with Contacts
+// ============================================================================
+// Delivers story/lore through chat messages from coworkers
+// ============================================================================
+
+// Contact definitions (ID -> Name mapping)
+CONTACT_MANAGEMENT := 1.
+CONTACT_DAVE := 2.
+MAX_CONTACTS := 10.
+
+// Contact data
+contact_names := [].     // Contact name by ID
+contact_has_msgs := [].  // Does contact have any messages?
+contact_unread := [].    // Unread count per contact
+
+// Currently selected contact
+current_contact := 0.
+
+// Message storage per contact
+// We'll use a 2D approach: contact_id * 100 + message_index
+chat_sender := [].       // Sender name
+chat_text := [].         // Message text (| for line breaks)
+chat_is_player := [].    // 1 = player message, 0 = NPC message
+chat_counts := [].       // Message count per contact
+
+// Pending response options (for current conversation state)
+chat_resp_1 := "".
+chat_resp_2 := "".
+chat_resp_3 := "".
+chat_has_responses := 0.
+chat_responded := 0.
+chat_resp_contact := 0.  // Which contact these responses are for
+
+// Conversation state tracking
+chat_conv_id := 0.
+chat_convs_seen := [].
+
+// UI State
+chat_active := 0.
+chat_scroll := 0.
+chat_anim_timer := 0.
+chat_bubble_clicked := 0.
+chat_count := 0.  // Total messages (for bubble visibility)
+
+// Layout constants
+CHAT_W := 550.           // Wider to fit contacts list
+CHAT_H := 550.
+CHAT_CONTACTS_W := 140.  // Contacts sidebar width
+CHAT_PADDING := 15.
+CHAT_MSG_GAP := 10.
+
+// Chat bubble position (bottom right)
+BUBBLE_SIZE := 50.
+BUBBLE_MARGIN := 20.
+
+// ============================================================================
+// Initialize Contacts
+// ============================================================================
+
+#init_contacts() >
+    // Initialize arrays first
+    for i in 0..MAX_CONTACTS >
+        contact_names[i] = "".
+        contact_has_msgs[i] = 0.
+        contact_unread[i] = 0.
+        chat_counts[i] = 0.
+    <
+    
+    // Then set contact names
+    contact_names[CONTACT_MANAGEMENT] = "The Management".
+    contact_names[CONTACT_DAVE] = "Dave from HR".
+<
+
+// ============================================================================
+// Public API - Send Messages
+// ============================================================================
+
+#add_npc_message_to(contact_id, text) >
+    count := chat_counts[contact_id].
+    idx := contact_id * 100 + count.
+    
+    sender := contact_names[contact_id].
+    chat_sender[idx] = sender.
+    chat_text[idx] = text.
+    chat_is_player[idx] = 0.
+    
+    chat_counts[contact_id] = count + 1.
+    contact_has_msgs[contact_id] = 1.
+    contact_unread[contact_id] = contact_unread[contact_id] + 1.
+    chat_count = chat_count + 1.
+<
+
+#add_player_message_to(contact_id, text) >
+    count := chat_counts[contact_id].
+    idx := contact_id * 100 + count.
+    
+    chat_sender[idx] = "You".
+    chat_text[idx] = text.
+    chat_is_player[idx] = 1.
+    
+    chat_counts[contact_id] = count + 1.
+    chat_count = chat_count + 1.
+<
+
+// Legacy wrappers (use current contact from conversation)
+#add_npc_message(sender, text) >
+    // Determine contact from sender
+    contact := CONTACT_MANAGEMENT.
+    contact = CONTACT_DAVE when sender == "Dave from HR".
+    /add_npc_message_to/contact/text.
+<
+
+#add_player_message(text) >
+    /add_player_message_to/current_contact/text.
+<
+
+#set_response_options(r1, r2, r3) >
+    chat_resp_1 = r1.
+    chat_resp_2 = r2.
+    chat_resp_3 = r3.
+    chat_has_responses = 1 when /ds_strlen/r1 gt 0.
+    chat_responded = 0.
+    chat_resp_contact = current_contact.  // Remember which contact these are for
+<
+
+#has_seen_conversation(id) >
+    for i in 0..100 >
+        <<1 when chat_convs_seen[i] == id.
+    <
+    <<0.
+<
+
+#mark_conversation_seen(id) >
+    for i in 0..100 >
+        >
+            chat_convs_seen[i] = id.
+            <<0.
+        < when chat_convs_seen[i] == 0.
+    <
+<
+
+#get_unread_count() >
+    total := 0.
+    for i in 1..MAX_CONTACTS >
+        total = total + contact_unread[i].
+    <
+    total = total + 1 when chat_has_responses == 1 and chat_responded == 0.
+    <<total.
+<
+
+#open_chat() >
+    chat_active = 1.
+    chat_scroll = 0.
+    // Select first contact with messages if none selected
+    >
+        for i in 1..MAX_CONTACTS >
+            current_contact = i when current_contact == 0 and contact_has_msgs[i] == 1.
+        <
+    < when current_contact == 0.
+    // Mark selected contact as read
+    contact_unread[current_contact] = 0 when current_contact gt 0.
+<
+
+#close_chat() >
+    chat_active = 0.
+<
+
+#select_contact(id) >
+    current_contact = id.
+    contact_unread[id] = 0.  // Mark as read
+    chat_scroll = 0.
+<
+
+// ============================================================================
+// Start Conversations (triggered by upgrades)
+// ============================================================================
+
+#check_message_triggers() >
+    total := /count_total_upgrades/.
+    
+    // Welcome message after first upgrade
+    /start_conv_welcome/ when total == 1 and /has_seen_conversation/1 == 0.
+    
+    // Message at 3 upgrades
+    /start_conv_tips/ when total ge 3 and /has_seen_conversation/2 == 0.
+    
+    // Message at 5 upgrades
+    /start_conv_progress/ when total ge 5 and /has_seen_conversation/3 == 0.
+<
+
+#count_total_upgrades() >
+    total := 0.
+    for i in 0..70 >
+        total = total + 1 when upgrades[i] == 1.
+    <
+    <<total.
+<
+
+// ============================================================================
+// Conversation Definitions (modular - easy to add more)
+// ============================================================================
+
+#start_conv_welcome() >
+    /mark_conversation_seen/1.
+    chat_conv_id = 1.
+    current_contact = CONTACT_MANAGEMENT.
+    
+    /add_npc_message_to/CONTACT_MANAGEMENT/"Welcome to HackNet Enterprises!".
+    /add_npc_message_to/CONTACT_MANAGEMENT/"Congratulations on your first upgrade. Your bot is showing real promise.".
+    /add_npc_message_to/CONTACT_MANAGEMENT/"Keep up the good work.".
+    /set_response_options/"Thank you!"/"Happy to be here"/"".
+    
+    /play_sound_wrapper/SOUND_NEW_MESSAGE.
+    chat_active = 1.
+<
+
+#on_welcome_response(choice) >
+    >
+        /add_player_message_to/CONTACT_MANAGEMENT/"Thank you!".
+        /add_npc_message_to/CONTACT_MANAGEMENT/"We have high hopes. Now get back to work.".
+    < when choice == 1.
+    
+    >
+        /add_player_message_to/CONTACT_MANAGEMENT/"Happy to be here".
+        /add_npc_message_to/CONTACT_MANAGEMENT/"Good attitude. The board appreciates enthusiasm.".
+    < when choice == 2.
+<
+
+#start_conv_tips() >
+    /mark_conversation_seen/2.
+    chat_conv_id = 2.
+    current_contact = CONTACT_DAVE.
+    
+    /add_npc_message_to/CONTACT_DAVE/"Hey there, new hire!".
+    /add_npc_message_to/CONTACT_DAVE/"Quick tip: the difficulty upgrades give more gold per floor.".
+    /add_npc_message_to/CONTACT_DAVE/"More risk, more reward!".
+    /set_response_options/"Thanks for the tip!"/"Got it"/"".
+    
+    /play_sound_wrapper/SOUND_NEW_MESSAGE.
+    chat_active = 1.
+<
+
+#on_tips_response(choice) >
+    >
+        /add_player_message_to/CONTACT_DAVE/"Thanks for the tip!".
+        /add_npc_message_to/CONTACT_DAVE/"No problem! Always happy to help. - Dave".
+    < when choice == 1.
+    
+    >
+        /add_player_message_to/CONTACT_DAVE/"Got it".
+        /add_npc_message_to/CONTACT_DAVE/"Good luck out there!".
+    < when choice == 2.
+<
+
+#start_conv_progress() >
+    /mark_conversation_seen/3.
+    chat_conv_id = 3.
+    current_contact = CONTACT_MANAGEMENT.
+    
+    /add_npc_message_to/CONTACT_MANAGEMENT/"Progress Report".
+    /add_npc_message_to/CONTACT_MANAGEMENT/"We've been monitoring your performance. Impressive numbers.".
+    /add_npc_message_to/CONTACT_MANAGEMENT/"The board is pleased. Continue developing your AI.".
+    /set_response_options/"Understood"/"I will do my best"/"Whats next?".
+    
+    /play_sound_wrapper/SOUND_NEW_MESSAGE.
+    chat_active = 1.
+<
+
+#on_progress_response(choice) >
+    >
+        /add_player_message_to/CONTACT_MANAGEMENT/"Understood".
+        /add_npc_message_to/CONTACT_MANAGEMENT/"Good. We'll be in touch.".
+    < when choice == 1.
+    
+    >
+        /add_player_message_to/CONTACT_MANAGEMENT/"I will do my best".
+        /add_npc_message_to/CONTACT_MANAGEMENT/"We expect nothing less.".
+    < when choice == 2.
+    
+    >
+        /add_player_message_to/CONTACT_MANAGEMENT/"What's next?".
+        /add_npc_message_to/CONTACT_MANAGEMENT/"All in due time. Focus on upgrades for now.".
+    < when choice == 3.
+<
+
+#handle_response(choice) >
+    /on_welcome_response/choice when chat_conv_id == 1.
+    /on_tips_response/choice when chat_conv_id == 2.
+    /on_progress_response/choice when chat_conv_id == 3.
+    
+    chat_resp_1 = "".
+    chat_resp_2 = "".
+    chat_resp_3 = "".
+    chat_has_responses = 0.
+    chat_responded = 1.
+<
+
+// ============================================================================
+// Update Logic
+// ============================================================================
+
+#update_inbox() >
+    chat_anim_timer = chat_anim_timer + 16.
+    chat_anim_timer = 0 when chat_anim_timer gt 2000.
+    
+    <<0 when chat_active == 0.
+    
+    mx := /input_mouse_x/.
+    my := /input_mouse_y/.
+    just_clicked := /input_mouse_just_pressed/.
+    
+    // Chat window position (bottom right, above bubble)
+    chat_x := SCREEN_W - CHAT_W - BUBBLE_MARGIN.
+    chat_y := SCREEN_H - CHAT_H - BUBBLE_SIZE - BUBBLE_MARGIN - 10.
+    
+    // Handle scrolling
+    scroll := /input_scroll_delta/ * 30.
+    >
+        chat_scroll = chat_scroll - scroll.
+        chat_scroll = 0 when chat_scroll lt 0.
+        /input_scroll_clear/.
+    < when scroll != 0.
+    
+    <<0 when just_clicked == 0.
+    
+    // Close button
+    close_x := chat_x + CHAT_W - 30.
+    close_y := chat_y + 8.
+    in_close := mx ge close_x and mx lt close_x + 22 and my ge close_y and my lt close_y + 22.
+    >
+        chat_active = 0.
+        /play_sound_wrapper/SOUND_UI_CLICK.
+        <<0.
+    < when in_close == 1.
+    
+    // Check if clicking the bubble (to toggle closed)
+    bx := SCREEN_W - BUBBLE_SIZE - BUBBLE_MARGIN.
+    by := SCREEN_H - BUBBLE_SIZE - BUBBLE_MARGIN.
+    in_bubble := mx ge bx and mx lt bx + BUBBLE_SIZE and my ge by and my lt by + BUBBLE_SIZE.
+    >
+        chat_active = 0.
+        /play_sound_wrapper/SOUND_UI_CLICK.
+        <<0.
+    < when in_bubble == 1.
+    
+    // Click outside to close (but not on bubble)
+    in_box := mx ge chat_x and mx lt chat_x + CHAT_W and my ge chat_y and my lt chat_y + CHAT_H.
+    >
+        chat_active = 0.
+        <<0.
+    < when in_box == 0.
+    
+    // Contact list clicks
+    /update_contact_clicks/mx/my/chat_x/chat_y.
+    
+    // Response button clicks
+    /update_chat_responses/mx/my/chat_x/chat_y when chat_has_responses == 1 and chat_responded == 0.
+<
+
+#update_contact_clicks(mx, my, chat_x, chat_y) >
+    list_x := chat_x + CHAT_PADDING.
+    list_y := chat_y + 40.
+    item_h := 45.
+    
+    in_list := mx ge list_x and mx lt list_x + CHAT_CONTACTS_W - 10.
+    <<0 when in_list == 0.
+    
+    // Check each contact
+    y_offset := 0.
+    for i in 1..MAX_CONTACTS >
+        >
+            item_y := list_y + y_offset.
+            in_item := my ge item_y and my lt item_y + item_h.
+            >
+                /select_contact/i.
+                /play_sound_wrapper/SOUND_UI_CLICK.
+            < when in_item == 1.
+            y_offset = y_offset + item_h.
+        < when contact_has_msgs[i] == 1.
+    <
+<
+
+#update_chat_responses(mx, my, chat_x, chat_y) >
+    resp_y := chat_y + CHAT_H - 55.
+    resp_x := chat_x + CHAT_CONTACTS_W + 25.  // Offset for contacts sidebar
+    btn_h := 28.
+    btn_gap := 8.
+    
+    r1 := chat_resp_1.
+    r2 := chat_resp_2.
+    r3 := chat_resp_3.
+    
+    // Button 1
+    btn1_w := /ds_strlen/r1 * 7 + 16.
+    in_btn1 := mx ge resp_x and mx lt resp_x + btn1_w and my ge resp_y and my lt resp_y + btn_h.
+    >
+        /handle_response/1.
+        /play_sound_wrapper/SOUND_UI_CLICK.
+    < when in_btn1 == 1 and /ds_strlen/r1 gt 0.
+    
+    // Button 2
+    btn2_x := resp_x + btn1_w + btn_gap.
+    btn2_w := /ds_strlen/r2 * 7 + 16.
+    >
+        in_btn2 := mx ge btn2_x and mx lt btn2_x + btn2_w and my ge resp_y and my lt resp_y + btn_h.
+        >
+            /handle_response/2.
+            /play_sound_wrapper/SOUND_UI_CLICK.
+        < when in_btn2 == 1.
+    < when /ds_strlen/r2 gt 0.
+    
+    // Button 3
+    btn3_x := btn2_x + btn2_w + btn_gap.
+    btn3_w := /ds_strlen/r3 * 7 + 16.
+    >
+        in_btn3 := mx ge btn3_x and mx lt btn3_x + btn3_w and my ge resp_y and my lt resp_y + btn_h.
+        >
+            /handle_response/3.
+            /play_sound_wrapper/SOUND_UI_CLICK.
+        < when in_btn3 == 1.
+    < when /ds_strlen/r3 gt 0.
+<
+
+#update_chat_bubble() >
+    chat_bubble_clicked = 0.
+    <<0 when chat_count == 0.
+    
+    mx := /input_mouse_x/.
+    my := /input_mouse_y/.
+    just_clicked := /input_mouse_just_pressed/.
+    
+    bx := SCREEN_W - BUBBLE_SIZE - BUBBLE_MARGIN.
+    by := SCREEN_H - BUBBLE_SIZE - BUBBLE_MARGIN.
+    
+    in_bubble := mx ge bx and mx lt bx + BUBBLE_SIZE and my ge by and my lt by + BUBBLE_SIZE.
+    
+    chat_bubble_clicked = 1 when in_bubble == 1 and just_clicked == 1.
+    
+    >
+        >
+            /close_chat/.
+        < when chat_active == 1.
+        
+        >
+            /open_chat/.
+        < when chat_active == 0.
+        
+        /play_sound_wrapper/SOUND_UI_CLICK.
+    < when just_clicked == 1 and in_bubble == 1.
+<
+
+// ============================================================================
+// Rendering
+// ============================================================================
+
+#draw_chat_bubble() >
+    <<0 when chat_count == 0.
+    
+    bx := SCREEN_W - BUBBLE_SIZE - BUBBLE_MARGIN.
+    by := SCREEN_H - BUBBLE_SIZE - BUBBLE_MARGIN.
+    
+    mx := /input_mouse_x/.
+    my := /input_mouse_y/.
+    in_bubble := mx ge bx and mx lt bx + BUBBLE_SIZE and my ge by and my lt by + BUBBLE_SIZE.
+    
+    unread := /get_unread_count/.
+    pulse := 0.
+    >
+        pulse_val := chat_anim_timer / 10.
+        pulse_mod := pulse_val - (pulse_val / 100) * 100.
+        pulse = 1 when pulse_mod gt 50.
+    < when unread gt 0.
+    
+    bg_r := 40. bg_g := 50. bg_b := 70.
+    bg_r = 60 when in_bubble == 1. bg_g = 80 when in_bubble == 1. bg_b = 110 when in_bubble == 1.
+    bg_r = 50 when pulse == 1. bg_g = 70 when pulse == 1. bg_b = 100 when pulse == 1.
+    
+    /draw_rect/bx/by/BUBBLE_SIZE/BUBBLE_SIZE/bg_r/bg_g/bg_b/255.
+    
+    br := 80. bbg := 100. bb := 140.
+    /draw_rect/bx/by/BUBBLE_SIZE/2/br/bbg/bb/255.
+    /draw_rect/bx/(by + BUBBLE_SIZE - 2)/BUBBLE_SIZE/2/br/bbg/bb/255.
+    /draw_rect/bx/by/2/BUBBLE_SIZE/br/bbg/bb/255.
+    /draw_rect/(bx + BUBBLE_SIZE - 2)/by/2/BUBBLE_SIZE/br/bbg/bb/255.
+    
+    /text_draw/(bx + 14)/(by + 12)/24/180/200/255/"@".
+    
+    >
+        badge_x := bx + BUBBLE_SIZE - 15.
+        badge_y := by - 5.
+        /draw_rect/badge_x/badge_y/20/20/200/60/60/255.
+        /text_draw_int/(badge_x + 6)/(badge_y + 3)/12/255/255/255/unread.
+    < when unread gt 0.
+<
+
+#draw_inbox_overlay() >
+    <<0 when chat_active == 0.
+    
+    cx := SCREEN_W - CHAT_W - BUBBLE_MARGIN.
+    cy := SCREEN_H - CHAT_H - BUBBLE_SIZE - BUBBLE_MARGIN - 10.
+    
+    // Background
+    /draw_rect/cx/cy/CHAT_W/CHAT_H/20/25/35/250.
+    
+    // Border
+    br := 50. bbg := 65. bb := 95.
+    /draw_rect/cx/cy/CHAT_W/2/br/bbg/bb/255.
+    /draw_rect/cx/(cy + CHAT_H - 2)/CHAT_W/2/(br - 15)/(bbg - 15)/(bb - 15)/255.
+    /draw_rect/cx/cy/2/CHAT_H/br/bbg/bb/255.
+    /draw_rect/(cx + CHAT_W - 2)/cy/2/CHAT_H/(br - 15)/(bbg - 15)/(bb - 15)/255.
+    
+    // Header
+    /text_draw/(cx + CHAT_PADDING)/(cy + 10)/14/100/180/255/"MESSAGES".
+    
+    // Close button
+    close_x := cx + CHAT_W - 30.
+    close_y := cy + 8.
+    mx := /input_mouse_x/.
+    my := /input_mouse_y/.
+    close_hover := mx ge close_x and mx lt close_x + 22 and my ge close_y and my lt close_y + 22.
+    xr := 150. xg := 150. xb := 150.
+    xr = 220 when close_hover == 1. xg = 100 when close_hover == 1. xb = 100 when close_hover == 1.
+    /text_draw/close_x/close_y/14/xr/xg/xb/"X".
+    
+    // Separator under header
+    /draw_rect/cx/(cy + 35)/(CHAT_W)/1/40/50/70/255.
+    
+    // Draw contacts list (left side)
+    /draw_contacts_list/cx/cy.
+    
+    // Divider between contacts and messages
+    /draw_rect/(cx + CHAT_CONTACTS_W)/cy/1/CHAT_H/40/50/70/255.
+    
+    // Message area (right side)
+    msg_x := cx + CHAT_CONTACTS_W + 5.
+    msg_y := cy + 40.
+    msg_w := CHAT_W - CHAT_CONTACTS_W - 10.
+    msg_h := CHAT_H - 100.
+    
+    /set_clip_rect/msg_x/msg_y/msg_w/msg_h.
+    /draw_chat_messages/msg_x/msg_y/msg_w/msg_h when current_contact gt 0.
+    /clear_clip_rect/.
+    
+    // Response buttons - only show for the contact they belong to
+    /draw_chat_responses/cx/cy when chat_has_responses == 1 and chat_responded == 0 and current_contact == chat_resp_contact.
+<
+
+#draw_contacts_list(cx, cy) >
+    list_x := cx + CHAT_PADDING.
+    list_y := cy + 45.
+    item_h := 45.
+    item_w := CHAT_CONTACTS_W - CHAT_PADDING - 5.
+    
+    mx := /input_mouse_x/.
+    my := /input_mouse_y/.
+    
+    y_offset := 0.
+    for i in 1..MAX_CONTACTS >
+        >
+            item_y := list_y + y_offset.
+            
+            is_selected := i == current_contact.
+            in_item := mx ge list_x and mx lt list_x + item_w and my ge item_y and my lt item_y + item_h.
+            has_unread := contact_unread[i] gt 0.
+            
+            // Background
+            bg_r := 25. bg_g := 30. bg_b := 40.
+            bg_r = 35 when in_item == 1. bg_g = 45 when in_item == 1. bg_b = 60 when in_item == 1.
+            bg_r = 45 when is_selected == 1. bg_g = 55 when is_selected == 1. bg_b = 75 when is_selected == 1.
+            /draw_rect/list_x/item_y/item_w/item_h/bg_r/bg_g/bg_b/255.
+            
+            // Selected indicator
+            /draw_rect/list_x/item_y/3/item_h/80/140/200/255 when is_selected == 1.
+            
+            // Contact name
+            name := contact_names[i].
+            tr := 160. tg := 170. tb := 190.
+            tr = 200 when is_selected == 1. tg = 210 when is_selected == 1. tb = 230 when is_selected == 1.
+            tr = 255 when has_unread == 1. tg = 255 when has_unread == 1. tb = 255 when has_unread == 1.
+            /text_draw/(list_x + 10)/(item_y + 15)/11/tr/tg/tb/name.
+            
+            // Unread badge
+            >
+                badge_x := list_x + item_w - 20.
+                badge_y := item_y + 15.
+                /draw_rect/badge_x/badge_y/16/16/100/140/200/255.
+                uc := contact_unread[i].
+                /text_draw_int/(badge_x + 4)/(badge_y + 2)/10/255/255/255/uc.
+            < when has_unread == 1.
+            
+            y_offset = y_offset + item_h.
+        < when contact_has_msgs[i] == 1.
+    <
+<
+
+#draw_chat_messages(msg_x, msg_y, msg_w, msg_h) >
+    <<0 when current_contact == 0.
+    
+    contact := current_contact.
+    count := chat_counts[contact].
+    
+    // Calculate max width and chars per line
+    max_bubble_w := msg_w - 30.
+    chars_per_line := (max_bubble_w - 20) / 7.
+    
+    // Draw messages from bottom up
+    y := msg_y + msg_h - 10 + chat_scroll.
+    
+    // Limit max messages to process per frame (performance safeguard)
+    max_to_process := 20.
+    processed := 0.
+    
+    i := count - 1.
+    loop >
+        >>when i lt 0.
+        >>when processed ge max_to_process.  // Limit processing per frame
+        
+        idx := contact * 100 + i.
+        text := chat_text[idx].
+        is_player := chat_is_player[idx].
+        sender := chat_sender[idx].
+        
+        wrapped_lines := /count_wrapped_lines/text/chars_per_line.
+        bubble_h := wrapped_lines * 18 + 28.
+        
+        y = y - bubble_h - CHAT_MSG_GAP.
+        
+        // Skip if outside visible area  
+        >
+            i = i - 1.
+            ><.
+        < when y + bubble_h lt msg_y - 50.
+        
+        // Break if above visible area (all remaining messages are above)
+        >>when y gt msg_y + msg_h + 50.
+        
+        /draw_chat_bubble_msg/msg_x/y/sender/text/is_player/max_bubble_w/chars_per_line.
+        processed = processed + 1.
+        
+        i = i - 1.
+    <
+<
+
+#count_wrapped_lines(text, chars_per_line) >
+    len := /ds_strlen/text.
+    lines := 1.
+    line_chars := 0.
+    
+    for i in 0..len >
+        ch := /ds_string_at/text/i.
+        
+        >
+            lines = lines + 1.
+            line_chars = 0.
+        < when ch == 124.
+        
+        >
+            line_chars = line_chars + 1.
+            >
+                lines = lines + 1.
+                line_chars = 0.
+            < when line_chars ge chars_per_line.
+        < when ch != 124.
+    <
+    
+    <<lines.
+<
+
+#draw_chat_bubble_msg(cx, y, sender, text, is_player, max_w, chars_per_line) >
+    wrapped_lines := /count_wrapped_lines/text/chars_per_line.
+    
+    >
+        // Player bubble (right aligned)
+        bubble_w := max_w.
+        bubble_h := wrapped_lines * 18 + 14.
+        bubble_x := cx + max_w - bubble_w + 20.
+        
+        /draw_rect/bubble_x/y/bubble_w/bubble_h/50/80/120/255.
+        /draw_wrapped_text/(bubble_x + 10)/(y + 6)/text/chars_per_line/220/230/255.
+    < when is_player == 1.
+    
+    >
+        // NPC bubble (left aligned)
+        bubble_x := cx + 5.
+        bubble_w := max_w.
+        bubble_h := wrapped_lines * 18 + 28.
+        
+        /draw_rect/bubble_x/y/bubble_w/bubble_h/35/40/55/255.
+        
+        /text_draw/(bubble_x + 8)/(y + 4)/10/100/160/200/sender.
+        /draw_wrapped_text/(bubble_x + 8)/(y + 20)/text/chars_per_line/180/190/210.
+    < when is_player == 0.
+<
+
+#draw_wrapped_text(x, y, text, chars_per_line, cr, cg, cb) >
+    len := /ds_strlen/text.
+    line_y := y.
+    line_h := 18.
+    line_start := 0.
+    line_chars := 0.
+    
+    for i in 0..len >
+        ch := /ds_string_at/text/i.
+        
+        is_explicit_break := ch == 124.
+        need_wrap := line_chars ge chars_per_line.
+        
+        >
+            line_len := i - line_start.
+            >
+                line := /ds_substring/text/line_start/line_len.
+                /text_draw/x/line_y/12/cr/cg/cb/line.
+            < when line_len gt 0.
+            
+            line_y = line_y + line_h.
+            line_start = i + 1 when is_explicit_break == 1.
+            line_start = i when is_explicit_break == 0.
+            line_chars = 0.
+        < when is_explicit_break == 1 or need_wrap == 1.
+        
+        line_chars = line_chars + 1 when ch != 124.
+    <
+    
+    final_len := len - line_start.
+    >
+        final_line := /ds_substring/text/line_start/final_len.
+        /text_draw/x/line_y/12/cr/cg/cb/final_line.
+    < when final_len gt 0.
+<
+
+#draw_chat_responses(cx, cy) >
+    resp_y := cy + CHAT_H - 55.
+    resp_x := cx + CHAT_CONTACTS_W + 25.
+    btn_h := 28.
+    btn_gap := 8.
+    
+    mx := /input_mouse_x/.
+    my := /input_mouse_y/.
+    
+    r1 := chat_resp_1.
+    r2 := chat_resp_2.
+    r3 := chat_resp_3.
+    
+    /draw_rect/cx/(cy + CHAT_H - 65)/CHAT_W/65/25/30/45/255.
+    /draw_rect/cx/(cy + CHAT_H - 65)/CHAT_W/1/40/50/70/255.
+    
+    >
+        btn1_w := /ds_strlen/r1 * 7 + 16.
+        in_btn1 := mx ge resp_x and mx lt resp_x + btn1_w and my ge resp_y and my lt resp_y + btn_h.
+        btn1_r := 45. btn1_g := 70. btn1_b := 110.
+        btn1_r = 65 when in_btn1 == 1. btn1_g = 100 when in_btn1 == 1. btn1_b = 150 when in_btn1 == 1.
+        /draw_rect/resp_x/resp_y/btn1_w/btn_h/btn1_r/btn1_g/btn1_b/255.
+        /text_draw/(resp_x + 8)/(resp_y + 7)/11/200/215/240/r1.
+    < when /ds_strlen/r1 gt 0.
+    
+    btn1_w := /ds_strlen/r1 * 7 + 16.
+    btn2_x := resp_x + btn1_w + btn_gap.
+    >
+        btn2_w := /ds_strlen/r2 * 7 + 16.
+        in_btn2 := mx ge btn2_x and mx lt btn2_x + btn2_w and my ge resp_y and my lt resp_y + btn_h.
+        btn2_r := 45. btn2_g := 70. btn2_b := 110.
+        btn2_r = 65 when in_btn2 == 1. btn2_g = 100 when in_btn2 == 1. btn2_b = 150 when in_btn2 == 1.
+        /draw_rect/btn2_x/resp_y/btn2_w/btn_h/btn2_r/btn2_g/btn2_b/255.
+        /text_draw/(btn2_x + 8)/(resp_y + 7)/11/200/215/240/r2.
+    < when /ds_strlen/r2 gt 0.
+    
+    btn2_w := /ds_strlen/r2 * 7 + 16.
+    btn3_x := btn2_x + btn2_w + btn_gap.
+    >
+        btn3_w := /ds_strlen/r3 * 7 + 16.
+        in_btn3 := mx ge btn3_x and mx lt btn3_x + btn3_w and my ge resp_y and my lt resp_y + btn_h.
+        btn3_r := 45. btn3_g := 70. btn3_b := 110.
+        btn3_r = 65 when in_btn3 == 1. btn3_g = 100 when in_btn3 == 1. btn3_b = 150 when in_btn3 == 1.
+        /draw_rect/btn3_x/resp_y/btn3_w/btn_h/btn3_r/btn3_g/btn3_b/255.
+        /text_draw/(btn3_x + 8)/(resp_y + 7)/11/200/215/240/r3.
+    < when /ds_strlen/r3 gt 0.
+<

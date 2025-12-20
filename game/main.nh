@@ -17,6 +17,7 @@
 @use "docs_content.nh".
 @use "docs.nh".
 @use "tutorial.nh".
+@use "messages.nh".
 
 // ============================================================================
 // Screen Layout - Responsive Two-Pane Layout
@@ -179,6 +180,7 @@ LAYOUT_PADDING := 16.
     /init_particles/.
     /init_entities/.
     /init_upgrades/.
+    /init_contacts/.  // Initialize chat contacts
     /init_background_shader/.
     /calculate_layout/.
     /init_editor/.
@@ -231,6 +233,16 @@ LAYOUT_PADDING := 16.
     // Handle tutorial if active (blocks other input)
     /update_ui_tutorial/.
     <<0 when ui_tut_active == 1.
+    
+    // Handle chat if active (blocks other input)
+    // Save state before update since update might close chat
+    was_chat_active := chat_active.
+    /update_inbox/.
+    <<0 when was_chat_active == 1.
+    
+    // Update chat bubble (only when chat closed)
+    /update_chat_bubble/.
+    <<0 when chat_bubble_clicked == 1.  // Block click-through to tech tree
     
     // If dead, wait for restart (use buttons on death screen)
     can_update := 1.
@@ -427,6 +439,12 @@ LAYOUT_PADDING := 16.
     
     // Tutorial overlay on top of everything
     /draw_ui_tut_overlay/.
+    
+    // Chat bubble (bottom right)
+    /draw_chat_bubble/.
+    
+    // Inbox overlay on very top
+    /draw_inbox_overlay/.
 <
 
 // ============================================================================
@@ -1132,6 +1150,12 @@ clip_h := 0.
     // Skip if tutorial is active
     << 0 when tutorial_active == 1.
     
+    // Only process input when mouse is over the tech tree area
+    mx := /input_mouse_x/.
+    my := /input_mouse_y/.
+    in_tree := mx ge tech_tree_x and mx lt tech_tree_x + tech_tree_w and my ge tech_tree_y and my lt tech_tree_y + tech_tree_h.
+    << 0 when in_tree == 0.
+    
     // Handle drag scrolling
     /update_tech_drag/.
     
@@ -1140,16 +1164,13 @@ clip_h := 0.
     << 0 when just_clicked == 0.
     
     // Skip if we were dragging
-    drag_dx := /input_mouse_x/ - tech_drag_start_x.
-    drag_dy := /input_mouse_y/ - tech_drag_start_y.
+    drag_dx := mx - tech_drag_start_x.
+    drag_dy := my - tech_drag_start_y.
     drag_dx = 0 - drag_dx when drag_dx lt 0.
     drag_dy = 0 - drag_dy when drag_dy lt 0.
     << 0 when drag_dx gt 5 or drag_dy gt 5.
     
-    mx := /input_mouse_x/.
-    my := /input_mouse_y/.
-    
-    // Check if in content area
+    // Check if in content area (clipped region inside the tree panel)
     in_x := mx ge clip_x and mx lt clip_x + clip_w.
     in_y := my ge clip_y and my lt clip_y + clip_h.
     << 0 when in_x * in_y == 0.
