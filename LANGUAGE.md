@@ -471,7 +471,7 @@ The runtime exposes raw OpenGL bindings plus minimal utilities. This allows you 
 
 ```
 /rng_seed/seed.     // Seed the RNG
-/rng_int/max.       // Random int in [0, max)
+/rng_int/min/max.   // Random int in [min, max] (inclusive)
 /rng_float/.        // Random float in [0, 1)
 ```
 

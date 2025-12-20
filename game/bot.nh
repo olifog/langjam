@@ -401,6 +401,12 @@ bot_message := "".
     << /bot_runtime_error/"Maximum recursion depth exceeded".
 <
 
+// Max less than min error
+#bot_max_lt_min_error(context) >
+    msg := /ds_string_concat/"Max < min in "/context.
+    << /bot_runtime_error/msg.
+<
+
 #bot_start() >
     /bot_compile_editor_code/.
     

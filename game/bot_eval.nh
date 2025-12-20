@@ -781,17 +781,21 @@
     
     << dungeon_level.
 <
-// /rng_int/max - Returns random integer 0..max-1
+// /rng_int/min/max - Returns random integer min..max (inclusive)
 #bot_builtin_rng_int(args, env) >
     arg_count := /ds_list_len/args.
-    << /bot_arg_error/"rng_int"/1/arg_count when arg_count != 1.
+    << /bot_arg_error/"rng_int"/2/arg_count when arg_count != 2.
     
-    max := /bot_eval/(/ds_list_get/args/0)/env.
+    min := /bot_eval/(/ds_list_get/args/0)/env.
+    max := /bot_eval/(/ds_list_get/args/1)/env.
     
-    // ERROR: Validate positive integer
-    << /bot_expected_int_error/"rng_int" when max le 0.
+    // ERROR: Validate max >= min
+    << /bot_max_lt_min_error/"rng_int" when max lt min.
     
-    << /rng_int/max.
+    range := max - min + 1.
+    val := /rng_int/range.
+    
+    << min + val.
 <
 
 // /list_len/list - Returns length of a list/array (a ds_list_len alias)

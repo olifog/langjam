@@ -55,8 +55,8 @@ docs_code_lines := -1. // List handle
         /docs_add_line/"Get bot coordinates.".
         /docs_add_line/"    /get_x/ /get_y/".
         /docs_add_line/"".
-        /docs_add_line/"Get random number from 0 to max-1.".
-        /docs_add_line/"    /rng_int/max".
+        /docs_add_line/"Get random number from min to max.".
+        /docs_add_line/"    /rng_int/min/max".
         /docs_add_line/"".
         /docs_add_line/"Try moving in a square".
         /docs_add_code/"/move/1/0.   // East".
