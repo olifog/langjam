@@ -417,7 +417,7 @@ info_btn_hovered := 0.
 info_popup_active := 0.
 
 // Team members (FILL THESE IN)
-INFO_NAME_1 := "Oliver Fogelin - Tech Lead".
+INFO_NAME_1 := "Oliver Fogelin - Chief Stakeholder".
 INFO_GITHUB_1 := "https://github.com/olifog".
 INFO_NAME_2 := "Ken Lin - Scrum Master".
 INFO_GITHUB_2 := "https://github.com/kenL4".
