@@ -253,6 +253,10 @@ chat_queue_contact := [].
     /add_npc_message_to/contact/"---".
 <
 
+#clear_chat_queue() >
+    chat_queue_count = 0.
+<
+
 // ============================================================================
 // Start Conversations (triggered by upgrades)
 // ============================================================================
@@ -284,6 +288,7 @@ chat_queue_contact := [].
 
 #start_conv_welcome() >
     /mark_conversation_seen/1.
+    /clear_chat_queue/.
     chat_conv_id = 1.
     current_contact = CONTACT_MANAGEMENT.
     
@@ -317,6 +322,7 @@ chat_queue_contact := [].
 
 #start_conv_tips() >
     /mark_conversation_seen/2.
+    /clear_chat_queue/.
     chat_conv_id = 2.
     current_contact = CONTACT_DAVE.
     
@@ -350,6 +356,7 @@ chat_queue_contact := [].
 
 #start_conv_progress() >
     /mark_conversation_seen/3.
+    /clear_chat_queue/.
     chat_conv_id = 3.
     current_contact = CONTACT_MANAGEMENT.
     
@@ -757,6 +764,7 @@ chat_queue_contact := [].
     // Limit max messages to process per frame (performance safeguard)
     max_to_process := 20.
     processed := 0.
+    most_recent_sep_seen := 0.
     
     i := count - 1.
     loop >
@@ -782,7 +790,18 @@ chat_queue_contact := [].
         // If above visible area, stop (all older messages are even higher)
         >> when y + bubble_h lt msg_y - 50.
         
-        /draw_chat_bubble_msg/msg_x/y/sender/text/is_player/max_bubble_w/chars_per_line.
+        // Check for separator
+        is_sep := text == "---".
+        
+        display_text := text.
+        >
+            // If we've already seen the most recent separator (loop goes backwards from newest),
+            // then mark this one as old
+            display_text = "---OLD" when most_recent_sep_seen == 1.
+            most_recent_sep_seen = 1.
+        < when is_sep == 1.
+        
+        /draw_chat_bubble_msg/msg_x/y/sender/display_text/is_player/max_bubble_w/chars_per_line.
         processed = processed + 1.
         
         i = i - 1.
@@ -816,16 +835,21 @@ chat_queue_contact := [].
 
 #draw_chat_bubble_msg(cx, y, sender, text, is_player, max_w, chars_per_line) >
     // Special separator handling
+    // Special separator handling
     is_sep := text == "---".
+    is_sep_old := text == "---OLD".
+    
     >
-        // Draw centered line/text
+        // Draw centered line
         sep_y := y + 15.
         /draw_rect/(cx + 20)/sep_y/(max_w - 40)/1/50/60/80/255.
-        /text_draw/(cx + max_w / 2 - 40)/(sep_y - 6)/12/70/90/110/"NEW SESSION".
+        
+        // Only draw text if it's the new/recent separator
+        /text_draw/(cx + max_w / 2 - 40)/(sep_y - 6)/12/70/90/110/"NEW SESSION" when is_sep == 1.
         
         // Return early (don't draw bubble)
         <<0.
-    < when is_sep == 1.
+    < when is_sep == 1 or is_sep_old == 1.
 
     wrapped_lines := /count_wrapped_lines/text/chars_per_line.
     
