@@ -388,3 +388,233 @@ docs_btn_hovered := 0.
     
     /text_draw/(x + 8)/(y + 8)/12/tr/tg/tb/"DOCS".
 <
+
+// ============================================================================
+// Info Button (opens credits popup)
+// ============================================================================
+
+info_btn_x := 0.
+info_btn_y := 0.
+info_btn_w := 40.
+info_btn_h := 28.
+info_btn_hovered := 0.
+info_popup_active := 0.
+
+// Team members (FILL THESE IN)
+INFO_NAME_1 := "Oliver Fogelin".
+INFO_GITHUB_1 := "https://github.com/olifog".
+INFO_NAME_2 := "Ken Lin".
+INFO_GITHUB_2 := "https://github.com/kenL4".
+INFO_NAME_3 := "Seb Hall".
+INFO_GITHUB_3 := "https://github.com/GreenMan891".
+INFO_PROJECT_GITHUB := "https://github.com/olifog/langjam".
+
+#update_info_button() >
+    mx := /input_mouse_x/.
+    my := /input_mouse_y/.
+    
+    // Position to the left of docs button (which is at SCREEN_W - 50 - docs_btn_w - 10)
+    bx := SCREEN_W - 50 - docs_btn_w - info_btn_w - 20.
+    by := btn_play_y.
+    
+    info_btn_x = bx.
+    info_btn_y = by.
+    
+    in_btn := mx ge info_btn_x and mx lt info_btn_x + info_btn_w and my ge info_btn_y and my lt info_btn_y + info_btn_h.
+    info_btn_hovered = in_btn.
+    
+    just_pressed := /input_mouse_just_pressed/.
+    
+    // Toggle popup
+    >
+        info_popup_active = 1 - info_popup_active.
+        /play_sound_wrapper/SOUND_UI_CLICK.
+    < when just_pressed == 1 and in_btn == 1.
+<
+
+#draw_info_button() >
+    x := info_btn_x.
+    y := info_btn_y.
+    w := info_btn_w.
+    h := info_btn_h.
+    
+    // Background
+    r := 40. g := 45. b := 55.
+    r = 60 when info_btn_hovered == 1. g = 70 when info_btn_hovered == 1. b = 85 when info_btn_hovered == 1.
+    r = 70 when info_popup_active == 1. g = 80 when info_popup_active == 1. b = 100 when info_popup_active == 1.
+    
+    /draw_rect/x/y/w/h/r/g/b/255.
+    
+    // Text (i icon)
+    tr := 150. tg := 150. tb := 160.
+    tr = 200 when info_btn_hovered == 1. tg = 200 when info_btn_hovered == 1. tb = 210 when info_btn_hovered == 1.
+    
+    /text_draw/(x + 14)/(y + 6)/14/tr/tg/tb/"i".
+<
+
+#update_info_popup() >
+    <<0 when info_popup_active == 0.
+    
+    mx := /input_mouse_x/.
+    my := /input_mouse_y/.
+    just_clicked := /input_mouse_just_pressed/.
+    
+    // Popup dimensions and position (centered in screen)
+    pw := 350.
+    ph := 280.
+    px := (SCREEN_W - pw) / 2.
+    py := (SCREEN_H - ph) / 2.
+    
+    // Check if clicked outside popup (but not on the info button itself)
+    in_popup := mx ge px and mx lt px + pw and my ge py and my lt py + ph.
+    in_info_btn := mx ge info_btn_x and mx lt info_btn_x + info_btn_w and my ge info_btn_y and my lt info_btn_y + info_btn_h.
+    >
+        info_popup_active = 0.
+        <<0.
+    < when just_clicked == 1 and in_popup == 0 and in_info_btn == 0.
+    
+    <<0 when just_clicked == 0.
+    
+    // Close button
+    close_x := px + pw - 30.
+    close_y := py + 8.
+    in_close := mx ge close_x and mx lt close_x + 24 and my ge close_y and my lt close_y + 24.
+    >
+        info_popup_active = 0.
+        /play_sound_wrapper/SOUND_UI_CLICK.
+        <<0.
+    < when in_close == 1.
+    
+    // Link click handling
+    link_h := 25.
+    link_start_y := py + 80.
+    
+    // Name 1 link
+    in_link1 := my ge link_start_y and my lt link_start_y + link_h.
+    >
+        /open_url/INFO_GITHUB_1.
+        /play_sound_wrapper/SOUND_UI_CLICK.
+    < when in_link1 == 1.
+    
+    // Name 2 link
+    in_link2 := my ge link_start_y + 35 and my lt link_start_y + 35 + link_h.
+    >
+        /open_url/INFO_GITHUB_2.
+        /play_sound_wrapper/SOUND_UI_CLICK.
+    < when in_link2 == 1.
+    
+    // Name 3 link
+    in_link3 := my ge link_start_y + 70 and my lt link_start_y + 70 + link_h.
+    >
+        /open_url/INFO_GITHUB_3.
+        /play_sound_wrapper/SOUND_UI_CLICK.
+    < when in_link3 == 1.
+    
+    // Project link
+    in_link4 := my ge link_start_y + 125 and my lt link_start_y + 125 + link_h.
+    >
+        /open_url/INFO_PROJECT_GITHUB.
+        /play_sound_wrapper/SOUND_UI_CLICK.
+    < when in_link4 == 1.
+<
+
+#draw_info_popup() >
+    <<0 when info_popup_active == 0.
+    
+    mx := /input_mouse_x/.
+    my := /input_mouse_y/.
+    
+    // Popup dimensions
+    pw := 350.
+    ph := 280.
+    px := (SCREEN_W - pw) / 2.
+    py := (SCREEN_H - ph) / 2.
+    
+    // Dim background
+    /draw_rect/0/0/SCREEN_W/SCREEN_H/0/0/0/180.
+    
+    // Popup background
+    /draw_rect/px/py/pw/ph/25/30/40/250.
+    
+    // Border
+    /draw_rect/px/py/pw/2/60/80/120/255.
+    /draw_rect/px/(py + ph - 2)/pw/2/40/50/70/255.
+    /draw_rect/px/py/2/ph/60/80/120/255.
+    /draw_rect/(px + pw - 2)/py/2/ph/40/50/70/255.
+    
+    // Title
+    /text_draw/(px + pw / 2 - 35)/(py + 15)/16/180/200/255/"CREDITS".
+    
+    // Close button
+    close_x := px + pw - 30.
+    close_y := py + 8.
+    close_hover := mx ge close_x and mx lt close_x + 24 and my ge close_y and my lt close_y + 24.
+    xr := 150. xg := 150. xb := 150.
+    xr = 220 when close_hover == 1. xg = 100 when close_hover == 1. xb = 100 when close_hover == 1.
+    /text_draw/close_x/close_y/14/xr/xg/xb/"X".
+    
+    // Separator
+    /draw_rect/(px + 15)/(py + 45)/(pw - 30)/1/50/60/80/255.
+    
+    // Team section
+    /text_draw/(px + 20)/(py + 60)/12/120/140/180/"TEAM:".
+    
+    link_h := 25.
+    link_start_y := py + 80.
+    
+    // Name 1
+    in_link1 := my ge link_start_y and my lt link_start_y + link_h and mx ge px + 20 and mx lt px + pw - 20.
+    /draw_link_with_icon/(px + 30)/(link_start_y + 5)/INFO_NAME_1/in_link1.
+    
+    // Name 2
+    in_link2 := my ge link_start_y + 35 and my lt link_start_y + 35 + link_h and mx ge px + 20 and mx lt px + pw - 20.
+    /draw_link_with_icon/(px + 30)/(link_start_y + 40)/INFO_NAME_2/in_link2.
+    
+    // Name 3
+    in_link3 := my ge link_start_y + 70 and my lt link_start_y + 70 + link_h and mx ge px + 20 and mx lt px + pw - 20.
+    /draw_link_with_icon/(px + 30)/(link_start_y + 75)/INFO_NAME_3/in_link3.
+    
+    // Separator
+    /draw_rect/(px + 15)/(py + 180)/(pw - 30)/1/50/60/80/255.
+    
+    // Project section
+    /text_draw/(px + 20)/(py + 195)/12/120/140/180/"PROJECT:".
+    
+    // Project link
+    in_link4 := my ge link_start_y + 125 and my lt link_start_y + 125 + link_h and mx ge px + 20 and mx lt px + pw - 20.
+    /draw_link_with_icon/(px + 30)/(link_start_y + 130)/"GitHub Repository"/in_link4.
+    
+    // Bottom label
+    /draw_rect/(px + 15)/(py + ph - 50)/(pw - 30)/1/50/60/80/255.
+    /text_draw/(px + pw / 2 - 95)/(py + ph - 35)/14/180/160/100/"YENDOR - inspired by NetHack".
+<
+
+#draw_link_with_icon(x, y, text, hovered) >
+    r := 100. g := 160. b := 220.
+    r = 150 when hovered == 1. g = 200 when hovered == 1. b = 255 when hovered == 1.
+    
+    // Draw text
+    /text_draw/x/y/12/r/g/b/text.
+    
+    // Draw underline
+    width := /text_measure/text/12.
+    /draw_rect/x/(y + 14)/width/1/r/g/b/255.
+    
+    // Draw external link icon
+    icon_x := x + width + 8.
+    icon_y := y.
+    
+    // Box
+    /draw_rect/icon_x/(icon_y + 2)/8/8/r/g/b/255.
+    /draw_rect/(icon_x + 1)/(icon_y + 3)/6/6/25/30/40/255. // Inner clear
+    
+    // Arrow
+    /draw_rect/(icon_x + 6)/(icon_y - 1)/4/1/r/g/b/255.
+    /draw_rect/(icon_x + 9)/(icon_y - 1)/1/4/r/g/b/255.
+    
+    // Diagonal line
+    /draw_rect/(icon_x + 4)/(icon_y + 4)/1/1/r/g/b/255.
+    /draw_rect/(icon_x + 5)/(icon_y + 3)/1/1/r/g/b/255.
+    /draw_rect/(icon_x + 6)/(icon_y + 2)/1/1/r/g/b/255.
+    /draw_rect/(icon_x + 7)/(icon_y + 1)/1/1/r/g/b/255.
+<

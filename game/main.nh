@@ -267,6 +267,8 @@ LAYOUT_PADDING := 16.
     /update_slider/.
     /update_buttons/.
     /update_docs_button/.
+    /update_info_button/.
+    /update_info_popup/.
     /update_settings_button/.
     /update_tech_tree/.
     
@@ -425,6 +427,7 @@ LAYOUT_PADDING := 16.
     /draw_buttons/.
     /draw_slider/.
     /draw_docs_button/.
+    /draw_info_button/.
     /draw_settings_button/.
     /render_editor/.
     
@@ -445,6 +448,9 @@ LAYOUT_PADDING := 16.
     
     // Inbox overlay on very top
     /draw_inbox_overlay/.
+    
+    // Info popup on very top
+    /draw_info_popup/.
 <
 
 // ============================================================================

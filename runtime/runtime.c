@@ -2056,6 +2056,26 @@ void js_call_set_volume(Value level_val) {
 }
 
 // ============================================================================
+// URL Opening (opens in new tab)
+// ============================================================================
+
+void open_url(Value url_val) {
+  const char *url = (const char *)AS_OBJ(url_val);
+  if (!url)
+    return;
+#ifdef __EMSCRIPTEN__
+  EM_ASM_(
+      {
+        var url = UTF8ToString($0);
+        window.open(url, '_blank');
+      },
+      url);
+#else
+  (void)url;
+#endif
+}
+
+// ============================================================================
 // Save/Load System
 // ============================================================================
 
