@@ -717,6 +717,12 @@ parse_error_msg := "".
         
         // Check for empty argument (// or /. or /)
         next := /peek/tokens/pos.
+        
+        // Allow trailing slash if followed by statement terminator
+        >> when next->type == TOK_DOT.
+        >> when next->type == TOK_WHEN.
+        >> when next->type == TOK_UNLESS.
+        
         // Use function call's line for error highlighting
         /set_parse_error_at_line/"Empty argument in function call"/line when next->type == TOK_SLASH.
         >> when next->type == TOK_SLASH.

@@ -635,6 +635,8 @@ dng_bonus_from_upgrades := 0.
     << "Pathfind" when id == UPGRADE_LANG_PATHFIND.
     << "Full Map" when id == UPGRADE_LANG_FULLMAP.
     
+    << "Basics" when id == 99.
+
     << "???".
 <
 

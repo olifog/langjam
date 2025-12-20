@@ -105,7 +105,26 @@ DOCS_CONTENT_X := 420. // DOCS_X + DOCS_LIST_W + padding
     
     // Iterate through all possible language upgrades (40-69)
     y := list_y.
-    
+
+    // --- Special Case: Basics (ID 99) ---
+    >
+        // Always show Basics
+        match := /string_contains_ignore_case/"Basics"/docs_search_query.
+        
+        >
+            // Check click
+            in_item := mx ge list_x and mx lt list_x + list_w and my ge y and my lt y + item_h.
+            >
+                docs_selected_id = 99.
+                /docs_content_load/99.
+                docs_scroll_y = 0.
+                /play_sound_wrapper/SOUND_UI_CLICK.
+            < when in_item == 1.
+            
+            y = y + item_h.
+        < when match == 1.
+    <
+
     for id in 40..70 >
         has := /has_upgrade/id.
         should_show := has.
@@ -236,7 +255,30 @@ DOCS_CONTENT_X := 420. // DOCS_X + DOCS_LIST_W + padding
     item_h := 30.
     
     y := list_y.
-    
+
+    // --- Special Case: Basics (ID 99) ---
+    >
+        name := "Basics".
+        match := /string_contains_ignore_case/name/docs_search_query.
+        
+        >
+            is_selected := (99 == docs_selected_id).
+            
+            // Background for selected
+            >
+                /draw_rect/(list_x - 5)/y/(DOCS_LIST_W - 30)/item_h/50/60/80/255.
+            < when is_selected == 1.
+            
+            // Text color
+            tr := 150. tg := 160. tb := 180.
+            tr = 255 when is_selected == 1. tg = 255 when is_selected == 1. tb = 255 when is_selected == 1.
+            
+            /text_draw/list_x/(y + 5)/12/tr/tg/tb/name.
+            
+            y = y + item_h.
+        < when match == 1.
+    <
+
     for id in 40..70 >
         has := /has_upgrade/id.
         >
@@ -439,12 +481,14 @@ DOCS_CONTENT_X := 420. // DOCS_X + DOCS_LIST_W + padding
     // Range 40-70 are language upgrades
     found := 0.
     
-    // Default to Variables (40) if unlocked
-    has_vars := /has_upgrade/40.
-    docs_selected_id = 40 when has_vars == 1.
+    // Default to Basics (10)
+    docs_selected_id = 10.
     
-    // If not, just set to -1
-    docs_selected_id = -1 when has_vars == 0.
+    // Default to Basics (99)
+    docs_selected_id = 99.
+    
+    // Default fallback not needed as Basics is always available
+
     
     // Refresh content for selected
     /docs_content_load/docs_selected_id when docs_selected_id != -1.

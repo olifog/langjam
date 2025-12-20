@@ -25,6 +25,43 @@ docs_code_lines := -1. // List handle
     // Load content based on ID
     // ------------------------------------------------------------------------
     
+    // --- BASICS (99) ---
+    >
+        /docs_add_line/"Welcome to HackNet Enterprise Ltd!".
+        /docs_add_line/"We made this manual to guide you through the nh language.".
+        /docs_add_line/"Please give this a read to help you ramp up on your job!".
+        /docs_add_line/"You will be able to learn about more features through upgrades.".
+        /docs_add_line/"".
+        /docs_add_line/"STATEMENTS:".
+        /docs_add_line/"Statements are the instructions you give your bot.".
+        /docs_add_line/"In nh, every statement must end with a period (.).".
+        /docs_add_line/"  /move/0/1.".
+        /docs_add_line/"".
+        /docs_add_line/"COMMENTS:".
+        /docs_add_line/"Comments are notes you leave for yourself.".
+        /docs_add_line/"Use // for comments.".
+        /docs_add_line/"  // This is a comment.".
+        /docs_add_line/"".
+        /docs_add_line/"COMMANDS:".
+        /docs_add_line/"Here are some commands you can use:".
+        /docs_add_line/"    /move/dx/dy".
+        /docs_add_line/"Move the bot relative to its position.".
+        /docs_add_line/"    dx: -1 (West), 0, 1 (East)".
+        /docs_add_line/"    dy: -1 (North), 0, 1 (South)".
+        /docs_add_line/"".
+        /docs_add_line/"Print text or numbers to the console.".
+        /docs_add_line/"    /print/value".
+        /docs_add_line/"".
+        /docs_add_line/"Get random number from 0 to max-1.".
+        /docs_add_line/"    /rng_int/max".
+        /docs_add_line/"".
+        /docs_add_line/"Try moving in a square".
+        /docs_add_code/"/move/1/0.   // East".
+        /docs_add_code/"/move/0/1.   // South".
+        /docs_add_code/"/move/-1/0.  // West".
+        /docs_add_code/"/move/0/-1.  // North".
+    < when id == 99.
+
     // --- VARIABLES (40) ---
     >
         /docs_add_line/"Store values for later use.".

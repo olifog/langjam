@@ -229,11 +229,15 @@ bot_message := "".
     // Save error info before reset
     err_line := bot_current_line.
     
-    // Reset program state (similar to bot_stop but preserve error)
+    // Reset program state (FULL RESET)
     bot_is_running = 0.
     bot_is_stepping = 0.
+    bot_env = 0.
+    bot_stmt_count = 0.
     bot_stmt_index = 0.
     bot_current_line = 0 - 1.
+    bot_code_hash = 0.
+    
     // Reset loop state
     bot_yield = 0.
     bot_in_loop = 0.
@@ -241,6 +245,15 @@ bot_message := "".
     bot_loop_env = 0.
     bot_loop_body_count = 0.
     bot_loop_body_idx = 0.
+    
+    // Reset call depth
+    bot_call_depth = 0.
+    
+    // Clear arrays so GC can collect old objects
+    /gc_clear_array/bot_statements/16384.
+    /gc_clear_array/bot_loop_body_stmts/16384.
+    /gc_clear_exec_stack/.
+    /gc_force_collect/.
     
     // Set error info (after reset so it's not overwritten)
     bot_error_line = err_line.
@@ -261,14 +274,26 @@ bot_message := "".
     
     bot_is_running = 0.
     bot_is_stepping = 0.
+    bot_env = 0.
+    bot_stmt_count = 0.
     bot_stmt_index = 0.
     bot_current_line = 0 - 1.
+    bot_code_hash = 0.
+    
     bot_yield = 0.
     bot_in_loop = 0.
     bot_loop_node = 0.
     bot_loop_env = 0.
     bot_loop_body_count = 0.
     bot_loop_body_idx = 0.
+    
+    bot_call_depth = 0.
+    
+    // Clear arrays so GC can collect old objects
+    /gc_clear_array/bot_statements/16384.
+    /gc_clear_array/bot_loop_body_stmts/16384.
+    /gc_clear_exec_stack/.
+    /gc_force_collect/.
     
     bot_error_line = err_line.
     bot_error = msg.
