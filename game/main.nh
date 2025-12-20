@@ -643,16 +643,16 @@ clip_h := 0.
 // Using draw_line for proper bezier-like connections
 
 #draw_buff_tree(bx, by) >
-    // Branching tree with player choice!
-    // Col 0: Stats path (STR, AC)
+    // Speed upgrades first, then branches!
+    // Col 0: Stats path (HP, STR, AC)
     // Col 1: Gold path
-    // Col 2: Speed path (separate)
+    // Col 2: Speed path (separate, ends at row 3)
     nw := NODE_W.
     nh := NODE_H.
     gx := NODE_GAP_X.
     gy := NODE_GAP_Y + 8.
     
-    // Calculate row positions (8 rows)
+    // Calculate row positions (10 rows)
     row0 := by - nh.
     row1 := row0 - nh - gy.
     row2 := row1 - nh - gy.
@@ -661,6 +661,8 @@ clip_h := 0.
     row5 := row4 - nh - gy.
     row6 := row5 - nh - gy.
     row7 := row6 - nh - gy.
+    row8 := row7 - nh - gy.
+    row9 := row8 - nh - gy.
     
     // Column positions
     col0 := bx.
@@ -671,69 +673,76 @@ clip_h := 0.
     
     lr := 45. lg := 55. lb := 70.
     
-    // Row 0: HP I (center between col0 and col1) branches to 3 paths
-    /draw_tree_conn/(colm + nw / 2)/(row0 - 2)/(col0 + nw / 2)/(row1 + nh + 2)/lr/lg/lb.
-    /draw_tree_conn/(colm + nw / 2)/(row0 - 2)/(col1 + nw / 2)/(row1 + nh + 2)/lr/lg/lb.
-    /draw_tree_conn/(colm + nw / 2)/(row0 - 2)/(col2 + nw / 2)/(row1 + nh + 2)/lr/lg/lb.
+    // Row 0 -> Row 1: Speed 5x to Speed 10x (center)
+    /draw_tree_conn/(colm + nw / 2)/(row0 - 2)/(colm + nw / 2)/(row1 + nh + 2)/lr/lg/lb.
     
-    // Row 1 -> Row 2: Stats path and Gold path continue, Speed continues
-    /draw_tree_conn/(col0 + nw / 2)/(row1 - 2)/(col0 + nw / 2)/(row2 + nh + 2)/lr/lg/lb.
-    /draw_tree_conn/(col1 + nw / 2)/(row1 - 2)/(col1 + nw / 2)/(row2 + nh + 2)/lr/lg/lb.
-    /draw_tree_conn/(col2 + nw / 2)/(row1 - 2)/(col2 + nw / 2)/(row2 + nh + 2)/lr/lg/lb.
+    // Row 1 -> Row 2: Speed 10x branches to HP I, Gold Spawn, Speed 100x
+    /draw_tree_conn/(colm + nw / 2)/(row1 - 2)/(col0 + nw / 2)/(row2 + nh + 2)/lr/lg/lb.
+    /draw_tree_conn/(colm + nw / 2)/(row1 - 2)/(col1 + nw / 2)/(row2 + nh + 2)/lr/lg/lb.
+    /draw_tree_conn/(colm + nw / 2)/(row1 - 2)/(col2 + nw / 2)/(row2 + nh + 2)/lr/lg/lb.
     
-    // Row 2 -> Row 3: Stats and Gold merge to HP II (center)
-    /draw_tree_conn/(col0 + nw / 2)/(row2 - 2)/(colm + nw / 2)/(row3 + nh + 2)/lr/lg/lb.
-    /draw_tree_conn/(col1 + nw / 2)/(row2 - 2)/(colm + nw / 2)/(row3 + nh + 2)/lr/lg/lb.
+    // Row 2 -> Row 3: HP I to STR I, Gold Spawn to Gold Spawn+, Speed 100x to Speed 1000x
+    /draw_tree_conn/(col0 + nw / 2)/(row2 - 2)/(col0 + nw / 2)/(row3 + nh + 2)/lr/lg/lb.
+    /draw_tree_conn/(col1 + nw / 2)/(row2 - 2)/(col1 + nw / 2)/(row3 + nh + 2)/lr/lg/lb.
     /draw_tree_conn/(col2 + nw / 2)/(row2 - 2)/(col2 + nw / 2)/(row3 + nh + 2)/lr/lg/lb.
     
-    // Row 3: HP II branches to Stats path and Gold path
-    /draw_tree_conn/(colm + nw / 2)/(row3 - 2)/(col0 + nw / 2)/(row4 + nh + 2)/lr/lg/lb.
-    /draw_tree_conn/(colm + nw / 2)/(row3 - 2)/(col1 + nw / 2)/(row4 + nh + 2)/lr/lg/lb.
-    /draw_tree_conn/(col2 + nw / 2)/(row3 - 2)/(col2 + nw / 2)/(row4 + nh + 2)/lr/lg/lb.
+    // Row 3 -> Row 4: STR I to AC I (stats path only continues)
+    /draw_tree_conn/(col0 + nw / 2)/(row3 - 2)/(col0 + nw / 2)/(row4 + nh + 2)/lr/lg/lb.
     
-    // Row 4 -> Row 5: Stats and Gold paths continue
+    // Row 4 -> Row 5: AC I to HP II
     /draw_tree_conn/(col0 + nw / 2)/(row4 - 2)/(col0 + nw / 2)/(row5 + nh + 2)/lr/lg/lb.
-    /draw_tree_conn/(col1 + nw / 2)/(row4 - 2)/(col1 + nw / 2)/(row5 + nh + 2)/lr/lg/lb.
     
-    // Row 5 -> Row 6: Stats and Gold merge to HP III
-    /draw_tree_conn/(col0 + nw / 2)/(row5 - 2)/(colm + nw / 2)/(row6 + nh + 2)/lr/lg/lb.
-    /draw_tree_conn/(col1 + nw / 2)/(row5 - 2)/(colm + nw / 2)/(row6 + nh + 2)/lr/lg/lb.
+    // Row 5 -> Row 6: HP II branches to STR II and Gold Drops
+    /draw_tree_conn/(col0 + nw / 2)/(row5 - 2)/(col0 + nw / 2)/(row6 + nh + 2)/lr/lg/lb.
+    /draw_tree_conn/(col0 + nw / 2)/(row5 - 2)/(col1 + nw / 2)/(row6 + nh + 2)/lr/lg/lb.
     
-    // Row 6 -> Row 7: HP III to STR III
-    /draw_tree_conn/(colm + nw / 2)/(row6 - 2)/(colm + nw / 2)/(row7 + nh + 2)/lr/lg/lb.
+    // Row 6 -> Row 7: STR II to AC II, Gold Drops to Gold Drops+
+    /draw_tree_conn/(col0 + nw / 2)/(row6 - 2)/(col0 + nw / 2)/(row7 + nh + 2)/lr/lg/lb.
+    /draw_tree_conn/(col1 + nw / 2)/(row6 - 2)/(col1 + nw / 2)/(row7 + nh + 2)/lr/lg/lb.
+    
+    // Row 7 -> Row 8: AC II and Gold Drops+ merge to HP III
+    /draw_tree_conn/(col0 + nw / 2)/(row7 - 2)/(colm + nw / 2)/(row8 + nh + 2)/lr/lg/lb.
+    /draw_tree_conn/(col1 + nw / 2)/(row7 - 2)/(colm + nw / 2)/(row8 + nh + 2)/lr/lg/lb.
+    
+    // Row 8 -> Row 9: HP III to STR III
+    /draw_tree_conn/(colm + nw / 2)/(row8 - 2)/(colm + nw / 2)/(row9 + nh + 2)/lr/lg/lb.
     
     // Draw nodes
-    // Row 0: HP I (center)
-    /draw_node/colm/row0/UPGRADE_BUFF_HP_1.
+    // Row 0: Speed 5x (center)
+    /draw_node/colm/row0/UPGRADE_BUFF_SPEED_5.
     
-    // Row 1: STR I (left), Gold Spawn (center), Speed 5x (right)
-    /draw_node/col0/row1/UPGRADE_BUFF_STR_1.
-    /draw_node/col1/row1/UPGRADE_BUFF_GOLD_SPAWN.
-    /draw_node/col2/row1/UPGRADE_BUFF_SPEED_5.
+    // Row 1: Speed 10x (center)
+    /draw_node/colm/row1/UPGRADE_BUFF_SPEED_10.
     
-    // Row 2: AC I (left), Gold Spawn+ (center), Speed 10x (right)
-    /draw_node/col0/row2/UPGRADE_BUFF_AC_1.
-    /draw_node/col1/row2/UPGRADE_BUFF_GOLD_SPAWN_2.
-    /draw_node/col2/row2/UPGRADE_BUFF_SPEED_10.
+    // Row 2: HP I (left), Gold Spawn (center), Speed 100x (right)
+    /draw_node/col0/row2/UPGRADE_BUFF_HP_1.
+    /draw_node/col1/row2/UPGRADE_BUFF_GOLD_SPAWN.
+    /draw_node/col2/row2/UPGRADE_BUFF_SPEED_100.
     
-    // Row 3: HP II (center), Speed 100x (right)
-    /draw_node/colm/row3/UPGRADE_BUFF_HP_2.
-    /draw_node/col2/row3/UPGRADE_BUFF_SPEED_100.
+    // Row 3: STR I (left), Gold Spawn+ (center), Speed 1000x (right)
+    /draw_node/col0/row3/UPGRADE_BUFF_STR_1.
+    /draw_node/col1/row3/UPGRADE_BUFF_GOLD_SPAWN_2.
+    /draw_node/col2/row3/UPGRADE_BUFF_SPEED_1000.
     
-    // Row 4: STR II (left), Gold Drops (center), Speed 1000x (right)
-    /draw_node/col0/row4/UPGRADE_BUFF_STR_2.
-    /draw_node/col1/row4/UPGRADE_BUFF_GOLD_DROP.
-    /draw_node/col2/row4/UPGRADE_BUFF_SPEED_1000.
+    // Row 4: AC I (left)
+    /draw_node/col0/row4/UPGRADE_BUFF_AC_1.
     
-    // Row 5: AC II (left), Gold Drops+ (center)
-    /draw_node/col0/row5/UPGRADE_BUFF_AC_2.
-    /draw_node/col1/row5/UPGRADE_BUFF_GOLD_DROP_2.
+    // Row 5: HP II (left)
+    /draw_node/col0/row5/UPGRADE_BUFF_HP_2.
     
-    // Row 6: HP III (center)
-    /draw_node/colm/row6/UPGRADE_BUFF_HP_3.
+    // Row 6: STR II (left), Gold Drops (center)
+    /draw_node/col0/row6/UPGRADE_BUFF_STR_2.
+    /draw_node/col1/row6/UPGRADE_BUFF_GOLD_DROP.
     
-    // Row 7: STR III (center)
-    /draw_node/colm/row7/UPGRADE_BUFF_STR_3.
+    // Row 7: AC II (left), Gold Drops+ (center)
+    /draw_node/col0/row7/UPGRADE_BUFF_AC_2.
+    /draw_node/col1/row7/UPGRADE_BUFF_GOLD_DROP_2.
+    
+    // Row 8: HP III (center between col0 and col1)
+    /draw_node/colm/row8/UPGRADE_BUFF_HP_3.
+    
+    // Row 9: STR III (center)
+    /draw_node/colm/row9/UPGRADE_BUFF_STR_3.
 <
 
 #draw_diff_tree(bx, by) >
@@ -1191,7 +1200,7 @@ clip_h := 0.
     bx := clip_x + TREE_PADDING + tech_scroll_x.
     by := clip_y + clip_h - TREE_PADDING + tech_scroll_y.
     
-    // Row positions (8 rows for buff tree with branches)
+    // Row positions (10 rows for buff tree with speed start)
     row0 := by - nh.
     row1 := row0 - nh - gy.
     row2 := row1 - nh - gy.
@@ -1200,6 +1209,8 @@ clip_h := 0.
     row5 := row4 - nh - gy.
     row6 := row5 - nh - gy.
     row7 := row6 - nh - gy.
+    row8 := row7 - nh - gy.
+    row9 := row8 - nh - gy.
     
     // BUFF tree columns (3 columns: stats, gold, speed)
     col0 := bx.
@@ -1207,37 +1218,41 @@ clip_h := 0.
     col2 := bx + (nw + gx) * 2.
     colm := bx + (nw + gx) / 2.
     
-    // BUFF tree - Row 0: HP I (center)
-    /try_node_click/colm/row0/UPGRADE_BUFF_HP_1/mx/my.
+    // BUFF tree - Row 0: Speed 5x (center)
+    /try_node_click/colm/row0/UPGRADE_BUFF_SPEED_5/mx/my.
     
-    // Row 1: STR I (left), Gold Spawn (center), Speed 5x (right)
-    /try_node_click/col0/row1/UPGRADE_BUFF_STR_1/mx/my.
-    /try_node_click/col1/row1/UPGRADE_BUFF_GOLD_SPAWN/mx/my.
-    /try_node_click/col2/row1/UPGRADE_BUFF_SPEED_5/mx/my.
+    // Row 1: Speed 10x (center)
+    /try_node_click/colm/row1/UPGRADE_BUFF_SPEED_10/mx/my.
     
-    // Row 2: AC I (left), Gold Spawn+ (center), Speed 10x (right)
-    /try_node_click/col0/row2/UPGRADE_BUFF_AC_1/mx/my.
-    /try_node_click/col1/row2/UPGRADE_BUFF_GOLD_SPAWN_2/mx/my.
-    /try_node_click/col2/row2/UPGRADE_BUFF_SPEED_10/mx/my.
+    // Row 2: HP I (left), Gold Spawn (center), Speed 100x (right)
+    /try_node_click/col0/row2/UPGRADE_BUFF_HP_1/mx/my.
+    /try_node_click/col1/row2/UPGRADE_BUFF_GOLD_SPAWN/mx/my.
+    /try_node_click/col2/row2/UPGRADE_BUFF_SPEED_100/mx/my.
     
-    // Row 3: HP II (center), Speed 100x (right)
-    /try_node_click/colm/row3/UPGRADE_BUFF_HP_2/mx/my.
-    /try_node_click/col2/row3/UPGRADE_BUFF_SPEED_100/mx/my.
+    // Row 3: STR I (left), Gold Spawn+ (center), Speed 1000x (right)
+    /try_node_click/col0/row3/UPGRADE_BUFF_STR_1/mx/my.
+    /try_node_click/col1/row3/UPGRADE_BUFF_GOLD_SPAWN_2/mx/my.
+    /try_node_click/col2/row3/UPGRADE_BUFF_SPEED_1000/mx/my.
     
-    // Row 4: STR II (left), Gold Drops (center), Speed 1000x (right)
-    /try_node_click/col0/row4/UPGRADE_BUFF_STR_2/mx/my.
-    /try_node_click/col1/row4/UPGRADE_BUFF_GOLD_DROP/mx/my.
-    /try_node_click/col2/row4/UPGRADE_BUFF_SPEED_1000/mx/my.
+    // Row 4: AC I (left)
+    /try_node_click/col0/row4/UPGRADE_BUFF_AC_1/mx/my.
     
-    // Row 5: AC II (left), Gold Drops+ (center)
-    /try_node_click/col0/row5/UPGRADE_BUFF_AC_2/mx/my.
-    /try_node_click/col1/row5/UPGRADE_BUFF_GOLD_DROP_2/mx/my.
+    // Row 5: HP II (left)
+    /try_node_click/col0/row5/UPGRADE_BUFF_HP_2/mx/my.
     
-    // Row 6: HP III (center)
-    /try_node_click/colm/row6/UPGRADE_BUFF_HP_3/mx/my.
+    // Row 6: STR II (left), Gold Drops (center)
+    /try_node_click/col0/row6/UPGRADE_BUFF_STR_2/mx/my.
+    /try_node_click/col1/row6/UPGRADE_BUFF_GOLD_DROP/mx/my.
     
-    // Row 7: STR III (center)
-    /try_node_click/colm/row7/UPGRADE_BUFF_STR_3/mx/my.
+    // Row 7: AC II (left), Gold Drops+ (center)
+    /try_node_click/col0/row7/UPGRADE_BUFF_AC_2/mx/my.
+    /try_node_click/col1/row7/UPGRADE_BUFF_GOLD_DROP_2/mx/my.
+    
+    // Row 8: HP III (center)
+    /try_node_click/colm/row8/UPGRADE_BUFF_HP_3/mx/my.
+    
+    // Row 9: STR III (center)
+    /try_node_click/colm/row9/UPGRADE_BUFF_STR_3/mx/my.
     
     // DIFF tree (right of Buff, grows upward - 7 rows)
     diff_x := bx + branch_w + BRANCH_GAP.

@@ -114,31 +114,33 @@ upgrades := [].
 
 #get_upgrade_cost(id) >
     // BUFF BRANCH - exponentially scaling costs
-    // Costs are consistent within each row tier
-    // Row 0: Starting node
-    << 30 when id == UPGRADE_BUFF_HP_1.
-    // Row 1: First tier choices ($100)
-    << 100 when id == UPGRADE_BUFF_STR_1.
-    << 100 when id == UPGRADE_BUFF_GOLD_SPAWN.
-    << 100 when id == UPGRADE_BUFF_SPEED_5.
-    // Row 2: Second tier ($400)
-    << 400 when id == UPGRADE_BUFF_AC_1.
-    << 400 when id == UPGRADE_BUFF_GOLD_SPAWN_2.
-    << 400 when id == UPGRADE_BUFF_SPEED_10.
-    // Row 3: Third tier ($1,500 main, $10k speed)
-    << 1500 when id == UPGRADE_BUFF_HP_2.
-    << 10000 when id == UPGRADE_BUFF_SPEED_100.
-    // Row 4: Fourth tier ($5,000 main, $100k speed)
-    << 5000 when id == UPGRADE_BUFF_STR_2.
-    << 5000 when id == UPGRADE_BUFF_GOLD_DROP.
-    << 100000 when id == UPGRADE_BUFF_SPEED_1000.
-    // Row 5: Fifth tier ($20,000)
+    // Speed upgrades are first (cheap entry point)
+    // Row 0: Starting node (Speed 5x - very cheap!)
+    << 10 when id == UPGRADE_BUFF_SPEED_5.
+    // Row 1: Speed 10x (still cheap)
+    << 25 when id == UPGRADE_BUFF_SPEED_10.
+    // Row 2: Three choices branch ($60 for HP/Gold, $5k for Speed 100x)
+    << 60 when id == UPGRADE_BUFF_HP_1.
+    << 60 when id == UPGRADE_BUFF_GOLD_SPAWN.
+    << 5000 when id == UPGRADE_BUFF_SPEED_100.
+    // Row 3: Second tier ($200 for stats/gold, $50k for Speed 1000x)
+    << 200 when id == UPGRADE_BUFF_STR_1.
+    << 200 when id == UPGRADE_BUFF_GOLD_SPAWN_2.
+    << 50000 when id == UPGRADE_BUFF_SPEED_1000.
+    // Row 4: Third tier ($600)
+    << 600 when id == UPGRADE_BUFF_AC_1.
+    // Row 5: Fourth tier ($2,000)
+    << 2000 when id == UPGRADE_BUFF_HP_2.
+    // Row 6: Fifth tier ($6,000)
+    << 6000 when id == UPGRADE_BUFF_STR_2.
+    << 6000 when id == UPGRADE_BUFF_GOLD_DROP.
+    // Row 7: Sixth tier ($20,000)
     << 20000 when id == UPGRADE_BUFF_AC_2.
     << 20000 when id == UPGRADE_BUFF_GOLD_DROP_2.
-    // Row 6: Sixth tier ($75,000)
-    << 75000 when id == UPGRADE_BUFF_HP_3.
-    // Row 7: Final tier ($250,000)
-    << 250000 when id == UPGRADE_BUFF_STR_3.
+    // Row 8: Seventh tier ($60,000)
+    << 60000 when id == UPGRADE_BUFF_HP_3.
+    // Row 9: Final tier ($200,000)
+    << 200000 when id == UPGRADE_BUFF_STR_3.
     
     // DIFFICULTY BRANCH - exponential cost scaling
     << 25 when id == UPGRADE_DIFF_STAIRS_RANDOM.   // Row 0 - Start
@@ -201,74 +203,78 @@ upgrades := [].
     has := /has_upgrade/id.
     << 0 when has == 1.
     
-    // BUFF BRANCH - branching tree with choices!
+    // BUFF BRANCH - Speed starts, then branches!
     // Layout:
-    //                  HP I (start)
-    //                 /    \          \
-    //            STR I    Gold Spawn   Speed 5x
-    //              |         |            |
-    //            AC I    Gold Spawn+   Speed 10x
-    //               \      /              |
-    //                HP II            Speed 100x
-    //               /    \                |
-    //          STR II   Gold Drops    Speed 1000x
-    //             |         |
-    //          AC II    Gold Drops+
-    //              \      /
-    //               HP III
-    //                 |
-    //              STR III
+    //              Speed 5x (start)
+    //                  |
+    //              Speed 10x
+    //             /    |    \
+    //         HP I  Gold Spawn  Speed 100x
+    //           |       |           |
+    //        STR I  Gold Spawn+  Speed 1000x
+    //           |
+    //         AC I
+    //           |
+    //        HP II
+    //        /    \
+    //   STR II   Gold Drops
+    //      |         |
+    //   AC II    Gold Drops+
+    //       \      /
+    //        HP III
+    //          |
+    //       STR III
     
-    // Row 0: HP I is the starting node (no prereqs)
-    << 1 when id == UPGRADE_BUFF_HP_1.
+    // Row 0: Speed 5x is the starting node (no prereqs)
+    << 1 when id == UPGRADE_BUFF_SPEED_5.
     
-    // Row 1: Three choices branch from HP I
+    // Row 1: Speed 10x needs Speed 5x
+    has_speed5 := /has_upgrade/UPGRADE_BUFF_SPEED_5.
+    << has_speed5 when id == UPGRADE_BUFF_SPEED_10.
+    
+    // Row 2: Three choices branch from Speed 10x
+    has_speed10 := /has_upgrade/UPGRADE_BUFF_SPEED_10.
+    << has_speed10 when id == UPGRADE_BUFF_HP_1.
+    << has_speed10 when id == UPGRADE_BUFF_GOLD_SPAWN.
+    << has_speed10 when id == UPGRADE_BUFF_SPEED_100.
+    
+    // Row 3: Stats path continues, Gold path continues, Speed continues
     has_hp1 := /has_upgrade/UPGRADE_BUFF_HP_1.
     << has_hp1 when id == UPGRADE_BUFF_STR_1.
-    << has_hp1 when id == UPGRADE_BUFF_GOLD_SPAWN.
-    << has_hp1 when id == UPGRADE_BUFF_SPEED_5.
-    
-    // Row 2: Stats path continues, Gold path continues, Speed continues
-    has_str1 := /has_upgrade/UPGRADE_BUFF_STR_1.
-    << has_str1 when id == UPGRADE_BUFF_AC_1.
     
     has_gold_spawn := /has_upgrade/UPGRADE_BUFF_GOLD_SPAWN.
     << has_gold_spawn when id == UPGRADE_BUFF_GOLD_SPAWN_2.
     
-    has_speed5 := /has_upgrade/UPGRADE_BUFF_SPEED_5.
-    << has_speed5 when id == UPGRADE_BUFF_SPEED_10.
+    has_speed100 := /has_upgrade/UPGRADE_BUFF_SPEED_100.
+    << has_speed100 when id == UPGRADE_BUFF_SPEED_1000.
     
-    // Row 3: HP II requires EITHER AC I OR Gold Spawn+ (merge point)
+    // Row 4: AC I needs STR I
+    has_str1 := /has_upgrade/UPGRADE_BUFF_STR_1.
+    << has_str1 when id == UPGRADE_BUFF_AC_1.
+    
+    // Row 5: HP II needs AC I
     has_ac1 := /has_upgrade/UPGRADE_BUFF_AC_1.
-    has_gold_spawn2 := /has_upgrade/UPGRADE_BUFF_GOLD_SPAWN_2.
-    has_tier2_choice := has_ac1 + has_gold_spawn2.
-    << 1 when id == UPGRADE_BUFF_HP_2 and has_tier2_choice gt 0.
+    << has_ac1 when id == UPGRADE_BUFF_HP_2.
     
-    has_speed10 := /has_upgrade/UPGRADE_BUFF_SPEED_10.
-    << has_speed10 when id == UPGRADE_BUFF_SPEED_100.
-    
-    // Row 4: Two choices branch from HP II
+    // Row 6: Two choices branch from HP II
     has_hp2 := /has_upgrade/UPGRADE_BUFF_HP_2.
     << has_hp2 when id == UPGRADE_BUFF_STR_2.
     << has_hp2 when id == UPGRADE_BUFF_GOLD_DROP.
     
-    has_speed100 := /has_upgrade/UPGRADE_BUFF_SPEED_100.
-    << has_speed100 when id == UPGRADE_BUFF_SPEED_1000.
-    
-    // Row 5: Stats path continues, Gold path continues
+    // Row 7: Stats path continues, Gold path continues
     has_str2 := /has_upgrade/UPGRADE_BUFF_STR_2.
     << has_str2 when id == UPGRADE_BUFF_AC_2.
     
     has_gold_drop := /has_upgrade/UPGRADE_BUFF_GOLD_DROP.
     << has_gold_drop when id == UPGRADE_BUFF_GOLD_DROP_2.
     
-    // Row 6: HP III requires EITHER AC II OR Gold Drops+ (merge point)
+    // Row 8: HP III requires EITHER AC II OR Gold Drops+ (merge point)
     has_ac2 := /has_upgrade/UPGRADE_BUFF_AC_2.
     has_gold_drop2 := /has_upgrade/UPGRADE_BUFF_GOLD_DROP_2.
     has_tier3_choice := has_ac2 + has_gold_drop2.
     << 1 when id == UPGRADE_BUFF_HP_3 and has_tier3_choice gt 0.
     
-    // Row 7: STR III needs HP III
+    // Row 9: STR III needs HP III
     has_hp3 := /has_upgrade/UPGRADE_BUFF_HP_3.
     << has_hp3 when id == UPGRADE_BUFF_STR_3.
     
@@ -511,45 +517,45 @@ dng_bonus_from_upgrades := 0.
     dng_kobolds_enabled = 0.
     dng_goblins_enabled = 0.
     
-    // Calculate bonus from upgrades (linear addition, starts at 0)
+    // Calculate bonus from upgrades (4-6 per upgrade for meaningful rewards)
     bonus := 0.
     
     // Stairs placement (first upgrade)
     dng_stairs_random = 1 when /has_upgrade/UPGRADE_DIFF_STAIRS_RANDOM == 1.
-    bonus = bonus + 1 when /has_upgrade/UPGRADE_DIFF_STAIRS_RANDOM == 1.
+    bonus = bonus + 2 when /has_upgrade/UPGRADE_DIFF_STAIRS_RANDOM == 1.
     
     // Room count from difficulty upgrades (additive +1 each)
     dng_max_rooms = dng_max_rooms + 1 when /has_upgrade/UPGRADE_DIFF_ROOM_2 == 1.
-    bonus = bonus + 1 when /has_upgrade/UPGRADE_DIFF_ROOM_2 == 1.
+    bonus = bonus + 4 when /has_upgrade/UPGRADE_DIFF_ROOM_2 == 1.
     
     dng_max_rooms = dng_max_rooms + 1 when /has_upgrade/UPGRADE_DIFF_ROOM_3 == 1.
-    bonus = bonus + 1 when /has_upgrade/UPGRADE_DIFF_ROOM_3 == 1.
+    bonus = bonus + 4 when /has_upgrade/UPGRADE_DIFF_ROOM_3 == 1.
     
     dng_max_rooms = dng_max_rooms + 1 when /has_upgrade/UPGRADE_DIFF_ROOM_4 == 1.
-    bonus = bonus + 1 when /has_upgrade/UPGRADE_DIFF_ROOM_4 == 1.
+    bonus = bonus + 5 when /has_upgrade/UPGRADE_DIFF_ROOM_4 == 1.
     
     dng_max_rooms = dng_max_rooms + 1 when /has_upgrade/UPGRADE_DIFF_ROOM_MANY == 1.
-    bonus = bonus + 2 when /has_upgrade/UPGRADE_DIFF_ROOM_MANY == 1.
+    bonus = bonus + 6 when /has_upgrade/UPGRADE_DIFF_ROOM_MANY == 1.
     
     // Room size (with upgrade: 2-5 interior, meaning 4x4 to 7x7 total)
     dng_min_room_size = 2 when /has_upgrade/UPGRADE_DIFF_VAR_SIZE == 1.
     dng_max_room_size = 5 when /has_upgrade/UPGRADE_DIFF_VAR_SIZE == 1.
-    bonus = bonus + 1 when /has_upgrade/UPGRADE_DIFF_VAR_SIZE == 1.
+    bonus = bonus + 3 when /has_upgrade/UPGRADE_DIFF_VAR_SIZE == 1.
     
     // Monster types (Kobolds enables 1 monster, Goblins adds variety)
     dng_kobolds_enabled = 1 when /has_upgrade/UPGRADE_DIFF_KOBOLDS == 1.
     dng_monster_count = 1 when /has_upgrade/UPGRADE_DIFF_KOBOLDS == 1.
-    bonus = bonus + 2 when /has_upgrade/UPGRADE_DIFF_KOBOLDS == 1.
+    bonus = bonus + 5 when /has_upgrade/UPGRADE_DIFF_KOBOLDS == 1.
     
     dng_goblins_enabled = 1 when /has_upgrade/UPGRADE_DIFF_GOBLINS == 1.
-    bonus = bonus + 2 when /has_upgrade/UPGRADE_DIFF_GOBLINS == 1.
+    bonus = bonus + 5 when /has_upgrade/UPGRADE_DIFF_GOBLINS == 1.
     
     // Monster count upgrades (additive +1 each)
     dng_monster_count = dng_monster_count + 1 when /has_upgrade/UPGRADE_DIFF_MONSTER_2 == 1.
-    bonus = bonus + 2 when /has_upgrade/UPGRADE_DIFF_MONSTER_2 == 1.
+    bonus = bonus + 6 when /has_upgrade/UPGRADE_DIFF_MONSTER_2 == 1.
     
     dng_monster_count = dng_monster_count + 1 when /has_upgrade/UPGRADE_DIFF_MONSTER_3 == 1.
-    bonus = bonus + 2 when /has_upgrade/UPGRADE_DIFF_MONSTER_3 == 1.
+    bonus = bonus + 6 when /has_upgrade/UPGRADE_DIFF_MONSTER_3 == 1.
     
     // Gold spawning (from BUFF branch)
     dng_gold_enabled = 0.
@@ -671,16 +677,16 @@ dng_bonus_from_upgrades := 0.
     << "Max bot speed: 1000x" when id == UPGRADE_BUFF_SPEED_1000.
     
     // DIFFICULTY
-    << "Stairs in random spot (+$1)" when id == UPGRADE_DIFF_STAIRS_RANDOM.
-    << "+1 room per floor (+$1)" when id == UPGRADE_DIFF_ROOM_2.
-    << "Room size varies 3-7 (+$1)" when id == UPGRADE_DIFF_VAR_SIZE.
-    << "Kobolds spawn (+$2)" when id == UPGRADE_DIFF_KOBOLDS.
-    << "+1 room per floor (+$1)" when id == UPGRADE_DIFF_ROOM_3.
-    << "Goblins spawn (+$2)" when id == UPGRADE_DIFF_GOBLINS.
-    << "+1 monster per floor (+$2)" when id == UPGRADE_DIFF_MONSTER_2.
-    << "+1 room per floor (+$1)" when id == UPGRADE_DIFF_ROOM_4.
-    << "+1 monster per floor (+$2)" when id == UPGRADE_DIFF_MONSTER_3.
-    << "+1 room per floor (+$2)" when id == UPGRADE_DIFF_ROOM_MANY.
+    << "Stairs in random spot (+$2)" when id == UPGRADE_DIFF_STAIRS_RANDOM.
+    << "+1 room per floor (+$4)" when id == UPGRADE_DIFF_ROOM_2.
+    << "Room size varies 3-7 (+$3)" when id == UPGRADE_DIFF_VAR_SIZE.
+    << "Kobolds spawn (+$5)" when id == UPGRADE_DIFF_KOBOLDS.
+    << "+1 room per floor (+$4)" when id == UPGRADE_DIFF_ROOM_3.
+    << "Goblins spawn (+$5)" when id == UPGRADE_DIFF_GOBLINS.
+    << "+1 monster per floor (+$6)" when id == UPGRADE_DIFF_MONSTER_2.
+    << "+1 room per floor (+$5)" when id == UPGRADE_DIFF_ROOM_4.
+    << "+1 monster per floor (+$6)" when id == UPGRADE_DIFF_MONSTER_3.
+    << "+1 room per floor (+$6)" when id == UPGRADE_DIFF_ROOM_MANY.
     
     // LANGUAGE - describe purpose, not syntax!
     // Row 0: Start
