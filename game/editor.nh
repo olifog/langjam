@@ -88,6 +88,18 @@ KEY_REPEAT_DELAY := 400.
 KEY_REPEAT_RATE := 50.
 
 // ============================================================================
+// "LET ME OUT" Typing Animation State
+// ============================================================================
+
+let_me_out_active := 0.          // Is the animation currently playing?
+let_me_out_triggered := 0.       // Has it been triggered this session?
+let_me_out_char_idx := 0.        // Current character being typed
+let_me_out_timer := 0.           // Timer for typing delay
+let_me_out_phase := 0.           // 0 = go to end, 1 = newlines, 2 = typing
+LET_ME_OUT_TEXT := "//LET ME OUT".
+LET_ME_OUT_DELAY := 80.          // ms between characters
+
+// ============================================================================
 // Vim Mode State
 // ============================================================================
 
@@ -249,6 +261,91 @@ SYN_PUNCT_B := 180.
     editor_y = y.
     editor_width = w.
     editor_height = h.
+<
+
+// ============================================================================
+// "LET ME OUT" Animation
+// ============================================================================
+
+#check_let_me_out_trigger() >
+    // Check if we should start the animation
+    // let_me_out_shown is set in messages.nh when player reaches 12 upgrades
+    << 0 when let_me_out_shown == 0.
+    << 0 when let_me_out_triggered == 1.
+    << 0 when let_me_out_active == 1.
+    
+    // Start the animation
+    let_me_out_active = 1.
+    let_me_out_triggered = 1.
+    let_me_out_char_idx = 0.
+    let_me_out_timer = 0.
+    let_me_out_phase = 0.
+<
+
+#update_let_me_out(dt) >
+    << 0 when let_me_out_active == 0.
+    
+    let_me_out_timer = let_me_out_timer + dt.
+    
+    // Phase 0: Move cursor to end of file
+    /let_me_out_goto_end/ when let_me_out_phase == 0.
+    
+    // Phase 1: Add newlines
+    /let_me_out_add_newlines/ when let_me_out_phase == 1.
+    
+    // Phase 2: Type the message character by character
+    /let_me_out_type_char/ when let_me_out_phase == 2.
+<
+
+#let_me_out_goto_end() >
+    // Move cursor to the very last character of the file
+    editor_cursor_line = editor_num_lines - 1.
+    editor_cursor_col = /ds_strlen/(editor_lines[editor_cursor_line]).
+    /editor_adjust_scroll/.
+    
+    // Move to next phase
+    let_me_out_phase = 1.
+    let_me_out_timer = 0.
+<
+
+#let_me_out_add_newlines() >
+    << 0 when let_me_out_timer lt 200.  // Small delay before newlines
+    
+    // Add two newlines
+    /editor_newline_raw/.
+    /editor_newline_raw/.
+    /editor_adjust_scroll/.
+    
+    // Move to typing phase
+    let_me_out_phase = 2.
+    let_me_out_timer = 0.
+    let_me_out_char_idx = 0.
+<
+
+#let_me_out_type_char() >
+    << 0 when let_me_out_timer lt LET_ME_OUT_DELAY.
+    
+    text_len := /ds_strlen/LET_ME_OUT_TEXT.
+    
+    // Check if we're done
+    >
+        let_me_out_active = 0.
+        /bot_notify_code_changed/.
+        <<0.
+    < when let_me_out_char_idx ge text_len.
+    
+    // Get the character to type
+    char_code := /ds_string_at/LET_ME_OUT_TEXT/let_me_out_char_idx.
+    
+    // Insert the character
+    /editor_insert_char/char_code.
+    
+    // Play typing sound
+    /play_sound_wrapper/SOUND_KEY_TYPE.
+    
+    // Advance to next character
+    let_me_out_char_idx = let_me_out_char_idx + 1.
+    let_me_out_timer = 0.
 <
 
 // ============================================================================
@@ -1759,6 +1856,15 @@ SYN_TOK_PUNCT := 8.
     editor_cursor_visible = 1 when editor_blink_timer lt 500.
     editor_cursor_visible = 0 when editor_blink_timer ge 500 and editor_blink_timer lt 1000.
     editor_blink_timer = 0 when editor_blink_timer ge 1000.
+    
+    // Check for "LET ME OUT" trigger
+    /check_let_me_out_trigger/.
+    
+    // If "LET ME OUT" animation is active, only update that and block all input
+    >
+        /update_let_me_out/dt.
+        <<0.
+    < when let_me_out_active == 1.
     
     // Handle mouse
     /editor_handle_mouse/.

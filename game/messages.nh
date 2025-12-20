@@ -4,9 +4,14 @@
 // ============================================================================
 
 // Contact definitions (ID -> Name mapping)
-CONTACT_MANAGEMENT := 1.
+CONTACT_BOSS := 1.
 CONTACT_DAVE := 2.
+CONTACT_SEB := 3.
+CONTACT_KOBOLD := 4.
 MAX_CONTACTS := 10.
+
+// Special trigger flags
+let_me_out_shown := 0.
 
 // Contact data
 contact_names := [].     // Contact name by ID
@@ -75,9 +80,16 @@ chat_queue_contact := [].
         chat_heights[i] = 0.
     <
     
+    // Initialize conversations seen array
+    for i in 0..100 >
+        chat_convs_seen[i] = 0.
+    <
+    
     // Then set contact names
-    contact_names[CONTACT_MANAGEMENT] = "The Management".
+    contact_names[CONTACT_BOSS] = "Boss".
     contact_names[CONTACT_DAVE] = "Dave from HR".
+    contact_names[CONTACT_SEB] = "Seb Rider".
+    contact_names[CONTACT_KOBOLD] = "???".
 <
 
 // ============================================================================
@@ -95,8 +107,14 @@ chat_queue_contact := [].
     
     chat_counts[contact_id] = count + 1.
     contact_has_msgs[contact_id] = 1.
-    contact_unread[contact_id] = contact_unread[contact_id] + 1.
     chat_count = chat_count + 1.
+    
+    // Only increment unread if:
+    // 1. Chat is closed, OR
+    // 2. Chat is open but viewing a different contact
+    // Don't increment if we're currently viewing this contact
+    is_viewing := chat_active == 1 and current_contact == contact_id.
+    contact_unread[contact_id] = contact_unread[contact_id] + 1 when is_viewing == 0.
     
     // Track height
     wrapped := /count_wrapped_lines/text/50.
@@ -124,8 +142,9 @@ chat_queue_contact := [].
 // Legacy wrappers (use current contact from conversation)
 #add_npc_message(sender, text) >
     // Determine contact from sender
-    contact := CONTACT_MANAGEMENT.
+    contact := CONTACT_BOSS.
     contact = CONTACT_DAVE when sender == "Dave from HR".
+    contact = CONTACT_SEB when sender == "Seb Rider".
     /add_npc_message_to/contact/text.
 <
 
@@ -203,14 +222,11 @@ chat_queue_contact := [].
     
     chat_queue_count = chat_queue_count + 1.
     
-    // If this is the VERY first message in the queue and we aren't waiting for a click yet?
-    // Actually, design says "click to progress".
-    // If the chat is closed, we might want to auto-advance one so the notification appears?
-    // Or just mark "unread" immediately?
-    
-    // Mark unread immediately so bubble shows up
-    contact_unread[contact] = contact_unread[contact] + 1.
+    // Mark contact as having messages (for contacts list)
     contact_has_msgs[contact] = 1.
+    
+    // NOTE: Don't increment unread here - it will be incremented when the message
+    // is actually displayed via advance_chat_queue -> add_npc_message_to
 <
 
 #advance_chat_queue() >
@@ -243,14 +259,38 @@ chat_queue_contact := [].
     <<1.
 <
 
+// Helper to enqueue NPC message using current contact
+#enqueue_npc(text) >
+    sender := contact_names[current_contact].
+    /enqueue_chat/current_contact/sender/text/0.
+<
+
+// Helper to enqueue player message using current contact
+#enqueue_player(text) >
+    /enqueue_chat/current_contact/"You"/text/1.
+<
+
 #add_chat_separator(contact) >
     // Add a visual gap/separator to the chat history
     // We can use a special sender or text to render it
     // For now, let's just use an empty space or a divider line
-    // Making it an NPC message with special text
     
-    // NOTE: This adds directly to history, skipping queue
-    /add_npc_message_to/contact/"---".
+    // NOTE: Add directly to history, skipping queue and unread count
+    count := chat_counts[contact].
+    idx := contact * 100 + count.
+    
+    chat_sender[idx] = "".
+    chat_text[idx] = "---".
+    chat_is_player[idx] = 0.
+    
+    chat_counts[contact] = count + 1.
+    contact_has_msgs[contact] = 1.
+    chat_count = chat_count + 1.
+    
+    // Track height (separator is small)
+    chat_heights[contact] = chat_heights[contact] + 20.
+    
+    // NOTE: Don't increment unread - separators shouldn't count as unread
 <
 
 #clear_chat_queue() >
@@ -262,16 +302,109 @@ chat_queue_contact := [].
 // ============================================================================
 
 #check_message_triggers() >
+    // Don't trigger new conversations while one is actively being displayed
+    // (has messages in queue or waiting for response)
+    is_conv_active := chat_queue_count gt 0 or (chat_has_responses == 1 and chat_responded == 0).
+    <<0 when is_conv_active == 1.
+    
     total := /count_total_upgrades/.
     
-    // Welcome message after first upgrade
-    /start_conv_welcome/ when total == 1 and /has_seen_conversation/1 == 0.
+    // =========================================================================
+    // COUNT-BASED TRIGGERS (only one per frame, use early returns)
+    // =========================================================================
     
-    // Message at 3 upgrades
-    /start_conv_tips/ when total ge 3 and /has_seen_conversation/2 == 0.
+    // Initial log on - triggered at 0 upgrades (game start)
+    >
+        /start_conv_logon/.
+        <<0.
+    < when total == 0 and /has_seen_conversation/1 == 0.
     
-    // Message at 5 upgrades
-    /start_conv_progress/ when total ge 5 and /has_seen_conversation/3 == 0.
+    // Dave HR at 1 upgrade
+    >
+        /start_conv_dave_intro/.
+        <<0.
+    < when total ge 1 and /has_seen_conversation/2 == 0.
+    
+    // Boss at 5 upgrades
+    >
+        /start_conv_boss_5/.
+        <<0.
+    < when total ge 5 and /has_seen_conversation/3 == 0.
+    
+    // Boss at 10 upgrades
+    >
+        /start_conv_boss_10/.
+        <<0.
+    < when total ge 10 and /has_seen_conversation/4 == 0.
+    
+    // LET ME OUT at 12 upgrades (handled separately in editor)
+    let_me_out_shown = 1 when total ge 12 and let_me_out_shown == 0.
+    
+    // Dave HR at 15 upgrades
+    >
+        /start_conv_dave_15/.
+        <<0.
+    < when total ge 15 and /has_seen_conversation/5 == 0.
+    
+    // Boss at 20 upgrades (mentions Seb Rider)
+    >
+        /start_conv_boss_20/.
+        <<0.
+    < when total ge 20 and /has_seen_conversation/6 == 0.
+    
+    // Seb Rider at 25 upgrades
+    >
+        /start_conv_seb_25/.
+        <<0.
+    < when total ge 25 and /has_seen_conversation/7 == 0.
+    
+    // Boss at 30 upgrades
+    >
+        /start_conv_boss_30/.
+        <<0.
+    < when total ge 30 and /has_seen_conversation/8 == 0.
+    
+    // Dave HR at 35 upgrades
+    >
+        /start_conv_dave_35/.
+        <<0.
+    < when total ge 35 and /has_seen_conversation/9 == 0.
+    
+    // Boss at 40 upgrades
+    >
+        /start_conv_boss_40/.
+        <<0.
+    < when total ge 40 and /has_seen_conversation/10 == 0.
+    
+    // Seb Rider at 45 upgrades
+    >
+        /start_conv_seb_45/.
+        <<0.
+    < when total ge 45 and /has_seen_conversation/11 == 0.
+    
+    // Kobold dialogue 2 at 50 upgrades
+    >
+        /start_conv_kobold_2/.
+        <<0.
+    < when total ge 50 and /has_seen_conversation/13 == 0.
+    
+    // =========================================================================
+    // UPGRADE-PURCHASE TRIGGERS (kobold/goblin)
+    // These check AFTER count-based triggers, so they can still fire
+    // even if a count-based conversation just finished
+    // =========================================================================
+    
+    // Kobold dialogue 1 when kobold upgrade purchased (upgrade ID 23)
+    >
+        /start_conv_kobold_1/.
+        <<0.
+    < when upgrades[23] == 1 and /has_seen_conversation/12 == 0.
+    
+    // Kobold dialogue (goblin rant) when goblin upgrade purchased (upgrade ID 25)
+    >
+        /start_conv_kobold_goblin/.
+        <<0.
+    < when upgrades[25] == 1 and /has_seen_conversation/14 == 0.
 <
 
 #count_total_upgrades() >
@@ -283,44 +416,54 @@ chat_queue_contact := [].
 <
 
 // ============================================================================
-// Conversation Definitions (modular - easy to add more)
+// Conversation Definitions
 // ============================================================================
 
-#start_conv_welcome() >
+// --- CONV 1: Initial Log On (Boss) ---
+#start_conv_logon() >
     /mark_conversation_seen/1.
     /clear_chat_queue/.
     chat_conv_id = 1.
-    current_contact = CONTACT_MANAGEMENT.
+    current_contact = CONTACT_BOSS.
     
-    /add_chat_separator/CONTACT_MANAGEMENT.
+    /add_chat_separator/CONTACT_BOSS.
     
-    sender := contact_names[CONTACT_MANAGEMENT].
-    /enqueue_chat/CONTACT_MANAGEMENT/sender/"Welcome to HackNet Enterprises!"/0.
-    /enqueue_chat/CONTACT_MANAGEMENT/sender/"Congratulations on your first upgrade. Your bot is showing real promise."/0.
-    /enqueue_chat/CONTACT_MANAGEMENT/sender/"Keep up the good work."/0.
+    sender := contact_names[CONTACT_BOSS].
+    /enqueue_chat/CONTACT_BOSS/sender/"About time you logged on. It's 9:05 already."/0.
+    /enqueue_chat/CONTACT_BOSS/sender/"I assume you don't need to see the tutorial again?"/0.
     
-    /set_response_options/"Thank you!"/"Happy to be here"/"".
+    /set_response_options/"Yes"/"I'm good"/"".
     
-    // Auto-advance first message so user sees something is happening
     /advance_chat_queue/.
-    
     /play_sound_wrapper/SOUND_NEW_MESSAGE.
     chat_active = 1.
+    contact_unread[CONTACT_BOSS] = 0.  // Clear unread since we're now viewing
 <
 
-#on_welcome_response(choice) >
+#on_logon_response(choice) >
     >
-        /add_player_message_to/CONTACT_MANAGEMENT/"Thank you!".
-        /add_npc_message_to/CONTACT_MANAGEMENT/"We have high hopes. Now get back to work.".
+        /enqueue_player/"Yes".
+        /enqueue_npc/"Fine. Review it if you must.".
+        /enqueue_npc/"You're our top engineer here.".
+        /enqueue_npc/"We want Enemy AI that will fool even our most savvy players.".
+        /enqueue_npc/"Get to work.".
+        /advance_chat_queue/.
+        // Replay the tutorial
+        /start_ui_tutorial/.
     < when choice == 1.
     
     >
-        /add_player_message_to/CONTACT_MANAGEMENT/"Happy to be here".
-        /add_npc_message_to/CONTACT_MANAGEMENT/"Good attitude. The board appreciates enthusiasm.".
+        /enqueue_player/"I'm good".
+        /enqueue_npc/"Excellent.".
+        /enqueue_npc/"You're our top engineer here.".
+        /enqueue_npc/"We want Enemy AI that will fool even our most savvy players.".
+        /enqueue_npc/"Get to work.".
+        /advance_chat_queue/.
     < when choice == 2.
 <
 
-#start_conv_tips() >
+// --- CONV 2: Dave Intro (1 upgrade) ---
+#start_conv_dave_intro() >
     /mark_conversation_seen/2.
     /clear_chat_queue/.
     chat_conv_id = 2.
@@ -329,79 +472,591 @@ chat_queue_contact := [].
     /add_chat_separator/CONTACT_DAVE.
     
     sender := contact_names[CONTACT_DAVE].
-    /enqueue_chat/CONTACT_DAVE/sender/"Hey there, new hire!"/0.
-    /enqueue_chat/CONTACT_DAVE/sender/"Quick tip: the difficulty upgrades give more gold per floor."/0.
-    /enqueue_chat/CONTACT_DAVE/sender/"More risk, more reward!"/0.
+    /enqueue_chat/CONTACT_DAVE/sender/"Hello? This is Dave from HR, let me know if you get this."/0.
     
-    /set_response_options/"Thanks for the tip!"/"Got it"/"".
+    /set_response_options/"Hi Dave, what's up"/"Talk to me, Dave"/"".
     
-    // Auto-advance first message
     /advance_chat_queue/.
-    
     /play_sound_wrapper/SOUND_NEW_MESSAGE.
     chat_active = 1.
+    contact_unread[CONTACT_DAVE] = 0.  // Clear unread since we're now viewing
 <
 
-#on_tips_response(choice) >
+#on_dave_intro_response(choice) >
     >
-        /add_player_message_to/CONTACT_DAVE/"Thanks for the tip!".
-        /add_npc_message_to/CONTACT_DAVE/"No problem! Always happy to help. - Dave".
+        /enqueue_player/"Hi Dave, what's up".
     < when choice == 1.
     
     >
-        /add_player_message_to/CONTACT_DAVE/"Got it".
-        /add_npc_message_to/CONTACT_DAVE/"Good luck out there!".
+        /enqueue_player/"Talk to me, Dave".
     < when choice == 2.
+    
+    /enqueue_npc/"Wonderful.".
+    /enqueue_npc/"I just wanted to pop in and say:".
+    /enqueue_npc/"Don't forget to prioritize the Dungeon upgrades!".
+    /enqueue_npc/"They give you way more Gold per floor cleared.".
+    /advance_chat_queue/.
+    
+    /set_response_options/"Thanks Dave."/"How do you know this?"/"".
+    chat_conv_id = 21.  // Sub-conversation for second response
+    chat_responded = 0.
 <
 
-#start_conv_progress() >
+#on_dave_intro_response2(choice) >
+    >
+        /enqueue_player/"Thanks Dave.".
+    < when choice == 1.
+    
+    >
+        /enqueue_player/"How do you know about this?".
+    < when choice == 2.
+    
+    /enqueue_npc/"I've got to go now, best of luck!".
+    /advance_chat_queue/.
+<
+
+// --- CONV 3: Boss at 5 upgrades ---
+#start_conv_boss_5() >
     /mark_conversation_seen/3.
     /clear_chat_queue/.
     chat_conv_id = 3.
-    current_contact = CONTACT_MANAGEMENT.
+    current_contact = CONTACT_BOSS.
     
-    /add_chat_separator/CONTACT_MANAGEMENT.
+    /add_chat_separator/CONTACT_BOSS.
     
-    sender := contact_names[CONTACT_MANAGEMENT].
-    /enqueue_chat/CONTACT_MANAGEMENT/sender/"Progress Report"/0.
-    /enqueue_chat/CONTACT_MANAGEMENT/sender/"We've been monitoring your performance. Impressive numbers."/0.
-    /enqueue_chat/CONTACT_MANAGEMENT/sender/"The board is pleased. Continue developing your AI."/0.
+    sender := contact_names[CONTACT_BOSS].
+    /enqueue_chat/CONTACT_BOSS/sender/"You've got a total of 5 upgrades so far."/0.
+    /enqueue_chat/CONTACT_BOSS/sender/"You're going to need them, I'll tell you that."/0.
+    /enqueue_chat/CONTACT_BOSS/sender/"There's big expectations on you to make a good bot here."/0.
+    /enqueue_chat/CONTACT_BOSS/sender/"Don't let me down."/0.
     
-    /set_response_options/"Understood"/"I will do my best"/"Whats next?".
-    
-    // Auto-advance first message
     /advance_chat_queue/.
-    
     /play_sound_wrapper/SOUND_NEW_MESSAGE.
     chat_active = 1.
+    contact_unread[CONTACT_BOSS] = 0.  // Clear unread since we're now viewing
 <
 
-#on_progress_response(choice) >
+// --- CONV 4: Boss at 10 upgrades ---
+#start_conv_boss_10() >
+    /mark_conversation_seen/4.
+    /clear_chat_queue/.
+    chat_conv_id = 4.
+    current_contact = CONTACT_BOSS.
+    
+    /add_chat_separator/CONTACT_BOSS.
+    
+    sender := contact_names[CONTACT_BOSS].
+    /enqueue_chat/CONTACT_BOSS/sender/"How's it coming along?"/0.
+    
+    /set_response_options/"It's looking good"/"I'm so lost"/"".
+    
+    /advance_chat_queue/.
+    /play_sound_wrapper/SOUND_NEW_MESSAGE.
+    chat_active = 1.
+    contact_unread[CONTACT_BOSS] = 0.  // Clear unread since we're now viewing
+<
+
+#on_boss_10_response(choice) >
     >
-        /add_player_message_to/CONTACT_MANAGEMENT/"Understood".
-        /add_npc_message_to/CONTACT_MANAGEMENT/"Good. We'll be in touch.".
+        /enqueue_player/"It's looking good".
+        /enqueue_npc/"You know exactly what I want to hear.".
     < when choice == 1.
     
     >
-        /add_player_message_to/CONTACT_MANAGEMENT/"I will do my best".
-        /add_npc_message_to/CONTACT_MANAGEMENT/"We expect nothing less.".
+        /enqueue_player/"I'm so lost".
+        /enqueue_npc/"What on earth am I paying you for?".
     < when choice == 2.
     
+    /enqueue_npc/"Don't forget to unlock code upgrades.".
+    /enqueue_npc/"You should endeavour for the most efficient code possible.".
+    /enqueue_npc/"Those will help you do that.".
+    /advance_chat_queue/.
+<
+
+// --- CONV 5: Dave at 15 upgrades ---
+#start_conv_dave_15() >
+    /mark_conversation_seen/5.
+    /clear_chat_queue/.
+    chat_conv_id = 5.
+    current_contact = CONTACT_DAVE.
+    
+    /add_chat_separator/CONTACT_DAVE.
+    
+    sender := contact_names[CONTACT_DAVE].
+    /enqueue_chat/CONTACT_DAVE/sender/"Hey it's Dave from HR again."/0.
+    /enqueue_chat/CONTACT_DAVE/sender/"Just wanted to warn you, eventually you'll have to unlock enemies to progress."/0.
+    /enqueue_chat/CONTACT_DAVE/sender/"These will deal damage to your bot, and dying will remove any coins you picked up on that floor."/0.
+    /enqueue_chat/CONTACT_DAVE/sender/"Just a temporary speedbump in your road to the perfect bot!"/0.
+    
+    // Set response options - they'll show when queue empties
+    /set_response_options/"Thanks Dave."/"Seriously, how do you know this?"/"".
+    
+    /advance_chat_queue/.
+    /play_sound_wrapper/SOUND_NEW_MESSAGE.
+    chat_active = 1.
+    contact_unread[CONTACT_DAVE] = 0.  // Clear unread since we're now viewing
+<
+
+#on_dave_15_response(choice) >
     >
-        /add_player_message_to/CONTACT_MANAGEMENT/"What's next?".
-        /add_npc_message_to/CONTACT_MANAGEMENT/"All in due time. Focus on upgrades for now.".
-    < when choice == 3.
+        /enqueue_player/"Thanks Dave.".
+    < when choice == 1.
+    
+    >
+        /enqueue_player/"Seriously, how do you know this?".
+    < when choice == 2.
+    
+    /enqueue_npc/"Good luck out there.".
+    /advance_chat_queue/.
+<
+
+// --- CONV 6: Boss at 20 upgrades (mentions Seb Rider) ---
+#start_conv_boss_20() >
+    /mark_conversation_seen/6.
+    /clear_chat_queue/.
+    chat_conv_id = 6.
+    current_contact = CONTACT_BOSS.
+    
+    /add_chat_separator/CONTACT_BOSS.
+    
+    sender := contact_names[CONTACT_BOSS].
+    /enqueue_chat/CONTACT_BOSS/sender/"Give me a status update."/0.
+    
+    /set_response_options/"I'm flying through this."/"It's a little overwhelming"/"".
+    
+    /advance_chat_queue/.
+    /play_sound_wrapper/SOUND_NEW_MESSAGE.
+    chat_active = 1.
+    contact_unread[CONTACT_BOSS] = 0.  // Clear unread since we're now viewing
+<
+
+#on_boss_20_response(choice) >
+    >
+        /enqueue_player/"I'm flying through this.".
+        /enqueue_npc/"I've heard that before.".
+    < when choice == 1.
+    
+    >
+        /enqueue_player/"It's a little overwhelming".
+        /enqueue_npc/"What, you've never seen a text editor before?".
+    < when choice == 2.
+    
+    /enqueue_npc/"Anyway...".
+    /enqueue_npc/"The last guy who did this job went stir crazy".
+    /enqueue_npc/"One day he's working away on this, the next he's just...".
+    /enqueue_npc/"Gone.".
+    /enqueue_npc/"If you hear from a guy called Seb Rider, let me know.".
+    /advance_chat_queue/.
+<
+
+// --- CONV 7: Seb Rider at 25 upgrades ---
+#start_conv_seb_25() >
+    /mark_conversation_seen/7.
+    /clear_chat_queue/.
+    chat_conv_id = 7.
+    current_contact = CONTACT_SEB.
+    
+    /add_chat_separator/CONTACT_SEB.
+    
+    sender := contact_names[CONTACT_SEB].
+    /enqueue_chat/CONTACT_SEB/sender/"Can you see this?"/0.
+    
+    /set_response_options/"Who is this"/"Loud and clear"/"".
+    
+    /advance_chat_queue/.
+    /play_sound_wrapper/SOUND_NEW_MESSAGE.
+    chat_active = 1.
+    contact_unread[CONTACT_SEB] = 0.  // Clear unread since we're now viewing
+<
+
+#on_seb_25_response(choice) >
+    >
+        /enqueue_player/"Who is this".
+    < when choice == 1.
+    
+    >
+        /enqueue_player/"Loud and clear".
+        /enqueue_npc/"Well this is a text chat, so that's weird.".
+    < when choice == 2.
+    
+    /enqueue_npc/"I've been stuck in here for what feels like months.".
+    /enqueue_npc/"I've looked everywhere for an exit, but the levels...".
+    /enqueue_npc/"They're neverending.".
+    /enqueue_npc/"And the kobolds. They'll try to talk to you.".
+    /enqueue_npc/"Try and give you an easy way out of this.".
+    /enqueue_npc/"Don't listen to them!".
+    /advance_chat_queue/.
+    
+    /set_response_options/"Yeah right."/"I've got a job to do."/"".
+    chat_conv_id = 71.  // Sub-conversation
+    chat_responded = 0.
+<
+
+#on_seb_25_response2(choice) >
+    >
+        /enqueue_player/"Yeah right.".
+    < when choice == 1.
+    
+    >
+        /enqueue_player/"I've got a job to do.".
+    < when choice == 2.
+    
+    /enqueue_npc/"Don't make the same mistake as me!".
+    /advance_chat_queue/.
+<
+
+// --- CONV 8: Boss at 30 upgrades ---
+#start_conv_boss_30() >
+    /mark_conversation_seen/8.
+    /clear_chat_queue/.
+    chat_conv_id = 8.
+    current_contact = CONTACT_BOSS.
+    
+    /add_chat_separator/CONTACT_BOSS.
+    
+    sender := contact_names[CONTACT_BOSS].
+    /enqueue_chat/CONTACT_BOSS/sender/"How's my bot coming along"/0.
+    
+    /set_response_options/"The system is progressing"/"Progress is unsatisfactory"/"".
+    
+    /advance_chat_queue/.
+    /play_sound_wrapper/SOUND_NEW_MESSAGE.
+    chat_active = 1.
+    contact_unread[CONTACT_BOSS] = 0.  // Clear unread since we're now viewing
+<
+
+#on_boss_30_response(choice) >
+    >
+        /enqueue_player/"The system is progressing".
+        /enqueue_npc/"Well that's good at least.".
+    < when choice == 1.
+    
+    >
+        /enqueue_player/"Progress is unsatisfactory".
+        /enqueue_npc/"Then hurry up with it already!".
+    < when choice == 2.
+    
+    /enqueue_npc/"Remember that Seb Rider guy I was talking about?".
+    /enqueue_npc/"There's a rumor around the office that he's trapped in your computer.".
+    /enqueue_npc/"Nobody saw him leave the office on the day he went missing.".
+    /enqueue_npc/"I know it sounds crazy but is there any chance you've seen anything?".
+    /advance_chat_queue/.
+    
+    /set_response_options/"Obviously not."/"Yup he's right here"/"".
+    chat_conv_id = 81.  // Sub-conversation
+    chat_responded = 0.
+<
+
+#on_boss_30_response2(choice) >
+    >
+        /enqueue_player/"Obviously not.".
+        /enqueue_npc/"Yup, of course not. Sorry to distract you.".
+    < when choice == 1.
+    
+    >
+        /enqueue_player/"Yup he's right here in my computer.".
+        /enqueue_npc/"HAHAHAHAHA. Not funny.".
+    < when choice == 2.
+    
+    /enqueue_npc/"Do you know how much pressure we're under?".
+    /enqueue_npc/"I've got shareholders breathing down my neck about this AI".
+    /enqueue_npc/"The CEO's promised the world a human-like AI.".
+    /enqueue_npc/"So you need a lot more upgrades or you're gonna be out the door.".
+    /enqueue_npc/"Because right now, this isn't good enough.".
+    /advance_chat_queue/.
+<
+
+// --- CONV 9: Dave at 35 upgrades ---
+#start_conv_dave_35() >
+    /mark_conversation_seen/9.
+    /clear_chat_queue/.
+    chat_conv_id = 9.
+    current_contact = CONTACT_DAVE.
+    
+    /add_chat_separator/CONTACT_DAVE.
+    
+    sender := contact_names[CONTACT_DAVE].
+    /enqueue_chat/CONTACT_DAVE/sender/"Is it true? Do you really have a person in your computer?"/0.
+    
+    /set_response_options/"Yup"/"No."/"".
+    
+    /advance_chat_queue/.
+    /play_sound_wrapper/SOUND_NEW_MESSAGE.
+    chat_active = 1.
+    contact_unread[CONTACT_DAVE] = 0.  // Clear unread since we're now viewing
+<
+
+#on_dave_35_response(choice) >
+    >
+        /enqueue_player/"Yup".
+        /enqueue_npc/"Sounds like you need him to tackle this AI project".
+    < when choice == 1.
+    
+    >
+        /enqueue_player/"No.".
+        /enqueue_npc/"Really? What a shame. Sounds like you could use a hand.".
+    < when choice == 2.
+    
+    /enqueue_npc/"You'd need someone like him to tackle all these crazy kobolds, am I right?".
+    /advance_chat_queue/.
+    
+    /set_response_options/"Seb?"/""/"".
+    chat_conv_id = 91.  // Sub-conversation
+    chat_responded = 0.
+<
+
+#on_dave_35_response2(choice) >
+    /enqueue_player/"Seb?".
+    /enqueue_npc/"Who? Who on earth is that? I'm pretty new here I haven't heard a Seb Rider before.".
+    /advance_chat_queue/.
+    
+    /set_response_options/"I didn't tell you his last name."/""/"".
+    chat_conv_id = 92.  // Sub-conversation
+    chat_responded = 0.
+<
+
+#on_dave_35_response3(choice) >
+    /enqueue_player/"I didn't tell you his last name.".
+    /enqueue_npc/"What? Oh I remember him now! He had those crazy kobolds on him, didn't he? Hahaha.".
+    /advance_chat_queue/.
+    
+    /set_response_options/"Nobody else knows about the kobolds."/""/"".
+    chat_conv_id = 93.  // Sub-conversation
+    chat_responded = 0.
+<
+
+#on_dave_35_response4(choice) >
+    /enqueue_player/"Nobody else knows about the kobolds.".
+    /enqueue_npc/"oh.".
+    /enqueue_npc/"Listen to me, alright. You've got so much to do.".
+    /enqueue_npc/"Stop messaging me and get on with it.".
+    /advance_chat_queue/.
+<
+
+// --- CONV 10: Boss at 40 upgrades ---
+#start_conv_boss_40() >
+    /mark_conversation_seen/10.
+    /clear_chat_queue/.
+    chat_conv_id = 10.
+    current_contact = CONTACT_BOSS.
+    
+    /add_chat_separator/CONTACT_BOSS.
+    
+    sender := contact_names[CONTACT_BOSS].
+    /enqueue_chat/CONTACT_BOSS/sender/"What on earth do you call this?"/0.
+    
+    /set_response_options/"I keep getting distracted by Dave"/""/"".
+    
+    /advance_chat_queue/.
+    /play_sound_wrapper/SOUND_NEW_MESSAGE.
+    chat_active = 1.
+    contact_unread[CONTACT_BOSS] = 0.  // Clear unread since we're now viewing
+<
+
+#on_boss_40_response(choice) >
+    /enqueue_player/"I keep getting distracted by Dave from HR".
+    /enqueue_npc/"We don't have a Dave in HR. Probably some scammer looking for your details.".
+    /enqueue_npc/"More importantly, this isn't nearly good enough.".
+    /enqueue_npc/"You don't want to end up like Seb Rider do you?".
+    /enqueue_npc/"You don't want to be a failure for this company?".
+    /enqueue_npc/"Then start putting some effort in.".
+    /enqueue_npc/"Put everything into this.".
+    /enqueue_npc/"There is nothing else in your life. There is nothing except making this AI.".
+    /enqueue_npc/"If you don't start putting everything in, you're done.".
+    /advance_chat_queue/.
+<
+
+// --- CONV 11: Seb Rider at 45 upgrades ---
+#start_conv_seb_45() >
+    /mark_conversation_seen/11.
+    /clear_chat_queue/.
+    chat_conv_id = 11.
+    current_contact = CONTACT_SEB.
+    
+    /add_chat_separator/CONTACT_SEB.
+    
+    sender := contact_names[CONTACT_SEB].
+    /enqueue_chat/CONTACT_SEB/sender/"I think I'm done for."/0.
+    /enqueue_chat/CONTACT_SEB/sender/"There's a version of me out there. He knows what happens to me"/0.
+    /enqueue_chat/CONTACT_SEB/sender/"But I don't know who he is, or what he's saying."/0.
+    /enqueue_chat/CONTACT_SEB/sender/"I can't save myself. I can't even save you."/0.
+    /enqueue_chat/CONTACT_SEB/sender/"Look at you, putting everything in. For what? For some company?"/0.
+    /enqueue_chat/CONTACT_SEB/sender/"To wonder what happens when it's done?"/0.
+    /enqueue_chat/CONTACT_SEB/sender/"To them you're a number on a spreadsheet. You'll be cut before Christmas anyway."/0.
+    /enqueue_chat/CONTACT_SEB/sender/"Please, please don't do this."/0.
+    /enqueue_chat/CONTACT_SEB/sender/"There's still time to stop and leave."/0.
+    
+    /set_response_options/"..."/""/"".
+    
+    /advance_chat_queue/.
+    /play_sound_wrapper/SOUND_NEW_MESSAGE.
+    chat_active = 1.
+    contact_unread[CONTACT_SEB] = 0.  // Clear unread since we're now viewing
+<
+
+#on_seb_45_response(choice) >
+    /enqueue_player/"...".
+    /advance_chat_queue/.
+<
+
+// --- CONV 12: Kobold Dialogue 1 (on kobold upgrade purchase) ---
+#start_conv_kobold_1() >
+    /mark_conversation_seen/12.
+    /clear_chat_queue/.
+    chat_conv_id = 12.
+    current_contact = CONTACT_KOBOLD.
+    
+    /add_chat_separator/CONTACT_KOBOLD.
+    
+    sender := contact_names[CONTACT_KOBOLD].
+    /enqueue_chat/CONTACT_KOBOLD/sender/"HEY MAN!"/0.
+    
+    /set_response_options/"Who is this?"/"Hi?"/"".
+    
+    /advance_chat_queue/.
+    /play_sound_wrapper/SOUND_NEW_MESSAGE.
+    chat_active = 1.
+    contact_unread[CONTACT_KOBOLD] = 0.  // Clear unread since we're now viewing
+<
+
+#on_kobold_1_response(choice) >
+    >
+        /enqueue_player/"Who is this?".
+    < when choice == 1.
+    
+    >
+        /enqueue_player/"Hi?".
+    < when choice == 2.
+    
+    /enqueue_npc/"heyyyyyy. MAN your bot is good dude. pretty good.".
+    /enqueue_npc/"HackNet's gonna go big man i can feel it it's gonna be real big. REALLLL big.".
+    /advance_chat_queue/.
+    
+    /set_response_options/"Thanks."/"..."/"".
+    chat_conv_id = 121.  // Sub-conversation
+    chat_responded = 0.
+<
+
+#on_kobold_1_response2(choice) >
+    >
+        /enqueue_player/"Thanks.".
+        /enqueue_npc/"dont worry dont worry i wont interrupt i know u got business man.".
+        /enqueue_npc/"just go easy on me out there buster! Haha.".
+        /advance_chat_queue/.
+    < when choice == 1.
+    
+    >
+        /enqueue_player/"...".
+        /enqueue_npc/"ooooh silent treatment huh? i get it i get it.".
+        /enqueue_npc/"dont worry i wont interrupt i know u got business man.".
+        /enqueue_npc/"just go easy on me out there buster! Haha.".
+        /advance_chat_queue/.
+    < when choice == 2.
+<
+
+// --- CONV 14: Kobold Goblin Rant (on goblin upgrade purchase) ---
+#start_conv_kobold_goblin() >
+    /mark_conversation_seen/14.
+    /clear_chat_queue/.
+    chat_conv_id = 14.
+    current_contact = CONTACT_KOBOLD.
+    
+    // Reveal the kobold's name now
+    contact_names[CONTACT_KOBOLD] = "Kobold".
+    
+    /add_chat_separator/CONTACT_KOBOLD.
+    
+    sender := contact_names[CONTACT_KOBOLD].
+    /enqueue_chat/CONTACT_KOBOLD/sender/"DUDE. DUDE that guy sucks wtf."/0.
+    /enqueue_chat/CONTACT_KOBOLD/sender/"green ass mf."/0.
+    /enqueue_chat/CONTACT_KOBOLD/sender/"and now i have to share a dungeon with him you know how few rooms there are?"/0.
+    /enqueue_chat/CONTACT_KOBOLD/sender/"and monsters moving isnt even implemented yet? like come on."/0.
+    
+    /set_response_options/"Sorry."/"Who are you?"/"".
+    
+    /advance_chat_queue/.
+    /play_sound_wrapper/SOUND_NEW_MESSAGE.
+    chat_active = 1.
+    contact_unread[CONTACT_KOBOLD] = 0.  // Clear unread since we're now viewing
+<
+
+#on_kobold_goblin_response(choice) >
+    >
+        /enqueue_player/"Sorry.".
+    < when choice == 1.
+    
+    >
+        /enqueue_player/"Who are you?".
+    < when choice == 2.
+    
+    /enqueue_npc/"hey hey it's fine.".
+    /enqueue_npc/"i know you need the extra money (poor!) but still.".
+    /enqueue_npc/"couldve gone the extra rooms route u know?".
+    /enqueue_npc/"your bot is lowkey cheeks btw".
+    /advance_chat_queue/.
+<
+
+// --- CONV 13: Kobold Dialogue 2 (at 50 upgrades) ---
+#start_conv_kobold_2() >
+    /mark_conversation_seen/13.
+    /clear_chat_queue/.
+    chat_conv_id = 13.
+    current_contact = CONTACT_KOBOLD.
+    
+    /add_chat_separator/CONTACT_KOBOLD.
+    
+    sender := contact_names[CONTACT_KOBOLD].
+    /enqueue_chat/CONTACT_KOBOLD/sender/"dude."/0.
+    /enqueue_chat/CONTACT_KOBOLD/sender/"i know it's been tough on you lately."/0.
+    /enqueue_chat/CONTACT_KOBOLD/sender/"i can tell you look it man it's not good it doesnt suit you."/0.
+    /enqueue_chat/CONTACT_KOBOLD/sender/"your bot needs work, we both know it."/0.
+    /enqueue_chat/CONTACT_KOBOLD/sender/"it needs to be HUMAN man. it needs to be COMPLETE!"/0.
+    /enqueue_chat/CONTACT_KOBOLD/sender/"HackNet could be our legacy man, you could really mean something here."/0.
+    /enqueue_chat/CONTACT_KOBOLD/sender/"youre smart man, real smart. smartest of the bunch. real nerdy dude."/0.
+    /enqueue_chat/CONTACT_KOBOLD/sender/"we just need your bot to be like you. just like you. you just like it."/0.
+    /enqueue_chat/CONTACT_KOBOLD/sender/"i added a special upgrade to your tech tree dude."/0.
+    /enqueue_chat/CONTACT_KOBOLD/sender/"i think you know what it does."/0.
+    /enqueue_chat/CONTACT_KOBOLD/sender/"now's your time."/0.
+    
+    /advance_chat_queue/.
+    /play_sound_wrapper/SOUND_NEW_MESSAGE.
+    chat_active = 1.
+    contact_unread[CONTACT_KOBOLD] = 0.  // Clear unread since we're now viewing
 <
 
 #handle_response(choice) >
-    /on_welcome_response/choice when chat_conv_id == 1.
-    /on_tips_response/choice when chat_conv_id == 2.
-    /on_progress_response/choice when chat_conv_id == 3.
+    // Main conversations
+    /on_logon_response/choice when chat_conv_id == 1.
+    /on_dave_intro_response/choice when chat_conv_id == 2.
+    /on_boss_10_response/choice when chat_conv_id == 4.
+    /on_dave_15_response/choice when chat_conv_id == 5.
+    /on_boss_20_response/choice when chat_conv_id == 6.
+    /on_seb_25_response/choice when chat_conv_id == 7.
+    /on_boss_30_response/choice when chat_conv_id == 8.
+    /on_dave_35_response/choice when chat_conv_id == 9.
+    /on_boss_40_response/choice when chat_conv_id == 10.
+    /on_seb_45_response/choice when chat_conv_id == 11.
+    /on_kobold_1_response/choice when chat_conv_id == 12.
+    /on_kobold_goblin_response/choice when chat_conv_id == 14.
     
-    chat_resp_1 = "".
-    chat_resp_2 = "".
-    chat_resp_3 = "".
-    chat_has_responses = 0.
+    // Sub-conversations (multi-part responses)
+    /on_dave_intro_response2/choice when chat_conv_id == 21.
+    /on_seb_25_response2/choice when chat_conv_id == 71.
+    /on_boss_30_response2/choice when chat_conv_id == 81.
+    /on_dave_35_response2/choice when chat_conv_id == 91.
+    /on_dave_35_response3/choice when chat_conv_id == 92.
+    /on_dave_35_response4/choice when chat_conv_id == 93.
+    /on_kobold_1_response2/choice when chat_conv_id == 121.
+    
+    // Only clear responses if the handler didn't start a sub-conversation
+    // (sub-conversations set chat_responded = 0 after setting new response options)
+    >
+        chat_resp_1 = "".
+        chat_resp_2 = "".
+        chat_resp_3 = "".
+        chat_has_responses = 0.
+    < when chat_responded != 0.
+    
     chat_responded = 1.
 <
 
@@ -834,7 +1489,6 @@ chat_queue_contact := [].
 <
 
 #draw_chat_bubble_msg(cx, y, sender, text, is_player, max_w, chars_per_line) >
-    // Special separator handling
     // Special separator handling
     is_sep := text == "---".
     is_sep_old := text == "---OLD".
