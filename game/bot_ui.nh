@@ -407,6 +407,8 @@ INFO_NAME_2 := "Ken Lin - Scrum Master".
 INFO_GITHUB_2 := "https://github.com/kenL4".
 INFO_NAME_3 := "Seb Hall - Product Owner".
 INFO_GITHUB_3 := "https://github.com/GreenMan891".
+INFO_NAME_4 := "Yoonjae Hwang - Chief Soundcloud Engineer".
+INFO_GITHUB_4 := "https://github.com/GreenMan891".
 INFO_PROJECT_GITHUB := "https://github.com/olifog/langjam".
 
 #update_info_button() >
@@ -461,7 +463,7 @@ INFO_PROJECT_GITHUB := "https://github.com/olifog/langjam".
     
     // Popup dimensions and position (centered in screen)
     pw := 350.
-    ph := 280.
+    ph := 360.
     px := (SCREEN_W - pw) / 2.
     py := (SCREEN_H - ph) / 2.
     
@@ -509,13 +511,20 @@ INFO_PROJECT_GITHUB := "https://github.com/olifog/langjam".
         /open_url/INFO_GITHUB_3.
         /play_sound_wrapper/SOUND_UI_CLICK.
     < when in_link3 == 1.
+
+    // Name 4 link
+    in_link4 := my ge link_start_y + 105 and my lt link_start_y + 105 + link_h.
+    >
+        /open_url/INFO_GITHUB_4.
+        /play_sound_wrapper/SOUND_UI_CLICK.
+    < when in_link4 == 1.
     
     // Project link
-    in_link4 := my ge link_start_y + 125 and my lt link_start_y + 125 + link_h.
+    in_link5 := my ge link_start_y + 190 and my lt link_start_y + 190 + link_h.
     >
         /open_url/INFO_PROJECT_GITHUB.
         /play_sound_wrapper/SOUND_UI_CLICK.
-    < when in_link4 == 1.
+    < when in_link5 == 1.
 <
 
 #draw_info_popup() >
@@ -526,7 +535,7 @@ INFO_PROJECT_GITHUB := "https://github.com/olifog/langjam".
     
     // Popup dimensions
     pw := 350.
-    ph := 280.
+    ph := 360.
     px := (SCREEN_W - pw) / 2.
     py := (SCREEN_H - ph) / 2.
     
@@ -573,16 +582,20 @@ INFO_PROJECT_GITHUB := "https://github.com/olifog/langjam".
     // Name 3
     in_link3 := my ge link_start_y + 70 and my lt link_start_y + 70 + link_h and mx ge px + 20 and mx lt px + pw - 20.
     /draw_link_with_icon/(px + 30)/(link_start_y + 75)/INFO_NAME_3/in_link3.
+
+    // Name 4
+    in_link4 := my ge link_start_y + 105 and my lt link_start_y + 105 + link_h and mx ge px + 20 and mx lt px + pw - 20.
+    /draw_link_with_icon/(px + 30)/(link_start_y + 110)/INFO_NAME_4/in_link4.
     
     // Separator
-    /draw_rect/(px + 15)/(py + 180)/(pw - 30)/1/50/60/80/255.
+    /draw_rect/(px + 15)/(py + 240)/(pw - 30)/1/50/60/80/255.
     
     // Project section
-    /text_draw/(px + 20)/(py + 195)/12/120/140/180/"PROJECT:".
+    /text_draw/(px + 20)/(py + 255)/12/120/140/180/"PROJECT:".
     
     // Project link
-    in_link4 := my ge link_start_y + 125 and my lt link_start_y + 125 + link_h and mx ge px + 20 and mx lt px + pw - 20.
-    /draw_link_with_icon/(px + 30)/(link_start_y + 130)/"GitHub Repository"/in_link4.
+    in_link5 := my ge link_start_y + 190 and my lt link_start_y + 190 + link_h and mx ge px + 20 and mx lt px + pw - 20.
+    /draw_link_with_icon/(px + 30)/(link_start_y + 195)/"GitHub Repository"/in_link5.
     
     // Bottom label
     /draw_rect/(px + 15)/(py + ph - 50)/(pw - 30)/1/50/60/80/255.
