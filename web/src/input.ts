@@ -104,6 +104,13 @@ export function setupKeyboardInput(getWasmModule: () => WasmModule | null): void
     if (navKey !== undefined && wasmModule) {
       audioManager.play(SoundType.KEY_TYPE)
       wasmModule._on_key_down(tagInt(navKey))
+
+      // Space is special: it's both a navigation key AND a printable character
+      // So we also need to send it to the character input buffer for text editing
+      if (e.code === 'Space') {
+        wasmModule._on_char_input(tagInt(32))  // ASCII 32 = space
+      }
+
       e.preventDefault()
       return
     }
