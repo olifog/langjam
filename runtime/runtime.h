@@ -529,7 +529,8 @@ void open_url(Value url);
 // ============================================================================
 // Save/Load System
 // ============================================================================
-void js_call_save_game(Value slot, Value code, Value upgrades);
+void js_call_save_game(Value slot, Value code, Value upgrades,
+                       Value chat_state);
 Value js_call_load_game(Value slot);
 Value js_call_save_exists(Value slot);
 
@@ -544,6 +545,7 @@ void js_call_set_setting(Value key, Value value);
 // ============================================================================
 Value js_parse_save_code(Value json);
 Value js_parse_save_upgrades(Value json);
+Value js_parse_save_chat_state(Value json);
 
 // Menu Art Fetching
 Value js_get_menu_art_count(void);

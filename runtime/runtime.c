@@ -2139,24 +2139,28 @@ void open_url(Value url_val) {
 // Save/Load System
 // ============================================================================
 
-void js_call_save_game(Value slot_val, Value code_val, Value upgrades_val) {
+void js_call_save_game(Value slot_val, Value code_val, Value upgrades_val,
+                       Value chat_state_val) {
   int slot = (int)AS_INT(slot_val);
   const char *code = (const char *)AS_OBJ(code_val);
   const char *upgrades = (const char *)AS_OBJ(upgrades_val);
+  const char *chat_state = (const char *)AS_OBJ(chat_state_val);
 #ifdef __EMSCRIPTEN__
   EM_ASM_(
       {
         if (window.saveGameData) {
           var code = UTF8ToString($1);
           var upgrades = UTF8ToString($2);
-          window.saveGameData($0, code, upgrades);
+          var chat_state = UTF8ToString($3);
+          window.saveGameData($0, code, upgrades, chat_state);
         }
       },
-      slot, code, upgrades);
+      slot, code, upgrades, chat_state);
 #else
   (void)slot;
   (void)code;
   (void)upgrades;
+  (void)chat_state;
 #endif
 }
 
@@ -2289,6 +2293,33 @@ return VAL_OBJ(json_upgrades_buffer);
   (void)json;
   json_upgrades_buffer[0] = 0;
   return VAL_OBJ(json_upgrades_buffer);
+#endif
+}
+
+static char json_chat_state_buffer[65536];
+
+Value js_parse_save_chat_state(Value json_val) {
+  const char *json = (const char *)AS_OBJ(json_val);
+#ifdef __EMSCRIPTEN__
+  EM_ASM_(
+      {
+        try {
+          var obj = JSON.parse(UTF8ToString($0));
+          var chat = obj.chat_state || "";
+          var ptr = $1;
+          for (var i = 0; i < chat.length && i < 65535; i++) {
+    HEAP8[ptr + i] = chat.charCodeAt(i);
+          }
+          HEAP8[ptr + Math.min(chat.length, 65535)] = 0;
+}
+catch(e) { HEAP8[$1] = 0; }
+},
+      json, json_chat_state_buffer);
+return VAL_OBJ(json_chat_state_buffer);
+#else
+  (void)json;
+  json_chat_state_buffer[0] = 0;
+  return VAL_OBJ(json_chat_state_buffer);
 #endif
 }
 

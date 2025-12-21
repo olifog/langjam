@@ -1401,7 +1401,7 @@ clip_h := 0.
         // Check scope: lcolm defined at line 1282. Should be fine if same function.
         /try_lang_node_click/lcolm/lrow9/UPGRADE_FINAL_ASCENSION/mx/my.
     < when can_ascend == 1.
-<
+                                                                                                                                                                                                                                                                                                                                    <
 
 #update_tech_drag() >
     mx := /input_mouse_x/.

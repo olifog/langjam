@@ -80,7 +80,18 @@ SOUND_NEW_MESSAGE := 17.
     upg = /ds_string_concat/upg/sep.
     upg = /ds_string_concat/upg/bank_str.
     
-    /js_call_save_game/slot/code/upg.
+    // Collect chat state as comma-separated 0/1 string
+    chat_str := "".
+    for i in 0..100 >
+        seen := chat_convs_seen[i].
+        char_str := "0".
+        char_str = "1" when seen == 1.
+        chat_str = /ds_string_concat/chat_str/char_str.
+        comma := ",".
+        chat_str = /ds_string_concat/chat_str/comma when i lt 99.
+    <
+    
+    /js_call_save_game/slot/code/upg/chat_str.
 <
 
 #js_load_game(slot) >
@@ -91,6 +102,7 @@ SOUND_NEW_MESSAGE := 17.
     // Parse code from saved data
     code := /js_parse_save_code/raw_data.
     upg := /js_parse_save_upgrades/raw_data.
+    chat_str := /js_parse_save_chat_state/raw_data.
     
     // Restore editor lines by splitting on newlines
     // First clear existing lines
@@ -178,6 +190,29 @@ SOUND_NEW_MESSAGE := 17.
     <
     
     player_bank = bank_val when sep_pos != -1.
+
+    // Restore chat state - parse comma-separated 0/1 values
+    chat_idx := 0.
+    chat_len := /ds_strlen/chat_str.
+    
+    // Only parse if we have a valid chat string
+    should_parse_chat := chat_len gt 0.
+    
+    for i in 0..chat_len >
+        // Break if we don't need to parse (hack to simulate if)
+        >> when should_parse_chat == 0.
+        
+        c := /ds_string_at/chat_str/i.
+        is_one := c == 49.   // '1'
+        is_zero := c == 48.  // '0'
+        
+        // Safety check index
+        valid_idx := chat_idx lt 100.
+        
+        chat_convs_seen[chat_idx] = 1 when is_one == 1 and valid_idx == 1.
+        chat_convs_seen[chat_idx] = 0 when is_zero == 1 and valid_idx == 1.
+        chat_idx = chat_idx + 1 when (is_one == 1 or is_zero == 1) and valid_idx == 1.
+    <
 
     
     // Recalculate game state based on restored upgrades
