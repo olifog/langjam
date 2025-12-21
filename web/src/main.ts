@@ -36,6 +36,15 @@ import { audioManager } from './audio'
     audioManager.setSfxVolume(level);
     localStorage.setItem('setting_sfx_volume', String(level));
   }
+  
+  // Muffle/unmuffle music for intro sequence
+  ; (window as any).muffleMusic = () => {
+    audioManager.muffleMusic();
+  }
+  
+  ; (window as any).unmuffleMusic = () => {
+    audioManager.unmuffleMusic();
+  }
 
   // Save/Load system
   ; (window as any).saveGameData = (slot: number, code: string, upgrades: string) => {

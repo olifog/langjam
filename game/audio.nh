@@ -44,6 +44,14 @@ SOUND_NEW_MESSAGE := 17.
     /js_call_set_sfx_volume/level.
 <
 
+#js_muffle_music() >
+    /js_call_muffle_music/.
+<
+
+#js_unmuffle_music() >
+    /js_call_unmuffle_music/.
+<
+
 #js_save_game(slot) >
     // Collect editor code as single string using newline separator
     code := "".

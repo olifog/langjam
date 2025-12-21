@@ -518,6 +518,8 @@ void js_call_set_volume(Value level);
 void js_call_set_master_volume(Value level);
 void js_call_set_music_volume(Value level);
 void js_call_set_sfx_volume(Value level);
+void js_call_muffle_music(void);
+void js_call_unmuffle_music(void);
 
 // ============================================================================
 // URL Opening (opens in new tab)

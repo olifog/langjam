@@ -30,6 +30,10 @@ class AudioManager {
     private musicSource: MediaElementAudioSourceNode | null = null;
     private musicStarted: boolean = false;
     
+    // Low-pass filter for muffled effect
+    private musicLowpass: BiquadFilterNode | null = null;
+    private musicMuffled: boolean = false;
+    
     // Volume levels (0-100)
     private masterVolume: number = 100;
     private musicVolume: number = 100;
@@ -67,13 +71,20 @@ class AudioManager {
         this.compressor.ratio.value = 12;
         this.compressor.attack.value = 0.003;
         this.compressor.release.value = 0.25;
+        
+        // Low-pass filter for muffled music effect (starts fully open)
+        this.musicLowpass = this.ctx.createBiquadFilter();
+        this.musicLowpass.type = 'lowpass';
+        this.musicLowpass.frequency.value = 20000; // Fully open (no filtering)
+        this.musicLowpass.Q.value = 0.7; // Gentle rolloff
 
         // Connect SFX through compressor
         this.sfxGain.connect(this.compressor);
         this.compressor.connect(this.masterGain);
         
-        // Connect music directly to master (no compression needed for pre-mixed music)
-        this.musicGain.connect(this.masterGain);
+        // Connect music through lowpass filter to master
+        this.musicGain.connect(this.musicLowpass);
+        this.musicLowpass.connect(this.masterGain);
         
         this.masterGain.connect(this.ctx.destination);
 
@@ -151,6 +162,44 @@ class AudioManager {
     // Legacy method for backwards compatibility
     public setVolume(level: number) {
         this.setMasterVolume(level);
+    }
+    
+    // Muffle music with low-pass filter (for intro/letter signing sequence)
+    public muffleMusic() {
+        if (!this.ctx || !this.musicLowpass || !this.musicGain) return;
+        if (this.musicMuffled) return;
+        
+        this.musicMuffled = true;
+        const t = this.ctx.currentTime;
+        
+        // Smoothly ramp down to muffled frequency over 0.5s
+        this.musicLowpass.frequency.cancelScheduledValues(t);
+        this.musicLowpass.frequency.setValueAtTime(this.musicLowpass.frequency.value, t);
+        this.musicLowpass.frequency.exponentialRampToValueAtTime(400, t + 0.5);
+        
+        // Also reduce volume to ~40% for more realistic muffled effect
+        this.musicGain.gain.cancelScheduledValues(t);
+        this.musicGain.gain.setValueAtTime(this.musicGain.gain.value, t);
+        this.musicGain.gain.linearRampToValueAtTime((this.musicVolume / 100) * 0.3 * 0.4, t + 0.5);
+    }
+    
+    // Unmuffle music (restore full frequency range)
+    public unmuffleMusic() {
+        if (!this.ctx || !this.musicLowpass || !this.musicGain) return;
+        if (!this.musicMuffled) return;
+        
+        this.musicMuffled = false;
+        const t = this.ctx.currentTime;
+        
+        // Smoothly ramp back up to full frequency over 0.3s
+        this.musicLowpass.frequency.cancelScheduledValues(t);
+        this.musicLowpass.frequency.setValueAtTime(this.musicLowpass.frequency.value, t);
+        this.musicLowpass.frequency.exponentialRampToValueAtTime(20000, t + 0.3);
+        
+        // Restore volume to normal level
+        this.musicGain.gain.cancelScheduledValues(t);
+        this.musicGain.gain.setValueAtTime(this.musicGain.gain.value, t);
+        this.musicGain.gain.linearRampToValueAtTime((this.musicVolume / 100) * 0.3, t + 0.3);
     }
 
     public play(id: number) {

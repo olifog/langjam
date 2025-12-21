@@ -2097,6 +2097,24 @@ void js_call_set_sfx_volume(Value level_val) {
 #endif
 }
 
+void js_call_muffle_music(void) {
+#ifdef __EMSCRIPTEN__
+  EM_ASM({
+    if (window.muffleMusic)
+      window.muffleMusic();
+  });
+#endif
+}
+
+void js_call_unmuffle_music(void) {
+#ifdef __EMSCRIPTEN__
+  EM_ASM({
+    if (window.unmuffleMusic)
+      window.unmuffleMusic();
+  });
+#endif
+}
+
 // ============================================================================
 // URL Opening (opens in new tab)
 // ============================================================================

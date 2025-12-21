@@ -371,6 +371,7 @@ fade_alpha := 0.
     intro_active = 0.
     intro_state = INTRO_STATE_NONE.
     /set_skip_crt/0.
+    /js_unmuffle_music/.
     
     // Auto-start tutorial on first play
     /check_ui_tutorial_auto_start/.

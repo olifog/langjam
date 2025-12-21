@@ -34,8 +34,8 @@ menu_scroll_x := 0.
 menu_scroll_y := 0.
 
 // Scroll speed (pixels per second) - very slow and relaxed
-MENU_SCROLL_SPEED_X := 4.
-MENU_SCROLL_SPEED_Y := 3.
+MENU_SCROLL_SPEED_X := 2.
+MENU_SCROLL_SPEED_Y := 1.
 
 // Scale factor for menu dungeon tiles (2x size)
 MENU_TILE_SCALE := 2.
@@ -385,6 +385,7 @@ save_slot_names := ["Empty Slot", "Empty Slot", "Empty Slot"].
 
 #menu_start_new_game() >
     /play_sound_wrapper/SOUND_UI_START.
+    /js_muffle_music/.
     menu_active = 0.
     
     // Stop any running bot
